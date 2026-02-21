@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS Conta (
     email VARCHAR(255) UNIQUE NOT NULL,
     telefone VARCHAR(20),
     senha_hash VARCHAR(255) NOT NULL
-)
+);
 
 CREATE TABLE IF NOT EXISTS Locatario (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS Locatario (
     CONSTRAINT fk_deficiencia
         FOREIGN KEY (deficiencia_id)
         REFERENCES Deficiencia(id)
-)
+);
 
 CREATE TABLE IF NOT EXISTS Locador (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS Locador (
         FOREIGN KEY (id)
         REFERENCES Conta(id)
         ON DELETE CASCADE
-)
+);
 
 CREATE TABLE IF NOT EXISTS Deficiencia (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     descricao VARCHAR(255) NOT NULL
-)
+);
