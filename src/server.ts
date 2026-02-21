@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from "express";
 import { testConnection } from "./database/utils/connectionTest.js";
 
@@ -9,7 +11,7 @@ app.get("/", (req, res) => {
   return res.json({ message: "API online" });
 });
 
-const PORT = 3000;
+const PORT = Number(process.env.SERVER_PORT);
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
