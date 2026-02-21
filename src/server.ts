@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  return res.json({ message: "API rodando 🚀" });
+  return res.json({ message: "API online" });
 });
 
 const PORT = 3000;
