@@ -34,3 +34,34 @@ CREATE TABLE IF NOT EXISTS Locador (
         REFERENCES Conta(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS Veiculo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_locador UUID NOT NULL,
+    CONSTRAINT fk_locador
+        FOREIGN KEY (id_locador)
+        REFERENCES Locador(id),
+    placa VARCHAR(8) UNIQUE NOT NULL,
+    marca VARCHAR(255) NOT NULL,
+    modelo VARCHAR(255) NOT NULL,
+    ano SMALLINT NOT NULL CHECK (ano BETWEEN 1900 AND 2100),
+    cambio VARCHAR(255) NOT NULL,
+    capacidade SMALLINT NOT NULL CHECK (capacidade > 0),
+    status VARCHAR(255) NOT NULL,
+    eletrico BOOLEAN NOT NULL,
+    adaptado BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Garagem (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_locador UUID NOT NULL,
+    CONSTRAINT fk_locador
+        FOREIGN KEY (id_locador)
+        REFERENCES Locador(id),
+    nome VARCHAR(255) NOT NULL,
+    endereco VARCHAR(255) NOT NULL,
+    capacidade SMALLINT NOT NULL CHECK (capacidade > 0),
+    veiculos_alocados SMALLINT NOT NULL,
+    acessibilidade BOOLEAN NOT NULL DEFAULT TRUE
+);
+
