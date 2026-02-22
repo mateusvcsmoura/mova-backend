@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS Veiculo (
     id_locador UUID NOT NULL,
     CONSTRAINT fk_locador
         FOREIGN KEY (id_locador)
-        REFERENCES Locador(id),
+        REFERENCES Locador(id)
+        ON DELETE CASCADE,
     placa VARCHAR(8) UNIQUE NOT NULL,
     marca VARCHAR(255) NOT NULL,
     modelo VARCHAR(255) NOT NULL,
@@ -57,7 +58,8 @@ CREATE TABLE IF NOT EXISTS Garagem (
     id_locador UUID NOT NULL,
     CONSTRAINT fk_locador
         FOREIGN KEY (id_locador)
-        REFERENCES Locador(id),
+        REFERENCES Locador(id)
+        ON DELETE CASCADE,
     nome VARCHAR(255) NOT NULL,
     endereco VARCHAR(255) NOT NULL,
     capacidade SMALLINT NOT NULL CHECK (capacidade > 0),
