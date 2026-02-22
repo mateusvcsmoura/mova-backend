@@ -4,7 +4,10 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc && cpx \"src/database/migrations/**/*.sql\" dist/database/migrations",
+    "clean": "rimraf dist",
+    "compile": "tsc",
+    "copy:migrations": "cpx \"src/database/migrations/**/*.sql\" dist/database/migrations",
+    "build": "npm run clean && npm run compile && npm run copy:migrations",
     "start": "node dist/server.js",
     "dev": "tsc --watch",
     "migrate": "node dist/database/runMigrations.js"
@@ -19,6 +22,7 @@
     "@types/pg": "^8.16.0",
     "cpx": "^1.5.0",
     "dotenv": "^17.3.1",
+    "rimraf": "^6.1.3",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   },
