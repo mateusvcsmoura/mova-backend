@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { pool } from './connection.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,17 +9,26 @@ const __dirname = dirname(__filename);
 
 async function run() {
   try {
-    const sql = readFileSync(
-      path.resolve(__dirname, 'migrations/001_create_tables.sql'),
-      'utf-8'
-    );
+    const migrationsPath = path.resolve(__dirname, 'migrations');
 
-    await pool.query(sql);
+    const files = readdirSync(migrationsPath)
+      .filter(file => file.endsWith('.sql'))
+      .sort(); // ordena para rodar por numero
 
-    console.log('Migration executada com sucesso');
+    for (const file of files) {
+      const sql = readFileSync(
+        path.join(migrationsPath, file),
+        'utf-8'
+      );
+
+      console.log(`Executando: ${file}`);
+      await pool.query(sql);
+    }
+
+    console.log('Todas migrations executadas com sucesso');
     process.exit(0);
   } catch (error) {
-    console.error('Erro na migration:', error);
+    console.error('Erro nas migrations:', error);
     process.exit(1);
   }
 }
