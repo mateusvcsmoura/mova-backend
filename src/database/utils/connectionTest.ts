@@ -1,4 +1,4 @@
-import { pool } from '../connection.js';
+import { pool } from '../pool.js';
 
 export async function testConnection() {
   try {

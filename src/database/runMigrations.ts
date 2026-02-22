@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'fs';
-import { pool } from './connection.js';
+import { pool } from './pool.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
