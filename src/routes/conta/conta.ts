@@ -1,12 +1,10 @@
 import { Router } from "express";
-import { ContaRepository } from "../../repositories/conta.repository.js";
+import { contaController } from "../container.js";
 
 const contaRouter = Router();
-const contaRepository = new ContaRepository();
 
-contaRouter.get("/all", async (req, res) => {
-  const result = await contaRepository.findAll();
-  return res.json({ result });
-});
+contaRouter.get("/all", contaController.index);
+contaRouter.get("/", contaController.findByEmail);
+contaRouter.get("/:id", contaController.findById);
 
 export { contaRouter };
