@@ -5,6 +5,7 @@ import { testConnection } from "./database/utils/connectionTest.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { basicRouter } from "./routes/basic/basic.js";
 import { contaRouter } from "./routes/conta/conta.js";
+import { deficienciaRouter } from "./routes/deficiencia/deficiencia.js";
 
 const PORT = Number(process.env.SERVER_PORT);
 const app = express();
@@ -14,6 +15,7 @@ app.use(errorHandler);
 
 app.use("/basic", basicRouter);
 app.use("/conta", contaRouter);
+app.use("/deficiencia", deficienciaRouter);
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
