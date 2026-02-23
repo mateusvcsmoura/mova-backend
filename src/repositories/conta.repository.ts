@@ -16,7 +16,7 @@ export class ContaRepository {
 
   async findByEmail(email: string): Promise<ContaResponse | null> {
     const result = await pool.query(
-      "SELECT * FROM public.conta WHERE email = $1",
+      "SELECT id, nome, email, telefone, criada_em FROM public.conta WHERE email = $1",
       [email],
     );
 
@@ -25,7 +25,7 @@ export class ContaRepository {
 
   async findById(id: string): Promise<ContaResponse | null> {
     const result = await pool.query(
-      "SELECT * FROM public.conta WHERE id = $1",
+      "SELECT id, nome, email, telefone, criada_em FROM public.conta WHERE id = $1",
       [id],
     );
 
@@ -37,7 +37,7 @@ export class ContaRepository {
       `INSERT INTO public.conta
                 (nome, email, telefone, senha_hash)
                 VALUES ($1, $2, $3, $4)
-                RETURNING *`,
+                RETURNING id, nome, email, telefone, criada_em`,
       [data.nome, data.email, data.telefone ?? null, data.senha],
     );
 
@@ -50,7 +50,7 @@ export class ContaRepository {
      SET nome = COALESCE($1, nome),
          telefone = COALESCE($2, telefone)
      WHERE id = $3
-     RETURNING *`,
+     RETURNING id, nome, email, telefone, criada_em`,
       [data.nome ?? null, data.telefone ?? null, id],
     );
 
