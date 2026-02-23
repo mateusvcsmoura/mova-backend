@@ -11,11 +11,12 @@ const PORT = Number(process.env.SERVER_PORT);
 const app = express();
 
 app.use(express.json());
-app.use(errorHandler);
 
-app.use("/basic", basicRouter);
-app.use("/conta", contaRouter);
-app.use("/deficiencia", deficienciaRouter);
+app.use("/api/basic", basicRouter);
+app.use("/api/conta", contaRouter);
+app.use("/api/deficiencia", deficienciaRouter);
+
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
