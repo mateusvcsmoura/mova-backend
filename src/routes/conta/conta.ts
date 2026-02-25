@@ -7,5 +7,6 @@ contaRouter.get("/all", contaController.index);
 contaRouter.get("/", contaController.findByEmail);
 contaRouter.get("/:id", contaController.findById);
 contaRouter.post("/create", contaController.create);
+contaRouter.put("/update/:id", contaController.update);
 
 export { contaRouter };
