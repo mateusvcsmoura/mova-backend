@@ -102,4 +102,21 @@ export class ContaController {
       next(error);
     }
   };
+
+  delete: Handler = async (req, res, next: NextFunction) => {
+    if (!req.params) throw new HttpError(400, "Parâmetros ausentes");
+
+    try {
+      const { id } = req.params;
+      if (!id || typeof id !== "string") {
+        throw new HttpError(400, "ID inválido ou não informado");
+      }
+
+      await this.contaService.delete(id);
+
+      return res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
