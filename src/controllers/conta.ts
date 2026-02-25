@@ -49,4 +49,34 @@ export class ContaController {
       next(error);
     }
   };
+
+  create: Handler = async (req, res, next: NextFunction) => {
+    if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
+
+    try {
+      const { nome, email, telefone, senha } = req.body;
+
+      if (
+        !email ||
+        typeof email !== "string" ||
+        !senha ||
+        typeof senha !== "string" || 
+        !nome ||
+        typeof nome !== "string"
+      ) {
+        throw new HttpError(400, "Email inválido ou não informado");
+      }
+
+      const conta = await this.contaService.create({
+        nome,
+        email,
+        telefone,
+        senha,
+      });
+
+      return res.status(201).json({ result: conta });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

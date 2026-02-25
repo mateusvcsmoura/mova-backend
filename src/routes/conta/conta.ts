@@ -6,5 +6,6 @@ const contaRouter = Router();
 contaRouter.get("/all", contaController.index);
 contaRouter.get("/", contaController.findByEmail);
 contaRouter.get("/:id", contaController.findById);
+contaRouter.post("/create", contaController.create);
 
 export { contaRouter };
