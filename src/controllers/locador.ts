@@ -1,15 +1,16 @@
 import { LocadorService } from "../services/locador.js";
 import { Handler, NextFunction } from "express";
 import { HttpError } from "../errors/HttpError.js";
+import { createLocadorSchema } from "../schemas/locador.schema.js";
 
 export class LocadorController {
   constructor(private readonly locadorService: LocadorService) {}
 
   index: Handler = async (req, res, next: NextFunction) => {
     try {
-      const contas = await this.locadorService.findAll();
+      const locadores = await this.locadorService.findAll();
 
-      return res.status(200).json({ result: contas });
+      return res.status(200).json({ result: locadores });
     } catch (error) {
       next(error);
     }
@@ -18,41 +19,92 @@ export class LocadorController {
   findById: Handler = async (req, res, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const conta = await this.locadorService.findById(Number(id));
+      if (id && typeof id !== "string") {
+        throw new HttpError(400, "ID deve ser uma string");
+      }
 
-      return res.status(200).json({ result: conta });
+      const locador = await this.locadorService.findById(id);
+
+      return res.status(200).json({ result: locador });
     } catch (error) {
       next(error);
     }
   };
 
-  findByCnpj: Handler = async (req, res, next: NextFunction) => {
-    try {
-      const { cnpj } = req.params;
+  findByCnpjOrEmpresa: Handler = async (req, res, next: NextFunction) => {
+    const { cnpj, empresa } = req.query;
 
-      if (cnpj && typeof cnpj !== "string") {
-        throw new HttpError(400, "CNPJ deve ser uma string");
+    try {
+      if (cnpj && typeof cnpj === "string") {
+        const locador = await this.locadorService.findByCnpj(cnpj);
+        return res.status(200).json({ result: locador });
       }
 
-      const conta = await this.locadorService.findByCnpj(cnpj);
+      if (empresa && typeof empresa === "string") {
+        const locadores = await this.locadorService.findByEmpresa(empresa);
+        return res.status(200).json({ result: locadores });
+      }
 
-      return res.status(200).json({ result: conta });
+      const locadores = await this.locadorService.findAll();
+      return res.status(200).json({ result: locadores });
     } catch (error) {
       next(error);
     }
   };
 
-  findByNome: Handler = async (req, res, next: NextFunction) => {
+  create: Handler = async (req, res, next: NextFunction) => {
     try {
-      const { nome } = req.params;
+      const result = createLocadorSchema.safeParse(req.body);
 
-      if (nome && typeof nome !== "string") {
-        throw new HttpError(400, "Nome deve ser uma string");
+      if (!result.success) {
+        return res.status(400).json({
+          errors: result.error.format(),
+        });
       }
 
-      const conta = await this.locadorService.findByName(nome);
+      const data = result.data;
+      const locador = await this.locadorService.create(data);
 
-      return res.status(200).json({ result: conta });
+      return res.status(201).json({ result: locador });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update: Handler = async (req, res, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      if (id && typeof id !== "string") {
+        throw new HttpError(400, "ID deve ser uma string");
+      }
+
+      const result = createLocadorSchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({
+          errors: result.error.format(),
+        });
+      }
+
+      const data = result.data;
+      const locador = await this.locadorService.update(id, data);
+
+      return res.status(200).json({ result: locador });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  delete: Handler = async (req, res, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      if (id && typeof id !== "string") {
+        throw new HttpError(400, "ID deve ser uma string");
+      }
+
+      await this.locadorService.delete(id);
+
+      return res.status(204).send();
     } catch (error) {
       next(error);
     }
