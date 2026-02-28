@@ -1,4 +1,5 @@
 import { pool } from "../database/pool.js";
+import { HttpError } from "../errors/HttpError.js";
 import {
   CreateLocatarioRequest,
   LocatarioResponse,
@@ -74,7 +75,7 @@ export class LocatarioRepository {
     }
 
     if (fields.length === 0) {
-      throw new Error("Nenhum campo enviado para atualização.");
+      throw new HttpError(400, "Nenhum campo enviado para atualização.");
     }
 
     const query = `
