@@ -11,15 +11,30 @@ export class LocatarioService {
   };
 
   findById = async (id: string) => {
-    return await this.locatarioRepository.findById(id);
+    const locatario = await this.locatarioRepository.findById(id);
+
+    if (!locatario) {
+      throw new HttpError(404, "Locatário não encontrado");
+    }
+    return locatario;
   };
 
   findByCpf = async (cpf: string) => {
-    return await this.locatarioRepository.findByCpf(cpf);
+    const locatario = await this.locatarioRepository.findByCpf(cpf);
+
+    if (!locatario) {
+      throw new HttpError(404, "Locatário não encontrado");
+    }
+    return locatario;
   };
 
   findByCnh = async (cnh: string) => {
-    return await this.locatarioRepository.findByCnh(cnh);
+    const locatario = await this.locatarioRepository.findByCnh(cnh);
+
+    if (!locatario) {
+      throw new HttpError(404, "Locatário não encontrado");
+    }
+    return locatario;
   };
 
   create = async (data: CreateLocatarioRequest) => {
