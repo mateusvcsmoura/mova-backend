@@ -7,6 +7,7 @@ import { basicRouter } from "./routes/basic/basic.js";
 import { contaRouter } from "./routes/conta/conta.js";
 import { deficienciaRouter } from "./routes/deficiencia/deficiencia.js";
 import { locadorRouter } from "./routes/locador/locador.js";
+import { locatarioRouter } from "./routes/locatario/locatario.js";
 
 const PORT = Number(process.env.SERVER_PORT);
 const app = express();
@@ -17,6 +18,7 @@ app.use("/api/basic", basicRouter);
 app.use("/api/conta", contaRouter);
 app.use("/api/deficiencia", deficienciaRouter);
 app.use("/api/locador", locadorRouter);
+app.use("/api/locatario", locatarioRouter);
 
 app.use(errorHandler);
 
