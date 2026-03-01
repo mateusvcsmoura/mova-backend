@@ -1,10 +1,13 @@
 import { ContaController } from "../controllers/conta.js";
+import { DeficienciaController } from "../controllers/deficiencia.js";
 import { LocadorController } from "../controllers/locador.js";
 import { LocatarioController } from "../controllers/locatario.js";
 import { ContaRepository } from "../repositories/conta.repository.js";
+import { DeficienciaRepository } from "../repositories/deficiencia.repository.js";
 import { LocadorRepository } from "../repositories/locador.repository.js";
 import { LocatarioRepository } from "../repositories/locatario.repository.js";
 import { ContaService } from "../services/conta.js";
+import { DeficienciaService } from "../services/deficiencia.js";
 import { LocadorService } from "../services/locador.js";
 import { LocatarioService } from "../services/locatario.js";
 
@@ -19,3 +22,8 @@ export const locadorController = new LocadorController(locadorService);
 export const locatarioRepository = new LocatarioRepository();
 export const locatarioService = new LocatarioService(locatarioRepository);
 export const locatarioController = new LocatarioController(locatarioService);
+
+export const deficienciaRepository = new DeficienciaRepository();
+export const deficienciaService = new DeficienciaService(deficienciaRepository);
+export const deficienciaController = new DeficienciaController(deficienciaService);
+

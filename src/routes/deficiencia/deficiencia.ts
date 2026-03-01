@@ -1,20 +1,14 @@
 import { Router } from "express";
 import { DeficienciaRepository } from "../../repositories/deficiencia.repository.js";
+import { deficienciaController } from "../container.js";
 
 const deficienciaRouter = Router();
-const deficienciaRepository = new DeficienciaRepository();
 
-deficienciaRouter.get("/all", async (req, res) => {
-  const result = await deficienciaRepository.findAll();
-
-  return res.json({ result });
-});
-
-deficienciaRouter.post("/create", async (req, res) => {
-  const { descricao } = req.body;
-  const result = await deficienciaRepository.create({ descricao });
-
-  return res.json({ result });
-});
+deficienciaRouter.get("/all", deficienciaController.index);
+deficienciaRouter.get("/search", deficienciaController.findByDescription);
+deficienciaRouter.post("/", deficienciaController.create);
+deficienciaRouter.get("/:id", deficienciaController.findById);
+deficienciaRouter.put("/:id", deficienciaController.update);
+deficienciaRouter.delete("/:id", deficienciaController.delete);
 
 export { deficienciaRouter };
