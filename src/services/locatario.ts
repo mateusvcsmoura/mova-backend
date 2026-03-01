@@ -1,4 +1,4 @@
-import { CreateLocatarioRequest } from "./../repositories/contracts/locatario.contract";
+import { CreateLocatarioRequest } from "./../repositories/contracts/locatario.contract.js";
 import { LocatarioRepository } from "../repositories/locatario.repository.js";
 import { HttpError } from "../errors/HttpError.js";
 import { UpdateLocatarioRequest } from "../repositories/contracts/locatario.contract.js";
