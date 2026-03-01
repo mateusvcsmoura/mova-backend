@@ -55,4 +55,8 @@ export class DeficienciaRepository {
 
     return result.rows[0] || null;
   }
+
+  async delete(id: string) {
+    await pool.query("DELETE FROM public.deficiencia WHERE id = $1", [id]);
+  }
 }
