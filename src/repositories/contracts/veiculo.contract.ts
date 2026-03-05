@@ -1,3 +1,10 @@
+enum VeiculoStatus {
+  DISPONIVEL = "disponivel",
+  RESERVADO = "reservado",
+  MANUTENCAO = "manutencao",
+  INATIVO = "inativo",
+}
+
 export interface CreateVeiculoRequest {
   id_locador: string;
   placa: string;
@@ -6,7 +13,7 @@ export interface CreateVeiculoRequest {
   ano: number;
   cambio: string;
   capacidade: number;
-  status: string;
+  status?: VeiculoStatus;
   eletrico: boolean;
   adaptado: boolean;
 }
@@ -18,7 +25,7 @@ export interface UpdateVeiculoRequest {
   ano?: number;
   cambio?: string;
   capacidade?: number;
-  status?: string;
+  status?: VeiculoStatus;
   eletrico?: boolean;
   adaptado?: boolean;
 }
@@ -32,7 +39,7 @@ export interface VeiculoResponse {
   ano: number;
   cambio: string;
   capacidade: number;
-  status: string;
+  status: VeiculoStatus;
   eletrico: boolean;
   adaptado: boolean;
   criado_em: string;
