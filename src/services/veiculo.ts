@@ -2,6 +2,7 @@ import { HttpError } from "../errors/HttpError.js";
 import {
   CreateVeiculoRequest,
   UpdateVeiculoRequest,
+  VeiculoFilters,
   VeiculoStatus,
 } from "../repositories/contracts/veiculo.contract.js";
 import { VeiculoRepository } from "../repositories/veiculo.repository.js";
@@ -130,6 +131,10 @@ export class VeiculoService {
     }
 
     return veiculos;
+  }
+
+  async search(filters: VeiculoFilters) {
+    return this.veiculoRepository.search(filters);
   }
 
   async create(data: CreateVeiculoRequest) {
