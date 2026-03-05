@@ -1,5 +1,10 @@
 import { pool } from "../database/pool.js";
-import { VeiculoResponse } from "./contracts/veiculo.contract.js";
+import { HttpError } from "../errors/HttpError.js";
+import {
+  CreateVeiculoRequest,
+  UpdateVeiculoRequest,
+  VeiculoResponse,
+} from "./contracts/veiculo.contract.js";
 
 export class VeiculoRepository {
   async findAll(): Promise<VeiculoResponse[]> {
@@ -105,5 +110,65 @@ export class VeiculoRepository {
     );
 
     return result.rows;
+  }
+
+  async create(data: CreateVeiculoRequest): Promise<VeiculoResponse> {
+    const result = await pool.query(
+      `INSERT INTO public.veiculo (id_locador, placa, marca, modelo, ano, cambio, capacidade, status, eletrico, adaptado)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        data.id_locador,
+        data.placa,
+        data.marca,
+        data.modelo,
+        data.ano,
+        data.cambio,
+        data.capacidade,
+        data.status,
+        data.eletrico,
+        data.adaptado,
+      ],
+    );
+
+    return result.rows[0];
+  }
+
+  async update(
+    id: string,
+    data: UpdateVeiculoRequest,
+  ): Promise<VeiculoResponse> {
+    const fields = Object.entries(data).filter(
+      ([_, value]) => value !== undefined,
+    );
+
+    if (fields.length === 0) {
+      throw new HttpError(400, "Nenhum campo informado para atualização.");
+    }
+
+    const setClause = fields
+      .map(([key], index) => `${key} = $${index + 1}`)
+      .join(", ");
+
+    const values = fields.map(([_, value]) => value);
+
+    const query = `
+    UPDATE public.veiculo
+    SET ${setClause}
+    WHERE id = $${fields.length + 1}
+    RETURNING *
+  `;
+
+    const result = await pool.query(query, [...values, id]);
+
+    if (result.rowCount === 0) {
+      throw new HttpError(404, "Veículo não encontrado.");
+    }
+
+    return result.rows[0];
+  }
+
+  async delete(id: string): Promise<void> {
+    await pool.query("DELETE FROM public.veiculo WHERE id = $1", [id]);
   }
 }
