@@ -1,4 +1,4 @@
-enum VeiculoStatus {
+export enum VeiculoStatus {
   DISPONIVEL = "disponivel",
   RESERVADO = "reservado",
   MANUTENCAO = "manutencao",
