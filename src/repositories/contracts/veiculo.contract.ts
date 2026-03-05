@@ -5,6 +5,18 @@ export enum VeiculoStatus {
   INATIVO = "inativo",
 }
 
+export interface VeiculoFilters {
+  placa?: string;
+  marca?: string;
+  modelo?: string;
+  ano?: number;
+  cambio?: string;
+  capacidade?: number;
+  status?: VeiculoStatus;
+  eletrico?: boolean;
+  adaptado?: boolean;
+}
+
 export interface CreateVeiculoRequest {
   id_locador: string;
   placa: string;
