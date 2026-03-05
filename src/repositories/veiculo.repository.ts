@@ -3,6 +3,7 @@ import { HttpError } from "../errors/HttpError.js";
 import {
   CreateVeiculoRequest,
   UpdateVeiculoRequest,
+  VeiculoFilters,
   VeiculoResponse,
 } from "./contracts/veiculo.contract.js";
 
@@ -108,6 +109,32 @@ export class VeiculoRepository {
       "SELECT * FROM public.veiculo WHERE adaptado = $1",
       [adaptado],
     );
+
+    return result.rows;
+  }
+
+  async search(filters: VeiculoFilters): Promise<VeiculoResponse[]> {
+    const entries = Object.entries(filters).filter(
+      ([_, value]) => value !== undefined,
+    );
+
+    if (entries.length === 0) {
+      const result = await pool.query("SELECT * FROM public.veiculo");
+      return result.rows;
+    }
+
+    const whereClause = entries
+      .map(([key], index) => `${key} = $${index + 1}`)
+      .join(" AND ");
+
+    const values = entries.map(([_, value]) => value);
+
+    const query = `
+    SELECT * FROM public.veiculo
+    WHERE ${whereClause}
+  `;
+
+    const result = await pool.query(query, values);
 
     return result.rows;
   }
