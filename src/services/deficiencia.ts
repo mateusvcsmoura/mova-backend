@@ -16,7 +16,7 @@ export class DeficienciaService {
     const deficiencia = await this.deficienciaRepository.findById(id);
 
     if (!deficiencia) {
-      throw new Error("Deficiência não encontrada");
+      throw new HttpError(404, "Deficiência não encontrada");
     }
 
     return deficiencia;
@@ -27,7 +27,7 @@ export class DeficienciaService {
       await this.deficienciaRepository.findByDescription(description);
 
     if (!deficiencia) {
-      throw new Error("Deficiência não encontrada");
+      throw new HttpError(404, "Deficiência não encontrada");
     }
 
     return deficiencia;
