@@ -1,4 +1,68 @@
-# Rode esses comandos para setar o banco no começo
+# Mova Backend
 
-- CREATE DATABASE mova_backend;
-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+API backend em Node.js + TypeScript para gerenciamento de contas, locadores, locatários, veículos e deficiências.
+
+## Stack
+
+- Node.js
+- TypeScript
+- Express
+- Prisma ORM
+
+## Estrutura do projeto
+
+Arquitetura em camadas:
+
+- `routes/`: definição das rotas HTTP
+- `controllers/`: entrada das requisições
+- `services/`: regras de negócio
+- `repositories/`: acesso a dados
+- `schemas/`: validações
+- `prisma/`: schema e configuração de banco
+
+## Pré-requisitos
+
+- Node.js 18+
+- PostgreSQL
+
+## Configuração inicial
+
+1. Instale as dependências:
+
+```bash
+npm install
+```
+
+2. Crie o arquivo `.env` com base no `.env.example`.
+
+3. Gere o build do projeto:
+
+```bash
+npm run build
+```
+
+4. Inicie a API:
+
+```bash
+npm start
+```
+
+## Scripts
+
+- `npm run build`: compila o projeto TypeScript
+- `npm run start`: inicia a API compilada
+
+## Rotas principais
+
+Base URL local: `http://localhost:<SERVER_PORT>/api`
+
+- `GET /basic/status`
+- `GET /conta/all`
+- `GET /locador/all`
+- `GET /locatario/all`
+- `GET /veiculo/all`
+- `GET /deficiencia/all`
+
+## Observações
+
+- A versão da API é exposta via middleware (`v1.0.0`).
