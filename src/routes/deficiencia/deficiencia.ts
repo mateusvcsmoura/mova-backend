@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { DeficienciaRepository } from "../../repositories/deficiencia.repository.js";
 import { deficienciaController } from "../container.js";
 
 const deficienciaRouter = Router();

@@ -4,10 +4,11 @@ import { LocadorController } from "../controllers/locador.js";
 import { LocatarioController } from "../controllers/locatario.js";
 import { VeiculoController } from "../controllers/veiculo.js";
 import { IContaRepository } from "../repositories/conta.repository.js";
-import { DeficienciaRepository } from "../repositories/deficiencia.repository.js";
+import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
 import { LocadorRepository } from "../repositories/locador.repository.js";
 import { LocatarioRepository } from "../repositories/locatario.repository.js";
 import { PrismaContaRepository } from "../repositories/prisma/prisma.conta.repository.js";
+import { PrismaDeficienciaRepository } from "../repositories/prisma/prisma.deficiencia.repository.js";
 import { VeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ContaService } from "../services/conta.js";
 import { DeficienciaService } from "../services/deficiencia.js";
@@ -27,11 +28,9 @@ export const locatarioRepository = new LocatarioRepository();
 export const locatarioService = new LocatarioService(locatarioRepository);
 export const locatarioController = new LocatarioController(locatarioService);
 
-export const deficienciaRepository = new DeficienciaRepository();
+export const deficienciaRepository: IDeficienciaRepository = new PrismaDeficienciaRepository();
 export const deficienciaService = new DeficienciaService(deficienciaRepository);
-export const deficienciaController = new DeficienciaController(
-  deficienciaService,
-);
+export const deficienciaController = new DeficienciaController(deficienciaService);
 
 export const veiculoRepository = new VeiculoRepository();
 export const veiculoService = new VeiculoService(veiculoRepository);

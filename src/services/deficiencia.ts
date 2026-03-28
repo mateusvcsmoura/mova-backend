@@ -3,10 +3,10 @@ import {
   CreateDeficienciaRequest,
   UpdateDeficienciaRequest,
 } from "../repositories/contracts/deficiencia.contract.js";
-import { DeficienciaRepository } from "../repositories/deficiencia.repository.js";
+import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
 
 export class DeficienciaService {
-  constructor(private readonly deficienciaRepository: DeficienciaRepository) {}
+  constructor(private readonly deficienciaRepository: IDeficienciaRepository) {}
 
   async findAll() {
     return await this.deficienciaRepository.findAll();
