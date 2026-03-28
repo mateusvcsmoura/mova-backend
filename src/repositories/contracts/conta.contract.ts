@@ -16,6 +16,6 @@ export interface ContaResponse {
   id: string;
   nome: string;
   email: string;
-  telefone?: string;
-  criada_em: Date;
+  telefone: string | null;
+  criadaEm: Date;
 }

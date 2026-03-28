@@ -1,12 +1,12 @@
 import { HttpError } from "../errors/HttpError.js";
-import { ContaRepository } from "../repositories/conta.repository.js";
+import { IContaRepository } from "../repositories/conta.repository.js";
 import {
   CreateContaRequest,
   UpdateContaRequest,
 } from "../repositories/contracts/conta.contract.js";
 
 export class ContaService {
-  constructor(private readonly contaRepository: ContaRepository) {}
+  constructor(private contaRepository: IContaRepository) {}
 
   findAll = async () => {
     return await this.contaRepository.findAll();

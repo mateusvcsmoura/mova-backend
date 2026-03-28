@@ -6,9 +6,8 @@
   "scripts": {
     "clean": "rimraf dist",
     "compile": "tsc",
-    "copy:migrations": "cpx \"src/database/migrations/**/*.sql\" dist/database/migrations",
-    "build": "npm run clean && npm run compile && npm run copy:migrations",
-    "start": "node dist/server.js",
+    "build": "npm run clean && npm run compile",
+    "start": "node dist/src/server.js",
     "dev": "tsc --watch",
     "migrate": "node dist/database/runMigrations.js"
   },
