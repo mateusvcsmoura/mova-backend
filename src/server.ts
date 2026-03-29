@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
-import { testConnection } from "./database/utils/connectionTest.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { basicRouter } from "./routes/basic/basic.js";
 import { contaRouter } from "./routes/conta/conta.js";
@@ -29,5 +28,4 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
-  testConnection();
 });
