@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { VeiculoStatus } from "../repositories/contracts/veiculo.contract.js";
+import { StatusVeiculo } from "@prisma/client";
 
-export const veiculoStatusSchema = z.nativeEnum(VeiculoStatus);
+export const veiculoStatusSchema = z.nativeEnum(StatusVeiculo);
 
 export const createVeiculoSchema = z.object({
-  id_locador: z.string().uuid(),
+  idLocador: z.string().uuid(),
 
   placa: z
     .string()
@@ -21,12 +21,12 @@ export const createVeiculoSchema = z.object({
 
   capacidade: z.number().int().positive(),
 
-  status: veiculoStatusSchema.default(VeiculoStatus.DISPONIVEL),
+  status: z.nativeEnum(StatusVeiculo).default(StatusVeiculo.DISPONIVEL),
 
   eletrico: z.boolean(),
   adaptado: z.boolean(),
 });
 
 export const updateVeiculoSchema = createVeiculoSchema
-  .omit({ id_locador: true }) // não pode alterar dono
+  .omit({ idLocador: true }) // não pode alterar dono
   .partial();

@@ -1,14 +1,14 @@
+import { StatusVeiculo } from "@prisma/client";
 import { HttpError } from "../errors/HttpError.js";
 import {
   CreateVeiculoRequest,
   UpdateVeiculoRequest,
   VeiculoFilters,
-  VeiculoStatus,
 } from "../repositories/contracts/veiculo.contract.js";
-import { VeiculoRepository } from "../repositories/veiculo.repository.js";
+import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 
 export class VeiculoService {
-  constructor(private veiculoRepository: VeiculoRepository) {}
+  constructor(private veiculoRepository: IVeiculoRepository) {}
 
   findAll = async () => {
     return await this.veiculoRepository.findAll();
@@ -44,95 +44,6 @@ export class VeiculoService {
     return veiculo;
   };
 
-  async findByMarca(marca: string) {
-    const veiculos = await this.veiculoRepository.findByMarca(marca);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(404, "Nenhum veículo encontrado para esta marca");
-    }
-
-    return veiculos;
-  }
-
-  async findByModelo(modelo: string) {
-    const veiculos = await this.veiculoRepository.findByModelo(modelo);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(404, "Nenhum veículo encontrado para este modelo");
-    }
-
-    return veiculos;
-  }
-
-  async findByAno(ano: number) {
-    const veiculos = await this.veiculoRepository.findByAno(ano);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(404, "Nenhum veículo encontrado para este ano");
-    }
-
-    return veiculos;
-  }
-
-  async findByCambio(cambio: string) {
-    const veiculos = await this.veiculoRepository.findByCambio(cambio);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(404, "Nenhum veículo encontrado para este câmbio");
-    }
-
-    return veiculos;
-  }
-
-  async findByCapacidade(capacidade: number) {
-    const veiculos = await this.veiculoRepository.findByCapacidade(capacidade);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(
-        404,
-        "Nenhum veículo encontrado para esta capacidade",
-      );
-    }
-
-    return veiculos;
-  }
-
-  async findByStatus(status: string) {
-    const veiculos = await this.veiculoRepository.findByStatus(status);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(404, "Nenhum veículo encontrado para este status");
-    }
-
-    return veiculos;
-  }
-
-  async findByEletrico(eletrico: boolean) {
-    const veiculos = await this.veiculoRepository.findByEletrico(eletrico);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(
-        404,
-        "Nenhum veículo encontrado para esta característica",
-      );
-    }
-
-    return veiculos;
-  }
-
-  async findByAdaptado(adaptado: boolean) {
-    const veiculos = await this.veiculoRepository.findByAdaptado(adaptado);
-
-    if (!veiculos || veiculos.length === 0) {
-      throw new HttpError(
-        404,
-        "Nenhum veículo encontrado para esta característica",
-      );
-    }
-
-    return veiculos;
-  }
-
   async search(filters: VeiculoFilters) {
     return this.veiculoRepository.search(filters);
   }
@@ -148,7 +59,7 @@ export class VeiculoService {
 
     return this.veiculoRepository.create({
       ...data,
-      status: data.status ?? VeiculoStatus.DISPONIVEL,
+      status: data.status ?? StatusVeiculo.DISPONIVEL,
     });
   }
 

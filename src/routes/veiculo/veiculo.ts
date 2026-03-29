@@ -5,7 +5,7 @@ const veiculoRouter = Router();
 
 veiculoRouter.get("/all", veiculoController.index);
 veiculoRouter.get("/search", veiculoController.search);
-veiculoRouter.get("/locador/:id", veiculoController.findByLocadorId);
+veiculoRouter.get("/locador/:id_locador", veiculoController.findByLocadorId);
 veiculoRouter.get("/:id", veiculoController.findById);
 veiculoRouter.post("/", veiculoController.create);
 veiculoRouter.put("/:id", veiculoController.update);

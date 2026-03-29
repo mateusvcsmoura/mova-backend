@@ -1,31 +1,27 @@
-export enum VeiculoStatus {
-  DISPONIVEL = "disponivel",
-  RESERVADO = "reservado",
-  MANUTENCAO = "manutencao",
-  INATIVO = "inativo",
-}
+import { StatusVeiculo } from "@prisma/client";
 
 export interface VeiculoFilters {
   placa?: string;
+  idLocador?: string;
   marca?: string;
   modelo?: string;
   ano?: number;
   cambio?: string;
   capacidade?: number;
-  status?: VeiculoStatus;
+  status?: StatusVeiculo;
   eletrico?: boolean;
   adaptado?: boolean;
 }
 
 export interface CreateVeiculoRequest {
-  id_locador: string;
+  idLocador: string;
   placa: string;
   marca: string;
   modelo: string;
   ano: number;
   cambio: string;
   capacidade: number;
-  status?: VeiculoStatus;
+  status?: StatusVeiculo;
   eletrico: boolean;
   adaptado: boolean;
 }
@@ -37,22 +33,22 @@ export interface UpdateVeiculoRequest {
   ano?: number;
   cambio?: string;
   capacidade?: number;
-  status?: VeiculoStatus;
+  status?: StatusVeiculo;
   eletrico?: boolean;
   adaptado?: boolean;
 }
 
 export interface VeiculoResponse {
   id: string;
-  id_locador: string;
+  idLocador: string;
   placa: string;
   marca: string;
   modelo: string;
   ano: number;
   cambio: string;
   capacidade: number;
-  status: VeiculoStatus;
+  status: StatusVeiculo;
   eletrico: boolean;
   adaptado: boolean;
-  criado_em: string;
+  criadoEm: Date;
 }

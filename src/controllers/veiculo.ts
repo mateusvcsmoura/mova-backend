@@ -1,11 +1,11 @@
 import { Handler } from "express";
 import { VeiculoService } from "../services/veiculo.js";
 import { HttpError } from "../errors/HttpError.js";
-import { VeiculoStatus } from "../repositories/contracts/veiculo.contract.js";
 import {
   createVeiculoSchema,
   updateVeiculoSchema,
 } from "../schemas/veiculo.schema.js";
+import { StatusVeiculo } from "@prisma/client";
 
 export class VeiculoController {
   constructor(private veiculoService: VeiculoService) {}
@@ -69,7 +69,7 @@ export class VeiculoController {
         capacidade: req.query.capacidade
           ? Number(req.query.capacidade)
           : undefined,
-        status: req.query.status as VeiculoStatus | undefined,
+        status: req.query.status as StatusVeiculo | undefined,
         eletrico: req.query.eletrico
           ? req.query.eletrico === "true"
           : undefined,

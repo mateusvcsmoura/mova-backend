@@ -11,7 +11,8 @@ import { PrismaContaRepository } from "../repositories/prisma/prisma.conta.repos
 import { PrismaDeficienciaRepository } from "../repositories/prisma/prisma.deficiencia.repository.js";
 import { PrismaLocadorRepository } from "../repositories/prisma/prisma.locador.repository.js";
 import { PrismaLocatarioRepository } from "../repositories/prisma/prisma.locatario.repository.js";
-import { VeiculoRepository } from "../repositories/veiculo.repository.js";
+import { PrismaVeiculoRepository } from "../repositories/prisma/prisma.veiculo.repository.js";
+import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ContaService } from "../services/conta.js";
 import { DeficienciaService } from "../services/deficiencia.js";
 import { LocadorService } from "../services/locador.js";
@@ -34,6 +35,6 @@ export const deficienciaRepository: IDeficienciaRepository = new PrismaDeficienc
 export const deficienciaService = new DeficienciaService(deficienciaRepository);
 export const deficienciaController = new DeficienciaController(deficienciaService);
 
-export const veiculoRepository = new VeiculoRepository();
+export const veiculoRepository: IVeiculoRepository = new PrismaVeiculoRepository();
 export const veiculoService = new VeiculoService(veiculoRepository);
 export const veiculoController = new VeiculoController(veiculoService);
