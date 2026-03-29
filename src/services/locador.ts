@@ -3,25 +3,46 @@ import {
   CreateLocadorRequest,
   UpdateLocadorRequest,
 } from "../repositories/contracts/locador.contract.js";
-import { LocadorRepository } from "../repositories/locador.repository.js";
+import { ILocadorRepository } from "../repositories/locador.repository.js";
 
 export class LocadorService {
-  constructor(private readonly locadorRepository: LocadorRepository) {}
+  constructor(private readonly locadorRepository: ILocadorRepository) {}
 
   findAll = async () => {
     return await this.locadorRepository.findAll();
   };
 
   findById = async (id: string) => {
-    return await this.locadorRepository.findById(id);
+    const locador = await this.locadorRepository.findById(id);
+
+    if (!locador) {
+      throw new HttpError(404, "Locador não encontrado");
+    }
+
+    return locador;
   };
 
   findByCnpj = async (cnpj: string) => {
-    return await this.locadorRepository.findByCnpj(cnpj);
+    const locador = await this.locadorRepository.findByCnpj(cnpj);
+
+    if (!locador) {
+      throw new HttpError(404, "Locador não encontrado");
+    }
+
+    return locador;
   };
 
   findByEmpresa = async (empresa: string) => {
-    return await this.locadorRepository.findByEmpresa(empresa);
+    const locadores = await this.locadorRepository.findByEmpresa(empresa);
+
+    if (locadores.length === 0) {
+      throw new HttpError(
+        404,
+        "Nenhum locador encontrado para a empresa especificada",
+      );
+    }
+
+    return locadores;
   };
 
   create = async (data: CreateLocadorRequest) => {
