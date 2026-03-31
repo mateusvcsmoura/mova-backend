@@ -13,11 +13,23 @@ export class ContaService {
   };
 
   findByEmail = async (email: string) => {
-    return await this.contaRepository.findByEmail(email);
+    const conta = await this.contaRepository.findByEmail(email);
+
+    if (!conta) {
+      throw new HttpError(404, "Conta não encontrada");
+    }
+
+    return conta;
   };
 
   findById = async (id: string) => {
-    return await this.contaRepository.findById(id);
+    const conta = await this.contaRepository.findById(id);
+
+    if (!conta) {
+      throw new HttpError(404, "Conta não encontrada");
+    }
+
+    return conta;
   };
 
   create = async (data: CreateContaRequest) => {

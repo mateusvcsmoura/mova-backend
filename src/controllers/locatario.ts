@@ -5,6 +5,7 @@ import {
   createLocatarioSchema,
   updateLocatarioSchema,
 } from "../schemas/locatario.schema.js";
+import { z } from "zod";
 
 export class LocatarioController {
   constructor(private readonly locatarioService: LocatarioService) {}
@@ -23,13 +24,13 @@ export class LocatarioController {
     if (!req.params) throw new HttpError(400, "Parâmetros de rota ausentes");
 
     try {
-      const { id } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id);
 
-      if (id && typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      const locatario = await this.locatarioService.findById(id);
+      const locatario = await this.locatarioService.findById(result.data);
 
       return res.status(200).json({ result: locatario });
     } catch (error) {
@@ -80,12 +81,17 @@ export class LocatarioController {
   };
 
   update: Handler = async (req, res, next: NextFunction) => {
-    try {
-      const { id } = req.params;
+    if (!req.params || !req.body)
+      throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
 
-      if (id && typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+    try {
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID inválido");
       }
+
+      const id = parsedId.data;
 
       const result = updateLocatarioSchema.safeParse(req.body);
       if (!result.success) {
@@ -105,13 +111,13 @@ export class LocatarioController {
 
   delete: Handler = async (req, res, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id);
 
-      if (id && typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      await this.locatarioService.delete(id);
+      await this.locatarioService.delete(result.data);
     } catch (error) {
       next(error);
     }

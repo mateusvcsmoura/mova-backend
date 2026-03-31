@@ -2,6 +2,7 @@ import { LocadorService } from "../services/locador.js";
 import { Handler, NextFunction } from "express";
 import { HttpError } from "../errors/HttpError.js";
 import { createLocadorSchema } from "../schemas/locador.schema.js";
+import { z } from "zod";
 
 export class LocadorController {
   constructor(private readonly locadorService: LocadorService) {}
@@ -18,12 +19,13 @@ export class LocadorController {
 
   findById: Handler = async (req, res, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      if (id && typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      const result = z.string().uuid().safeParse(req.params.id);
+
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      const locador = await this.locadorService.findById(id);
+      const locador = await this.locadorService.findById(result.data);
 
       return res.status(200).json({ result: locador });
     } catch (error) {
@@ -72,11 +74,17 @@ export class LocadorController {
   };
 
   update: Handler = async (req, res, next: NextFunction) => {
+    if (!req.params || !req.body)
+      throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
+
     try {
-      const { id } = req.params;
-      if (id && typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID inválido");
       }
+
+      const id = parsedId.data;
 
       const result = createLocadorSchema.safeParse(req.body);
 
@@ -97,12 +105,13 @@ export class LocadorController {
 
   delete: Handler = async (req, res, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      if (id && typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      const result = z.string().uuid().safeParse(req.params.id);
+
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      await this.locadorService.delete(id);
+      await this.locadorService.delete(result.data);
 
       return res.status(204).send();
     } catch (error) {

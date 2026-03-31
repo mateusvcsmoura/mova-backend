@@ -6,6 +6,7 @@ import {
   updateContaSchema,
 } from "../schemas/conta.schema.js";
 
+import { z } from "zod";
 export class ContaController {
   constructor(private readonly contaService: ContaService) {}
 
@@ -36,17 +37,15 @@ export class ContaController {
     }
   };
 
-  findById: Handler = async (req, res, next: NextFunction) => {
-    if (!req.params) throw new HttpError(400, "Parâmetros ausentes");
-
+  findById: Handler = async (req, res, next) => {
     try {
-      const { id } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id);
 
-      if (!id || typeof id !== "string") {
-        throw new HttpError(400, "ID inválido ou não informado");
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      const conta = await this.contaService.findById(id);
+      const conta = await this.contaService.findById(result.data);
 
       return res.status(200).json({ result: conta });
     } catch (error) {
@@ -80,11 +79,13 @@ export class ContaController {
       throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
 
     try {
-      const { id } = req.params;
+      const parsedId = z.string().uuid().safeParse(req.params.id);
 
-      if (!id || typeof id !== "string") {
-        throw new HttpError(400, "ID inválido ou não informado");
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID inválido");
       }
+
+      const id = parsedId.data;
 
       const result = updateContaSchema.safeParse(req.body);
 
@@ -107,12 +108,13 @@ export class ContaController {
     if (!req.params) throw new HttpError(400, "Parâmetros ausentes");
 
     try {
-      const { id } = req.params;
-      if (!id || typeof id !== "string") {
-        throw new HttpError(400, "ID inválido ou não informado");
+      const result = z.string().uuid().safeParse(req.params.id);
+
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      await this.contaService.delete(id);
+      await this.contaService.delete(result.data);
 
       return res.status(204).send();
     } catch (error) {

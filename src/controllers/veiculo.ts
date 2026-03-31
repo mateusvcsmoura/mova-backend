@@ -6,6 +6,7 @@ import {
   updateVeiculoSchema,
 } from "../schemas/veiculo.schema.js";
 import { StatusVeiculo } from "@prisma/client";
+import { z } from "zod";
 
 export class VeiculoController {
   constructor(private veiculoService: VeiculoService) {}
@@ -22,16 +23,13 @@ export class VeiculoController {
 
   findById: Handler = async (req, res, next) => {
     try {
-      const { id } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id);
 
-      if (!id || typeof id !== "string") {
-        throw new HttpError(
-          400,
-          "ID do veículo é obrigatório e deve ser uma string",
-        );
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      const veiculo = await this.veiculoService.findById(id);
+      const veiculo = await this.veiculoService.findById(result.data);
 
       return res.status(200).json({ result: veiculo });
     } catch (error) {
@@ -41,16 +39,13 @@ export class VeiculoController {
 
   findByLocadorId: Handler = async (req, res, next) => {
     try {
-      const { id_locador } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id_locador);
 
-      if (!id_locador || typeof id_locador !== "string") {
-        throw new HttpError(
-          400,
-          "ID do locador é obrigatório e deve ser uma string",
-        );
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      const veiculos = await this.veiculoService.findByLocadorId(id_locador);
+      const veiculos = await this.veiculoService.findByLocadorId(result.data);
 
       return res.status(200).json({ result: veiculos });
     } catch (error) {
@@ -107,15 +102,17 @@ export class VeiculoController {
   };
 
   update: Handler = async (req, res, next) => {
-    try {
-      const { id } = req.params;
+    if (!req.params || !req.body)
+      throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
 
-      if (!id || typeof id !== "string") {
-        throw new HttpError(
-          400,
-          "ID do veículo é obrigatório e deve ser uma string",
-        );
+    try {
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID inválido");
       }
+
+      const id = parsedId.data;
 
       const result = updateVeiculoSchema.safeParse(req.body);
 
@@ -137,16 +134,13 @@ export class VeiculoController {
 
   delete: Handler = async (req, res, next) => {
     try {
-      const { id } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id);
 
-      if (!id || typeof id !== "string") {
-        throw new HttpError(
-          400,
-          "ID do veículo é obrigatório e deve ser uma string",
-        );
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      await this.veiculoService.delete(id);
+      await this.veiculoService.delete(result.data);
 
       return res.status(204).send();
     } catch (error) {

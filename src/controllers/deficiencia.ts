@@ -2,6 +2,7 @@ import { Handler, NextFunction } from "express";
 import { DeficienciaService } from "../services/deficiencia.js";
 import { HttpError } from "../errors/HttpError.js";
 import { createDeficienciaSchema } from "../schemas/deficiencia.schema.js";
+import { z } from "zod";
 
 export class DeficienciaController {
   constructor(private readonly deficienciaService: DeficienciaService) {}
@@ -18,12 +19,13 @@ export class DeficienciaController {
 
   findById: Handler = async (req, res, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      if (typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      const result = z.string().uuid().safeParse(req.params.id);
+
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      const deficiencia = await this.deficienciaService.findById(id);
+      const deficiencia = await this.deficienciaService.findById(result.data);
 
       return res.status(200).json({ result: deficiencia });
     } catch (error) {
@@ -67,12 +69,17 @@ export class DeficienciaController {
   };
 
   update: Handler = async (req, res, next: NextFunction) => {
-    try {
-      const { id } = req.params;
+    if (!req.params || !req.body)
+      throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
 
-      if (typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+    try {
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID inválido");
       }
+
+      const id = parsedId.data;
 
       const result = createDeficienciaSchema.safeParse(req.body);
 
@@ -92,13 +99,13 @@ export class DeficienciaController {
 
   delete: Handler = async (req, res, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const result = z.string().uuid().safeParse(req.params.id);
 
-      if (typeof id !== "string") {
-        throw new HttpError(400, "ID deve ser uma string");
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
       }
 
-      await this.deficienciaService.delete(id);
+      await this.deficienciaService.delete(result.data);
 
       return res.status(204).send();
     } catch (error) {

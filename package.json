@@ -8,7 +8,7 @@
     "compile": "tsc",
     "build": "npm run clean && npm run compile",
     "start": "node dist/src/server.js",
-    "dev": "tsc --watch",
+    "dev": "tsx watch src/server.ts",
     "migrate": "node dist/database/runMigrations.js"
   },
   "keywords": [],

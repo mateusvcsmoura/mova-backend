@@ -45,7 +45,16 @@ export class VeiculoService {
   };
 
   async search(filters: VeiculoFilters) {
-    return this.veiculoRepository.search(filters);
+    const veiculos = await this.veiculoRepository.search(filters);
+
+    if (!veiculos || veiculos.length === 0) {
+      throw new HttpError(
+        404,
+        "Nenhum veículo encontrado com os filtros fornecidos",
+      );
+    }
+
+    return veiculos;
   }
 
   async create(data: CreateVeiculoRequest) {
