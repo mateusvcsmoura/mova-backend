@@ -45,6 +45,17 @@ export class PrismaContaRepository implements IContaRepository {
     });
   }
 
+  async findAuthByEmail(email: string) {
+    return prisma.conta.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        senhaHash: true,
+      },
+    });
+  }
+
   async create(data: CreateContaRequest): Promise<ContaResponse> {
     return prisma.conta.create({
       data: {
