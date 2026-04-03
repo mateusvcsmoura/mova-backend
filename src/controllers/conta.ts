@@ -133,13 +133,10 @@ export class ContaController {
   deleteAccount: Handler = async (req, res, next: NextFunction) => {
     try {
       const result = z.string().uuid().safeParse(req.user?.id);
-      console.log("User ID:", req.user?.id);
 
       if (!result.success) {
         throw new HttpError(400, "ID inválido");
       }
-
-      console.log("User ID after parsing:", result.data);
 
       await this.contaService.delete(result.data);
 
