@@ -4,6 +4,8 @@ import {
   CreateContaRequest,
   UpdateContaRequest,
 } from "../repositories/contracts/conta.contract.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export class ContaService {
   constructor(private contaRepository: IContaRepository) {}
@@ -31,6 +33,54 @@ export class ContaService {
 
     return conta;
   };
+
+  async register(data: CreateContaRequest) {
+    const contaExistente = await this.contaRepository.findByEmail(data.email);
+
+    if (contaExistente) {
+      throw new HttpError(409, "Email já em uso");
+    }
+
+    const senhaHash = await bcrypt.hash(data.senha, 10);
+
+    const conta = await this.contaRepository.create({
+      ...data,
+      senha: senhaHash,
+    });
+
+    const secret = process.env.JWT_SECRET as jwt.Secret;
+    const expiresIn =
+      (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
+
+    const token = jwt.sign({ id: conta.id }, secret, {
+      expiresIn,
+    });
+
+    return { conta, token };
+  }
+
+  async login(email: string, senha: string) {
+    const conta = await this.contaRepository.findAuthByEmail(email);
+
+    if (!conta) {
+      throw new HttpError(401, "Credenciais inválidas");
+    }
+
+    const senhaValida = await bcrypt.compare(senha, conta.senhaHash);
+
+    if (!senhaValida) {
+      throw new HttpError(401, "Credenciais inválidas");
+    }
+
+    const secret = process.env.JWT_SECRET as jwt.Secret;
+    const expiresIn = (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
+
+    const token = jwt.sign({ id: conta.id }, secret, {
+      expiresIn,
+    });
+
+    return { token };
+  }
 
   create = async (data: CreateContaRequest) => {
     const existingConta = await this.contaRepository.findByEmail(data.email);

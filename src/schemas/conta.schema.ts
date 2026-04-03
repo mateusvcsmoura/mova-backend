@@ -13,6 +13,11 @@ export const createContaSchema = z.object({
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(100),
 });
 
+export const loginSchema = z.object({
+  email: z.string().email("Email inválido").max(255),
+  senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(100),
+});
+
 export const updateContaSchema = z
   .object({
     nome: z.string().min(3).max(255).optional(),

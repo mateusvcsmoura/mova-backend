@@ -6,6 +6,8 @@ const contaRouter = Router();
 contaRouter.get("/all", contaController.index);
 contaRouter.get("/", contaController.findByEmail);
 contaRouter.get("/:id", contaController.findById);
+contaRouter.post("/register", contaController.register);
+contaRouter.post("/login", contaController.login);
 contaRouter.post("/create", contaController.create);
 contaRouter.put("/update/:id", contaController.update);
 contaRouter.delete("/delete/:id", contaController.delete);
