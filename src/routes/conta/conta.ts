@@ -1,15 +1,12 @@
 import { Router } from "express";
 import { contaController } from "../container.js";
+import { authMiddleware } from "../../middlewares/auth-middleware.js";
 
 const contaRouter = Router();
 
-contaRouter.get("/all", contaController.index);
-contaRouter.get("/", contaController.findByEmail);
-contaRouter.get("/:id", contaController.findById);
-contaRouter.post("/register", contaController.register);
-contaRouter.post("/login", contaController.login);
-contaRouter.post("/create", contaController.create);
-contaRouter.put("/update/:id", contaController.update);
-contaRouter.delete("/delete/:id", contaController.delete);
+contaRouter.post("/auth/register", contaController.register);
+contaRouter.post("/auth/login", contaController.login);
+contaRouter.patch("/auth/change-password", authMiddleware,contaController.changePassword);
+contaRouter.delete("/auth/delete-account", authMiddleware, contaController.deleteAccount);
 
 export { contaRouter };

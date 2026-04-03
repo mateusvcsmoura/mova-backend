@@ -73,13 +73,32 @@ export class ContaService {
     }
 
     const secret = process.env.JWT_SECRET as jwt.Secret;
-    const expiresIn = (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
+    const expiresIn =
+      (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
 
     const token = jwt.sign({ id: conta.id }, secret, {
       expiresIn,
     });
 
     return { token };
+  }
+
+  async changePassword(id: string, senhaAtual: string, novaSenha: string) {
+    const conta = await this.contaRepository.findById(id);
+
+    if (!conta) throw new HttpError(404, "Conta não encontrada");
+
+    const auth = await this.contaRepository.findAuthByEmail(conta.email);
+
+    const senhaValida = await bcrypt.compare(senhaAtual, auth!.senhaHash);
+
+    if (!senhaValida) {
+      throw new HttpError(400, "Senha atual incorreta");
+    }
+
+    const novaHash = await bcrypt.hash(novaSenha, 10);
+
+    await this.contaRepository.updatePassword(id, novaHash);
   }
 
   create = async (data: CreateContaRequest) => {
@@ -100,16 +119,6 @@ export class ContaService {
     }
 
     return await this.contaRepository.update(id, data);
-  };
-
-  updatePassword = async (id: string, senha_hash: string) => {
-    const existingConta = await this.contaRepository.findById(id);
-
-    if (!existingConta) {
-      throw new HttpError(404, "Conta não encontrada");
-    }
-
-    await this.contaRepository.updatePassword(id, senha_hash);
   };
 
   delete = async (id: string) => {

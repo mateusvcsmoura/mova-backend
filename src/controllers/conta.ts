@@ -2,6 +2,7 @@ import { Handler, NextFunction } from "express";
 import { ContaService } from "../services/conta.js";
 import { HttpError } from "../errors/HttpError.js";
 import {
+  changePasswordSchema,
   createContaSchema,
   loginSchema,
   updateContaSchema,
@@ -92,6 +93,57 @@ export class ContaController {
       const { token } = await this.contaService.login(data.email, data.senha);
 
       return res.status(200).json({ result: { token } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword: Handler = async (req, res, next: NextFunction) => {
+    if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
+
+    try {
+      const result = changePasswordSchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({
+          errors: result.error.format(),
+        });
+      }
+
+      const data = result.data;
+
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new HttpError(401, "Não autenticado");
+      }
+
+      await this.contaService.changePassword(
+        userId,
+        data.senhaAtual,
+        data.novaSenha,
+      );
+
+      return res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteAccount: Handler = async (req, res, next: NextFunction) => {
+    try {
+      const result = z.string().uuid().safeParse(req.user?.id);
+      console.log("User ID:", req.user?.id);
+
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
+      }
+
+      console.log("User ID after parsing:", result.data);
+
+      await this.contaService.delete(result.data);
+
+      return res.status(204).send();
     } catch (error) {
       next(error);
     }

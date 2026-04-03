@@ -18,6 +18,14 @@ export const loginSchema = z.object({
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(100),
 });
 
+export const changePasswordSchema = z.object({
+  senhaAtual: z.string(),
+  novaSenha: z
+    .string()
+    .min(6, "Nova senha deve ter no mínimo 6 caracteres")
+    .max(100),
+});
+
 export const updateContaSchema = z
   .object({
     nome: z.string().min(3).max(255).optional(),
