@@ -19,10 +19,6 @@ import { LocadorService } from "../services/locador.js";
 import { LocatarioService } from "../services/locatario.js";
 import { VeiculoService } from "../services/veiculo.js";
 
-const contaRepository: IContaRepository = new PrismaContaRepository();
-export const contaService = new ContaService(contaRepository);
-export const contaController = new ContaController(contaService);
-
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
 export const locadorService = new LocadorService(locadorRepository);
 export const locadorController = new LocadorController(locadorService);
@@ -30,6 +26,10 @@ export const locadorController = new LocadorController(locadorService);
 export const locatarioRepository: ILocatarioRepository = new PrismaLocatarioRepository();
 export const locatarioService = new LocatarioService(locatarioRepository);
 export const locatarioController = new LocatarioController(locatarioService);
+
+const contaRepository: IContaRepository = new PrismaContaRepository();
+export const contaService = new ContaService(contaRepository, locadorRepository, locatarioRepository);
+export const contaController = new ContaController(contaService);
 
 export const deficienciaRepository: IDeficienciaRepository = new PrismaDeficienciaRepository();
 export const deficienciaService = new DeficienciaService(deficienciaRepository);

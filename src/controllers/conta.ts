@@ -55,6 +55,22 @@ export class ContaController {
     }
   };
 
+  getCurrentAccount: Handler = async (req, res, next) => {
+    try {
+      const result = z.string().uuid().safeParse(req.user?.id);
+
+      if (!result.success) {
+        throw new HttpError(400, "ID inválido");
+      }
+
+      const conta = await this.contaService.getCurrentAccount(result.data);
+
+      return res.status(200).json({ result: conta });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   register: Handler = async (req, res, next: NextFunction) => {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 

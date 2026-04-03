@@ -6,9 +6,15 @@ import {
 } from "../repositories/contracts/conta.contract.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { ILocadorRepository } from "../repositories/locador.repository.js";
+import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 
 export class ContaService {
-  constructor(private contaRepository: IContaRepository) {}
+  constructor(
+    private contaRepository: IContaRepository,
+    private locadorRepository: ILocadorRepository,
+    private locatarioRepository: ILocatarioRepository,
+  ) {}
 
   findAll = async () => {
     return await this.contaRepository.findAll();
@@ -33,6 +39,24 @@ export class ContaService {
 
     return conta;
   };
+
+  async getCurrentAccount(id: string) {
+    const [conta, locador, locatario] = await Promise.all([
+      this.contaRepository.findById(id),
+      this.locadorRepository.findById(id),
+      this.locatarioRepository.findById(id),
+    ]);
+
+    if (!conta) {
+      throw new HttpError(404, "Conta não encontrada");
+    }
+
+    return {
+      ...conta,
+      locador: locador ?? null,
+      locatario: locatario ?? null,
+    };
+  }
 
   async register(data: CreateContaRequest) {
     const contaExistente = await this.contaRepository.findByEmail(data.email);

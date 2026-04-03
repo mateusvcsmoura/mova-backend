@@ -6,6 +6,7 @@ const contaRouter = Router();
 
 contaRouter.post("/auth/register", contaController.register);
 contaRouter.post("/auth/login", contaController.login);
+contaRouter.get("/auth/me", authMiddleware, contaController.getCurrentAccount);
 contaRouter.patch("/auth/change-password", authMiddleware,contaController.changePassword);
 contaRouter.delete("/auth/delete-account", authMiddleware, contaController.deleteAccount);
 
