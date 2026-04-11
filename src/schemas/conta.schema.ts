@@ -36,8 +36,6 @@ export const updateContaSchema = z
       .string()
       .regex(/^\d{10,15}$/, "Telefone deve ter entre 10 e 15 números")
       .optional(),
-
-    senha: z.string().min(6).max(100).optional(),
   })
   .refine(
     (data) => Object.keys(data).length > 0,
