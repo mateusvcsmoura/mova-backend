@@ -114,6 +114,34 @@ export class ContaController {
     }
   };
 
+  updateProfile: Handler = async (req, res, next: NextFunction) => {
+    if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
+
+    try {
+      const result = updateContaSchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({
+          errors: result.error.format(),
+        });
+      }
+
+      const data = result.data;
+
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new HttpError(401, "Não autenticado");
+      }
+
+      await this.contaService.update(userId, data);
+
+      return res.status(200).json({ result: "Perfil atualizado com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   changePassword: Handler = async (req, res, next: NextFunction) => {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
