@@ -141,6 +141,8 @@ async function main() {
         email: data.email,
         telefone: data.telefone,
         senhaHash: "$2b$10$abcdefghijklmnopqrstuvwxyz123456789",
+        cep: "01001000",
+        endereco: "Endereço do locador",
         locador: {
           create: {
             empresa: data.empresa,
@@ -473,6 +475,8 @@ async function main() {
         email: data.email,
         telefone: data.telefone,
         senhaHash: "$2b$10$abcdefghijklmnopqrstuvwxyz123456789",
+        cep: "02002000",
+        endereco: "Endereço do locatário",
         locatario: {
           create: {
             cpf: data.cpf,
