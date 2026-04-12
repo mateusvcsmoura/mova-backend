@@ -52,17 +52,6 @@ npm start
 - `npm run build`: compila o projeto TypeScript
 - `npm run start`: inicia a API compilada
 
-## Rotas principais
-
-Base URL local: `http://localhost:<SERVER_PORT>/api`
-
-- `GET /basic/status`
-- `GET /conta/all`
-- `GET /locador/all`
-- `GET /locatario/all`
-- `GET /veiculo/all`
-- `GET /deficiencia/all`
-
 ## Observações
 
 - A versão da API é exposta via middleware (`v1.0.0`).
