@@ -3,12 +3,16 @@ export interface CreateContaRequest {
   email: string;
   telefone?: string;
   senha: string;
+  cep: string;
+  endereco: string;
 }
 
 export interface UpdateContaRequest {
   nome?: string;
   email?: string;
   telefone?: string;
+  cep?: string;
+  endereco?: string;
 }
 
 export interface ContaResponse {
@@ -17,4 +21,6 @@ export interface ContaResponse {
   email: string;
   telefone: string | null;
   criadaEm: Date;
+  cep: string;
+  endereco: string;
 }

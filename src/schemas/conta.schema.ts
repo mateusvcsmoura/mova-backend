@@ -11,6 +11,9 @@ export const createContaSchema = z.object({
     .optional(),
 
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(100),
+
+  cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP deve estar no formato 12345-678 ou 12345678"),
+  endereco: z.string().min(3, "Endereço deve ter no mínimo 3 caracteres").max(255),
 });
 
 export const loginSchema = z.object({
@@ -36,6 +39,8 @@ export const updateContaSchema = z
       .string()
       .regex(/^\d{10,15}$/, "Telefone deve ter entre 10 e 15 números")
       .optional(),
+    cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP deve estar no formato 12345-678 ou 12345678").optional(),
+    endereco: z.string().min(3, "Endereço deve ter no mínimo 3 caracteres").max(255).optional(),
   })
   .refine(
     (data) => Object.keys(data).length > 0,
