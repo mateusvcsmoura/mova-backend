@@ -46,11 +46,10 @@ export class LocadorService {
   };
 
   create = async (data: CreateLocadorRequest) => {
-    const existingLocador =
-      (await this.locadorRepository.findByCnpj(data.cnpj)) ||
-      (await this.locadorRepository.findByEmpresa(data.empresa));
+    const existingByCnpj = await this.locadorRepository.findByCnpj(data.cnpj);
+    const existingByEmpresa = await this.locadorRepository.findByEmpresa(data.empresa);
 
-    if (existingLocador) {
+    if (existingByCnpj || existingByEmpresa.length > 0) {
       throw new HttpError(409, "Locador com este CNPJ ou empresa já existe");
     }
 
