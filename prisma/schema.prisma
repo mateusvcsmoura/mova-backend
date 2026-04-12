@@ -33,137 +33,139 @@ enum StatusPagamento {
 // Models para as entidades do sistema
 
 model Conta {
-  id         String   @id @default(uuid()) @db.Uuid
-  nome       String
-  email      String   @unique
-  telefone   String?
-  senhaHash  String
-  criadaEm   DateTime @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String
+  email     String   @unique
+  telefone  String?
+  senhaHash String
+  criadaEm  DateTime @default(now())
 
-  locatario  Locatario?
-  locador    Locador?
+  cep      String
+  endereco String
+
+  locatario Locatario?
+  locador   Locador?
 }
 
 model Deficiencia {
-  id         String      @id @default(uuid()) @db.Uuid
-  descricao  String
+  id        String @id @default(uuid()) @db.Uuid
+  descricao String
 
   locatarios Locatario[]
 }
 
 model Locatario {
-  id            String        @id @db.Uuid
-  cpf           String        @unique
-  cnh           String        @unique
+  id  String @id @db.Uuid
+  cpf String @unique
+  cnh String @unique
 
-  conta         Conta         @relation(fields: [id], references: [id], onDelete: Cascade)
+  conta Conta @relation(fields: [id], references: [id], onDelete: Cascade)
 
-  deficienciaId String?       @db.Uuid
-  deficiencia   Deficiencia?  @relation(fields: [deficienciaId], references: [id])
+  deficienciaId String?      @db.Uuid
+  deficiencia   Deficiencia? @relation(fields: [deficienciaId], references: [id])
 
-  reservas      Reserva[]
+  reservas Reserva[]
 }
 
 model Locador {
-  id        String   @id @db.Uuid
-  empresa   String
-  cnpj      String   @unique
+  id      String @id @db.Uuid
+  empresa String
+  cnpj    String @unique
 
-  conta     Conta    @relation(fields: [id], references: [id], onDelete: Cascade)
+  conta Conta @relation(fields: [id], references: [id], onDelete: Cascade)
 
-  veiculos  Veiculo[]
-  garagens  Garagem[]
+  veiculos Veiculo[]
+  garagens Garagem[]
 }
 
 model Veiculo {
-  id           String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  idLocador    String        @db.Uuid
-  locador      Locador       @relation(fields: [idLocador], references: [id], onDelete: Cascade)
+  idLocador String  @db.Uuid
+  locador   Locador @relation(fields: [idLocador], references: [id], onDelete: Cascade)
 
-  garagemId    String?       @db.Uuid
-  garagem      Garagem?      @relation(fields: [garagemId], references: [id])
+  garagemId String?  @db.Uuid
+  garagem   Garagem? @relation(fields: [garagemId], references: [id])
 
-  placa        String        @unique
-  marca        String
-  modelo       String
-  ano          Int
-  cambio       String
-  capacidade   Int
+  placa      String @unique
+  marca      String
+  modelo     String
+  ano        Int
+  cambio     String
+  capacidade Int
 
-  status       StatusVeiculo @default(DISPONIVEL)
+  status StatusVeiculo @default(DISPONIVEL)
 
-  eletrico     Boolean
-  adaptado     Boolean
+  eletrico Boolean
+  adaptado Boolean
 
-  criadoEm     DateTime      @default(now())
+  criadoEm DateTime @default(now())
 
   reservas     Reserva[]
   localizacoes Localizacao[]
 }
 
 model Garagem {
-  id                String   @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  idLocador         String   @db.Uuid
-  locador           Locador  @relation(fields: [idLocador], references: [id], onDelete: Cascade)
+  idLocador String  @db.Uuid
+  locador   Locador @relation(fields: [idLocador], references: [id], onDelete: Cascade)
 
-  nome              String
-  endereco          String
+  nome     String
+  endereco String
 
-  capacidade        Int
-  veiculosAlocados  Int
+  capacidade       Int
+  veiculosAlocados Int
 
-  acessibilidade    Boolean  @default(true)
+  acessibilidade Boolean @default(true)
 
-  criadaEm          DateTime @default(now())
+  criadaEm DateTime @default(now())
 
-  veiculos          Veiculo[]
+  veiculos Veiculo[]
 }
 
 model Reserva {
-  id              String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  idVeiculo       String          @db.Uuid
-  veiculo         Veiculo         @relation(fields: [idVeiculo], references: [id])
+  idVeiculo String  @db.Uuid
+  veiculo   Veiculo @relation(fields: [idVeiculo], references: [id])
 
-  idLocatario     String          @db.Uuid
-  locatario       Locatario       @relation(fields: [idLocatario], references: [id])
+  idLocatario String    @db.Uuid
+  locatario   Locatario @relation(fields: [idLocatario], references: [id])
 
-  dataHoraInicio  DateTime
-  dataHoraFim     DateTime
+  dataHoraInicio DateTime
+  dataHoraFim    DateTime
 
-  criadaEm        DateTime        @default(now())
+  criadaEm DateTime @default(now())
 
-  valorTotal      Decimal         @db.Decimal(10,2)
+  valorTotal Decimal @db.Decimal(10, 2)
 
   status          StatusReserva   @default(AGUARDANDO_PAGAMENTO)
   statusPagamento StatusPagamento @default(AGUARDANDO_PAGAMENTO)
 
-  avaliacao       Avaliacao?
+  avaliacao Avaliacao?
 }
 
 model Localizacao {
-  id         String   @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  idVeiculo  String   @db.Uuid
-  veiculo    Veiculo  @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
+  idVeiculo String  @db.Uuid
+  veiculo   Veiculo @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
 
-  latitude   Decimal  @db.Decimal(10,8)
-  longitude  Decimal  @db.Decimal(10,8)
+  latitude  Decimal @db.Decimal(10, 8)
+  longitude Decimal @db.Decimal(10, 8)
 
-  dataHora   DateTime @default(now())
+  dataHora DateTime @default(now())
 }
 
 model Avaliacao {
-  id         String   @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  idReserva  String   @unique @db.Uuid
-  reserva    Reserva  @relation(fields: [idReserva], references: [id], onDelete: Cascade)
+  idReserva String  @unique @db.Uuid
+  reserva   Reserva @relation(fields: [idReserva], references: [id], onDelete: Cascade)
 
   comentario String?
   data       DateTime @default(now())
 
-  nota       Decimal  @db.Decimal(2,1)
+  nota Decimal @db.Decimal(2, 1)
 }
-
