@@ -5,6 +5,7 @@ export interface CreateContaRequest {
   senha: string;
   cep: string;
   endereco: string;
+  cargo: string;
 }
 
 export interface UpdateContaRequest {
@@ -13,6 +14,7 @@ export interface UpdateContaRequest {
   telefone?: string;
   cep?: string;
   endereco?: string;
+  cargo?: string;
 }
 
 export interface ContaResponse {
@@ -23,4 +25,5 @@ export interface ContaResponse {
   criadaEm: Date;
   cep: string;
   endereco: string;
+  cargo: string;
 }
