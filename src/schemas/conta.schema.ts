@@ -1,4 +1,11 @@
 import { z } from "zod";
+import { ca } from "zod/locales";
+
+enum Cargo {
+  LOCATARIO = "LOCATARIO",
+  LOCADOR = "LOCADOR",
+  ADMIN = "ADMIN",
+}
 
 export const createContaSchema = z.object({
   nome: z.string().min(3, "Nome deve ter no mínimo 3 caracteres").max(255),
@@ -14,6 +21,9 @@ export const createContaSchema = z.object({
 
   cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP deve estar no formato 12345-678 ou 12345678"),
   endereco: z.string().min(3, "Endereço deve ter no mínimo 3 caracteres").max(255),
+  cargo: z.nativeEnum(Cargo, {
+    message: "Cargo deve ser LOCATARIO, LOCADOR ou ADMIN",
+  }),
 });
 
 export const loginSchema = z.object({
@@ -41,6 +51,9 @@ export const updateContaSchema = z
       .optional(),
     cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP deve estar no formato 12345-678 ou 12345678").optional(),
     endereco: z.string().min(3, "Endereço deve ter no mínimo 3 caracteres").max(255).optional(),
+    cargo: z.nativeEnum(Cargo, {
+      message: "Cargo deve ser LOCATARIO, LOCADOR ou ADMIN",
+    }).optional(),
   })
   .refine(
     (data) => Object.keys(data).length > 0,

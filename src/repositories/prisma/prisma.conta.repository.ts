@@ -17,6 +17,7 @@ export class PrismaContaRepository implements IContaRepository {
         criadaEm: true,
         endereco: true,
         cep: true,
+        cargo: true
       },
     });
   }
@@ -32,6 +33,7 @@ export class PrismaContaRepository implements IContaRepository {
         criadaEm: true,
         endereco: true,
         cep: true,
+        cargo: true
       },
     });
   }
@@ -47,6 +49,7 @@ export class PrismaContaRepository implements IContaRepository {
         criadaEm: true,
         endereco: true,
         cep: true,
+        cargo: true
       },
     });
   }
@@ -71,6 +74,7 @@ export class PrismaContaRepository implements IContaRepository {
         senhaHash: data.senha,
         endereco: data.endereco,
         cep: data.cep,
+        cargo: data.cargo
       },
       select: {
         id: true,
@@ -80,6 +84,7 @@ export class PrismaContaRepository implements IContaRepository {
         criadaEm: true,
         endereco: true,
         cep: true,
+        cargo: true
       },
     });
   }
@@ -96,6 +101,7 @@ export class PrismaContaRepository implements IContaRepository {
           telefone: data.telefone ?? undefined,
           endereco: data.endereco ?? undefined,
           cep: data.cep ?? undefined,
+          cargo: data.cargo ?? undefined,
         },
         select: {
           id: true,
@@ -105,6 +111,7 @@ export class PrismaContaRepository implements IContaRepository {
           criadaEm: true,
           endereco: true,
           cep: true,
+          cargo: true
         },
       });
     } catch {

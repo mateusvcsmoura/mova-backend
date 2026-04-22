@@ -6,6 +6,14 @@ datasource db {
   provider = "postgresql"
 }
 
+// Enum RBAC
+
+enum Cargo {
+  LOCATARIO
+  LOCADOR
+  ADMIN
+}
+
 // Enums para os status dos veículos, reservas e pagamentos
 
 enum StatusVeiculo {
@@ -39,6 +47,7 @@ model Conta {
   telefone  String?
   senhaHash String
   criadaEm  DateTime @default(now())
+  cargo     Cargo    @default(LOCATARIO)
 
   cep      String
   endereco String
