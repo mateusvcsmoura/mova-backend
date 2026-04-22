@@ -1,3 +1,5 @@
+import { Cargo } from "@prisma/client";
+
 export interface CreateContaRequest {
   nome: string;
   email: string;
@@ -5,7 +7,7 @@ export interface CreateContaRequest {
   senha: string;
   cep: string;
   endereco: string;
-  cargo: string;
+  cargo: Cargo;
 }
 
 export interface UpdateContaRequest {
@@ -14,7 +16,7 @@ export interface UpdateContaRequest {
   telefone?: string;
   cep?: string;
   endereco?: string;
-  cargo?: string;
+  cargo?: Cargo;
 }
 
 export interface ContaResponse {
@@ -25,5 +27,5 @@ export interface ContaResponse {
   criadaEm: Date;
   cep: string;
   endereco: string;
-  cargo: string;
+  cargo: Cargo;
 }
