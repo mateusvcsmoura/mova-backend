@@ -100,7 +100,7 @@ export class ContaService {
     const expiresIn =
       (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
 
-    const token = jwt.sign({ id: conta.id }, secret, {
+    const token = jwt.sign({ id: conta.id, cargo: conta.cargo }, secret, {
       expiresIn,
     });
 
