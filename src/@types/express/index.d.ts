@@ -1,3 +1,4 @@
+import { Cargo } from "@prisma/client";
 import { JwtPayload } from "jsonwebtoken";
 
 declare global {
@@ -5,6 +6,7 @@ declare global {
     interface Request {
       user?: {
         id: string;
+        cargo: Cargo;
       };
     }
   }
