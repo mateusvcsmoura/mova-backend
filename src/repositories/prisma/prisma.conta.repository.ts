@@ -61,6 +61,7 @@ export class PrismaContaRepository implements IContaRepository {
         id: true,
         email: true,
         senhaHash: true,
+        cargo: true
       },
     });
   }
