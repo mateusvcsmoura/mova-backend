@@ -2,6 +2,7 @@ import { StatusVeiculo } from "@prisma/client";
 import { HttpError } from "../errors/HttpError.js";
 import {
   CreateVeiculoRequest,
+  ListVeiculosRequest,
   UpdateVeiculoRequest,
   VeiculoFilters,
 } from "../repositories/contracts/veiculo.contract.js";
@@ -9,6 +10,26 @@ import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 
 export class VeiculoService {
   constructor(private veiculoRepository: IVeiculoRepository) {}
+
+  list = async (data: ListVeiculosRequest) => {
+    switch (data.cargo) {
+      case "ADMIN":
+        return await this.veiculoRepository.findAll();
+
+      case "LOCADOR":
+        return await this.veiculoRepository.findByLocadorId(data.id);
+      
+      case "LOCATARIO":
+        if (!data.filters) {
+          throw new HttpError(400, "Filtros são obrigatórios para listar veículos");
+        }
+
+        return await this.veiculoRepository.search(data.filters);
+
+      default:
+        throw new HttpError(403, "Acesso negado");
+    }
+  };
 
   findAll = async () => {
     return await this.veiculoRepository.findAll();
