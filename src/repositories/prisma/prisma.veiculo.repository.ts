@@ -49,7 +49,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         ano: filters.ano,
         cambio: filters.cambio,
         capacidade: filters.capacidade,
-        status: filters.status,
+        status: "DISPONIVEL", // Filtro fixo para status "DISPONIVEL"
         eletrico: filters.eletrico,
         adaptado: filters.adaptado,
       },

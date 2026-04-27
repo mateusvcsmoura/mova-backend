@@ -1,4 +1,10 @@
-import { StatusVeiculo } from "@prisma/client";
+import { Cargo, StatusVeiculo } from "@prisma/client";
+
+export interface ListVeiculosRequest {
+  id: string;
+  cargo: Cargo;
+  filters?: VeiculoFilters
+}
 
 export interface VeiculoFilters {
   placa?: string;
@@ -8,7 +14,6 @@ export interface VeiculoFilters {
   ano?: number;
   cambio?: string;
   capacidade?: number;
-  status?: StatusVeiculo;
   eletrico?: boolean;
   adaptado?: boolean;
 }
