@@ -5,6 +5,8 @@ import { z } from "zod";
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url(),
+  DATABASE_URL_TEST: z.string().url(),
+  DIRECT_URL_TEST: z.string().url(),
   SERVER_PORT: z.string().min(1),
   NODE_ENV: z.enum(["development", "test", "production"]),
   JWT_SECRET: z.string().min(1),
