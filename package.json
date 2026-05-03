@@ -7,12 +7,17 @@
     "clean": "rimraf dist",
     "compile": "tsc",
     "build": "npm run clean && npm run compile",
+
     "start": "node dist/src/server.js",
     "dev": "tsx watch src/server.ts",
+
     "test": "vitest",
     "test:watch": "vitest --watch",
+
     "seed": "tsx prisma/seed.ts",
-    "db:reset": "tsx prisma/reset.ts"
+    "db:reset": "tsx prisma/reset.ts",
+
+    "db:migrate:test": "cross-env DATABASE_URL=%DATABASE_URL_TEST% prisma migrate deploy"
   },
   "keywords": [],
   "author": "fzs",
@@ -26,6 +31,7 @@
     "@types/pg": "^8.18.0",
     "@types/supertest": "^7.2.0",
     "cpx": "^1.5.0",
+    "cross-env": "^10.1.0",
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
     "prisma": "^7.5.0",
