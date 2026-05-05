@@ -1,7 +1,7 @@
-import { beforeEach } from "vitest";
+import { beforeAll, beforeEach } from "vitest";
 import { prisma } from "../src/database/prisma";
 
-beforeEach(async () => {
+beforeAll(async () => {
   await prisma.reserva.deleteMany();
   await prisma.conta.deleteMany();
 });
