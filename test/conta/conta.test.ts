@@ -29,8 +29,6 @@ describe("Conta API", () => {
       expect(response.body.result.conta.email).toBe("jarvan.iv@lol.com");
       expect(response.body.result.conta).toHaveProperty("criadaEm");
       expect(response.body.result.conta).not.toHaveProperty("senhaHash");
-
-      token = response.body.result.token;
     });
   });
 
@@ -43,6 +41,29 @@ describe("Conta API", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.result).toHaveProperty("token");
+
+      token = response.body.result.token;
+    });
+  });
+
+  describe("GET /auth/me", () => {
+    it("deve retornar os dados do usuário autenticado", async () => {
+      const response = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.result).toHaveProperty("conta");
+      expect(response.body.result.conta).toHaveProperty("id");
+      expect(response.body.result.conta.nome).toBe(data.nome);
+      expect(response.body.result.conta.email).toBe(data.email);
+      expect(response.body.result.conta.telefone).toBe(data.telefone);
+      expect(response.body.result.conta.cargo).toBe(data.cargo);
+      expect(response.body.result.conta.cep).toBe(data.cep);
+      expect(response.body.result.conta.endereco).toBe(data.endereco);
+      expect(response.body.result.conta).toHaveProperty("criadaEm");
+      expect(response.body.result.conta).not.toHaveProperty("senhaHash");
     });
   });
 });
