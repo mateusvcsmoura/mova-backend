@@ -22,7 +22,7 @@ describe("Conta API", () => {
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty("result");
-      expect(response.body.success).toBeTruthy();
+      expect(response.body.success).toBe(true);
       expect(response.body.result).toHaveProperty("conta");
       expect(response.body.result).toHaveProperty("token");
       expect(response.body.result.conta).toHaveProperty("id");
