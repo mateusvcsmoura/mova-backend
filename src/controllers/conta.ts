@@ -65,7 +65,7 @@ export class ContaController {
 
       const conta = await this.contaService.getCurrentAccount(result.data);
 
-      return res.status(200).json({ result: conta });
+      return res.status(200).json({ result: { conta } });
     } catch (error) {
       next(error);
     }
