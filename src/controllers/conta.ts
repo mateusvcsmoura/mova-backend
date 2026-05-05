@@ -134,9 +134,9 @@ export class ContaController {
         throw new HttpError(401, "Não autenticado");
       }
 
-      await this.contaService.update(userId, data);
+      const conta = await this.contaService.update(userId, data);
 
-      return res.status(200).json({ result: "Perfil atualizado com sucesso" });
+      return res.status(200).json({ result: { conta } });
     } catch (error) {
       next(error);
     }
