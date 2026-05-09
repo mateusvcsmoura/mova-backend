@@ -14,9 +14,8 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
 
-    "seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts",
     "db:reset": "tsx prisma/reset.ts",
-
     "db:migrate:test": "cross-env DATABASE_URL=%DATABASE_URL_TEST% prisma migrate deploy"
   },
   "keywords": [],
