@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { basicRouter } from "./routes/basic/basic.js";
 import { contaRouter } from "./routes/conta/conta.js";
@@ -10,6 +11,7 @@ import { adminRouter } from "./routes/admin/admin.js";
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 app.use(apiMetadata("v1.0.0"));

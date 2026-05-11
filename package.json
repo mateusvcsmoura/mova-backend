@@ -7,13 +7,10 @@
     "clean": "rimraf dist",
     "compile": "tsc",
     "build": "npm run clean && npm run compile",
-
     "start": "node dist/src/server.js",
     "dev": "tsx watch src/server.ts",
-
     "test": "vitest",
     "test:watch": "vitest --watch",
-
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "tsx prisma/reset.ts",
     "db:migrate:test": "cross-env DATABASE_URL=%DATABASE_URL_TEST% prisma migrate deploy"
@@ -24,6 +21,7 @@
   "type": "module",
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
@@ -45,6 +43,7 @@
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
