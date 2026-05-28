@@ -6,12 +6,12 @@ import { authMiddleware } from "../../middlewares/auth-middleware.js";
 
 const deficienciaRouter = Router();
 
-deficienciaRouter.get("/deficiencia/all", deficienciaController.index);
-deficienciaRouter.get("/deficiencia/search", deficienciaController.findByDescription);
-deficienciaRouter.post("/deficiencia",  authMiddleware, authorize(Cargo.ADMIN), deficienciaController.create);
-deficienciaRouter.get("/deficiencia/:id", deficienciaController.findById);
-deficienciaRouter.put("/deficiencia/:id", authMiddleware, authorize(Cargo.ADMIN),deficienciaController.update);
-deficienciaRouter.delete("/deficiencia/:id", authMiddleware, authorize(Cargo.ADMIN), deficienciaController.delete);
+deficienciaRouter.get("/all", deficienciaController.index);
+deficienciaRouter.get("/search", deficienciaController.findByDescription);
+deficienciaRouter.post("/",  authMiddleware, authorize(Cargo.ADMIN), deficienciaController.create);
+deficienciaRouter.get("/:id", deficienciaController.findById);
+deficienciaRouter.put("/:id", authMiddleware, authorize(Cargo.ADMIN),deficienciaController.update);
+deficienciaRouter.delete("/:id", authMiddleware, authorize(Cargo.ADMIN), deficienciaController.delete);
 
 export { deficienciaRouter };
 

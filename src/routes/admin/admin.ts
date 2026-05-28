@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { contaController, deficienciaController } from "../container.js";
+import { contaController } from "../container.js";
 
 const adminRouter = Router();
 
