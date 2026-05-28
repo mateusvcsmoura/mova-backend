@@ -1,7 +1,7 @@
 import { LocadorService } from "../services/locador.js";
 import { Handler, NextFunction } from "express";
 import { HttpError } from "../errors/HttpError.js";
-import { createLocadorSchema } from "../schemas/locador.schema.js";
+import { createLocadorSchema, updateLocadorSchema } from "../schemas/locador.schema.js";
 import { z } from "zod";
 
 export class LocadorController {
@@ -86,7 +86,7 @@ export class LocadorController {
 
       const id = parsedId.data;
 
-      const result = createLocadorSchema.safeParse(req.body);
+      const result = updateLocadorSchema.safeParse(req.body);
 
       if (!result.success) {
         return res.status(400).json({
