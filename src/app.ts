@@ -8,6 +8,7 @@ import { locatarioRouter } from "./routes/locatario/locatario.js";
 import { veiculoRouter } from "./routes/veiculo/veiculo.js";
 import { apiMetadata } from "./middlewares/api-version.js";
 import { adminRouter } from "./routes/admin/admin.js";
+import { deficienciaRouter } from "./routes/deficiencia/deficiencia.js";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(apiMetadata("v1.0.0"));
 
 app.use("/api/basic", basicRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/deficiencia", deficienciaRouter);
 app.use("/api/conta", contaRouter);
 app.use("/api/locador", locadorRouter);
 app.use("/api/locatario", locatarioRouter);
