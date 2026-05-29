@@ -83,35 +83,41 @@ model Locador {
 
   conta Conta @relation(fields: [id], references: [id], onDelete: Cascade)
 
-  veiculos Veiculo[]
-  garagens Garagem[]
+  veiculos       Veiculo[]
+  garagens       Garagem[]
+  modelosVeiculo ModeloVeiculo[]
 }
 
-model Veiculo {
-  id String @id @default(uuid()) @db.Uuid
-
-  idLocador String  @db.Uuid
-  locador   Locador @relation(fields: [idLocador], references: [id], onDelete: Cascade)
-
-  garagemId String?  @db.Uuid
-  garagem   Garagem? @relation(fields: [garagemId], references: [id])
-
-  placa      String @unique
+model ModeloVeiculo {
+  id         String    @id @default(uuid()) @db.Uuid
+  idLocador  String    @db.Uuid
+  locador    Locador   @relation(fields: [idLocador], references: [id], onDelete: Cascade)
   marca      String
   modelo     String
   ano        Int
   cambio     String
   capacidade Int
+  eletrico   Boolean
+  adaptado   Boolean
+  criadoEm   DateTime  @default(now())
+  veiculos   Veiculo[]
 
-  status StatusVeiculo @default(DISPONIVEL)
+  @@unique([idLocador, marca, modelo, ano])
+}
 
-  eletrico Boolean
-  adaptado Boolean
-
-  criadoEm DateTime @default(now())
-
-  reservas     Reserva[]
-  localizacoes Localizacao[]
+model Veiculo {
+  id              String        @id @default(uuid()) @db.Uuid
+  idLocador       String        @db.Uuid
+  locador         Locador       @relation(fields: [idLocador], references: [id], onDelete: Cascade)
+  idModeloVeiculo String        @db.Uuid
+  modeloVeiculo   ModeloVeiculo @relation(fields: [idModeloVeiculo], references: [id])
+  garagemId       String?       @db.Uuid
+  garagem         Garagem?      @relation(fields: [garagemId], references: [id])
+  placa           String        @unique
+  status          StatusVeiculo @default(DISPONIVEL)
+  criadoEm        DateTime      @default(now())
+  reservas        Reserva[]
+  localizacoes    Localizacao[]
 }
 
 model Garagem {
