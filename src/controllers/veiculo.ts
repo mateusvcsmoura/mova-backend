@@ -3,6 +3,7 @@ import { VeiculoService } from "../services/veiculo.js";
 import { HttpError } from "../errors/HttpError.js";
 import {
   createVeiculoSchema,
+  createVeiculoLoteSchema,
   updateVeiculoSchema,
 } from "../schemas/veiculo.schema.js";
 import { z } from "zod";
@@ -11,41 +12,38 @@ import { VeiculoFilters } from "../repositories/contracts/veiculo.contract.js";
 export class VeiculoController {
   constructor(private veiculoService: VeiculoService) {}
 
+  // placa removida — não é mais um campo de VeiculoFilters
   private buildFilters(query: any): VeiculoFilters {
     return {
-      placa: query.placa,
+      idLocador: query.idLocador,
       marca: query.marca,
       modelo: query.modelo,
       ano: query.ano ? Number(query.ano) : undefined,
       cambio: query.cambio,
-      capacidade: query.capacidade
-        ? Number(query.capacidade)
-        : undefined,
-      eletrico: query.eletrico
-        ? query.eletrico === "true"
-        : undefined,
-      adaptado: query.adaptado
-        ? query.adaptado === "true"
-        : undefined,
+      capacidade: query.capacidade ? Number(query.capacidade) : undefined,
+      eletrico:
+        query.eletrico !== undefined ? query.eletrico === "true" : undefined,
+      adaptado:
+        query.adaptado !== undefined ? query.adaptado === "true" : undefined,
+      garagemId: query.garagemId,
     };
   }
 
   index: Handler = async (req, res, next) => {
     try {
-      if (!req.user) {
-        throw new HttpError(401, "Não autenticado");
-      }
+      if (!req.user) throw new HttpError(401, "Não autenticado");
 
       const { id, cargo } = req.user;
       const filters = this.buildFilters(req.query);
 
-      const query = {
+      // Só passa filters se ao menos um campo foi informado
+      const hasFilters = Object.values(filters).some((v) => v !== undefined);
+
+      const veiculos = await this.veiculoService.list({
         id,
-        cargo,    
-        filters
-      }
-      
-      const veiculos = await this.veiculoService.list(query);
+        cargo,
+        filters: hasFilters ? filters : undefined,
+      });
 
       return res.status(200).json({ result: veiculos });
     } catch (error) {
@@ -56,13 +54,9 @@ export class VeiculoController {
   findById: Handler = async (req, res, next) => {
     try {
       const result = z.string().uuid().safeParse(req.params.id);
-
-      if (!result.success) {
-        throw new HttpError(400, "ID inválido");
-      }
+      if (!result.success) throw new HttpError(400, "ID inválido");
 
       const veiculo = await this.veiculoService.findById(result.data);
-
       return res.status(200).json({ result: veiculo });
     } catch (error) {
       next(error);
@@ -72,25 +66,10 @@ export class VeiculoController {
   findByLocadorId: Handler = async (req, res, next) => {
     try {
       const result = z.string().uuid().safeParse(req.params.id_locador);
-
-      if (!result.success) {
-        throw new HttpError(400, "ID inválido");
-      }
+      if (!result.success) throw new HttpError(400, "ID inválido");
 
       const veiculos = await this.veiculoService.findByLocadorId(result.data);
-
       return res.status(200).json({ result: veiculos });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  search: Handler = async (req, res, next) => {
-    try {
-      const filters = this.buildFilters(req.query);
-      const result = await this.veiculoService.search(filters);
-
-      return res.status(200).json({ result });
     } catch (error) {
       next(error);
     }
@@ -99,49 +78,46 @@ export class VeiculoController {
   create: Handler = async (req, res, next) => {
     try {
       const result = createVeiculoSchema.safeParse(req.body);
-
       if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
+        return res.status(400).json({ errors: result.error.format() });
       }
 
-      const data = result.data;
-
-      const veiculo = await this.veiculoService.create(data);
-
+      const veiculo = await this.veiculoService.create(result.data);
       return res.status(201).json({ result: veiculo });
     } catch (error) {
       next(error);
     }
   };
 
-  update: Handler = async (req, res, next) => {
-    if (!req.params || !req.body)
-      throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
+  createLote: Handler = async (req, res, next) => {
+    try {
+      const result = createVeiculoLoteSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ errors: result.error.format() });
+      }
 
+      const veiculos = await this.veiculoService.createLote(result.data);
+      return res.status(201).json({ result: veiculos });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update: Handler = async (req, res, next) => {
     try {
       const parsedId = z.string().uuid().safeParse(req.params.id);
-
-      if (!parsedId.success) {
-        throw new HttpError(400, "ID inválido");
-      }
-
-      const id = parsedId.data;
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
 
       const result = updateVeiculoSchema.safeParse(req.body);
-
       if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
+        return res.status(400).json({ errors: result.error.format() });
       }
 
-      const data = result.data;
-
-      const veiculo = await this.veiculoService.update(id, data);
-
-      return res.status(201).json({ result: veiculo });
+      const veiculo = await this.veiculoService.update(
+        parsedId.data,
+        result.data,
+      );
+      return res.status(200).json({ result: veiculo });
     } catch (error) {
       next(error);
     }
@@ -150,13 +126,9 @@ export class VeiculoController {
   delete: Handler = async (req, res, next) => {
     try {
       const result = z.string().uuid().safeParse(req.params.id);
-
-      if (!result.success) {
-        throw new HttpError(400, "ID inválido");
-      }
+      if (!result.success) throw new HttpError(400, "ID inválido");
 
       await this.veiculoService.delete(result.data);
-
       return res.status(204).send();
     } catch (error) {
       next(error);
