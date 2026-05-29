@@ -1,13 +1,34 @@
 import { Cargo, StatusVeiculo } from "@prisma/client";
 
-export interface ListVeiculosRequest {
-  id: string;
-  cargo: Cargo;
-  filters?: VeiculoFilters
+export interface ModeloVeiculoData {
+  idLocador: string;
+  marca: string;
+  modelo: string;
+  ano: number;
+  cambio: string;
+  capacidade: number;
+  eletrico: boolean;
+  adaptado: boolean;
+}
+
+export interface CreateVeiculoRequest extends ModeloVeiculoData {
+  placa: string;
+  garagemId?: string;
+  status?: StatusVeiculo;
+}
+
+export interface CreateVeiculoLoteRequest extends ModeloVeiculoData {
+  placas: string[];
+  garagemId?: string;
+}
+
+export interface UpdateVeiculoRequest {
+  placa?: string;
+  status?: StatusVeiculo;
+  garagemId?: string | null;
 }
 
 export interface VeiculoFilters {
-  placa?: string;
   idLocador?: string;
   marca?: string;
   modelo?: string;
@@ -16,44 +37,36 @@ export interface VeiculoFilters {
   capacidade?: number;
   eletrico?: boolean;
   adaptado?: boolean;
+  garagemId?: string;
 }
 
-export interface CreateVeiculoRequest {
+// Usado pelo service.list(), montado pelo controller
+export interface ListVeiculosRequest {
+  id: string;
+  cargo: Cargo;
+  filters?: VeiculoFilters;
+}
+
+export interface ModeloVeiculoResponse {
+  id: string;
   idLocador: string;
-  placa: string;
   marca: string;
   modelo: string;
   ano: number;
   cambio: string;
   capacidade: number;
-  status?: StatusVeiculo;
   eletrico: boolean;
   adaptado: boolean;
-}
-
-export interface UpdateVeiculoRequest {
-  placa?: string;
-  marca?: string;
-  modelo?: string;
-  ano?: number;
-  cambio?: string;
-  capacidade?: number;
-  status?: StatusVeiculo;
-  eletrico?: boolean;
-  adaptado?: boolean;
+  criadoEm: Date;
 }
 
 export interface VeiculoResponse {
   id: string;
   idLocador: string;
+  idModeloVeiculo: string;
+  modeloVeiculo: ModeloVeiculoResponse;
+  garagemId: string | null;
   placa: string;
-  marca: string;
-  modelo: string;
-  ano: number;
-  cambio: string;
-  capacidade: number;
   status: StatusVeiculo;
-  eletrico: boolean;
-  adaptado: boolean;
   criadoEm: Date;
 }

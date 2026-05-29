@@ -1,4 +1,5 @@
 import {
+  CreateVeiculoLoteRequest,
   CreateVeiculoRequest,
   UpdateVeiculoRequest,
   VeiculoFilters,
@@ -12,6 +13,7 @@ export interface IVeiculoRepository {
   findByPlaca(placa: string): Promise<VeiculoResponse | null>;
   search(filters: VeiculoFilters): Promise<VeiculoResponse[]>;
   create(data: CreateVeiculoRequest): Promise<VeiculoResponse>;
+  createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]>;
   update(id: string, data: UpdateVeiculoRequest): Promise<VeiculoResponse>;
   delete(id: string): Promise<void>;
 }
