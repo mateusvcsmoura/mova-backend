@@ -146,14 +146,11 @@ function buildEmail(name: string, index: number): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.|\.$/g, "");
-
   return `${normalized}.${index + 1}@mova.local`;
 }
 
 function buildAddress(index: number): string {
-  const street = pick(streetNames, index);
-  const city = pick(cities, index);
-  return `${street}, ${100 + index} - ${city}`;
+  return `${pick(streetNames, index)}, ${100 + index} - ${pick(cities, index)}`;
 }
 
 async function main() {
@@ -164,33 +161,31 @@ async function main() {
 
   const summary = await prisma.$transaction(
     async (tx) => {
+      // ── Limpeza — ordem respeita as foreign keys ──────────────────────────
       await tx.avaliacao.deleteMany();
       await tx.localizacao.deleteMany();
       await tx.reserva.deleteMany();
       await tx.veiculo.deleteMany();
+      await tx.modeloVeiculo.deleteMany(); // <- novo: limpa modelos após veículos
       await tx.garagem.deleteMany();
       await tx.locatario.deleteMany();
       await tx.locador.deleteMany();
       await tx.deficiencia.deleteMany();
       await tx.conta.deleteMany();
 
+      // ── Contas ────────────────────────────────────────────────────────────
       const contasData = [
-        ...Array.from({ length: 4 }, (_, index) => {
-          const nome = `Locador ${buildFullName(index)}`;
-
-          return {
-            nome,
-            email: `locador.${index + 1}@mova.local`,
-            telefone: `+55 41 9${String(70000000 + index).slice(-8)}`,
-            senhaHash: passwordHash,
-            cargo: Cargo.LOCADOR,
-            cep: `800${String(10000 + index).slice(-5)}`,
-            endereco: buildAddress(index),
-          };
-        }),
+        ...Array.from({ length: 4 }, (_, index) => ({
+          nome: `Locador ${buildFullName(index)}`,
+          email: `locador.${index + 1}@mova.local`,
+          telefone: `+55 41 9${String(70000000 + index).slice(-8)}`,
+          senhaHash: passwordHash,
+          cargo: Cargo.LOCADOR,
+          cep: `800${String(10000 + index).slice(-5)}`,
+          endereco: buildAddress(index),
+        })),
         ...Array.from({ length: 7 }, (_, index) => {
           const nome = `Locatario ${buildFullName(index + 4)}`;
-
           return {
             nome,
             email: buildEmail(nome, index + 4),
@@ -209,18 +204,18 @@ async function main() {
       const contasCriadas = [] as Array<
         Awaited<ReturnType<typeof tx.conta.create>>
       >;
-
       for (const conta of contasData) {
         contasCriadas.push(await tx.conta.create({ data: conta }));
       }
 
       const contasLocador = contasCriadas.filter(
-        (conta) => conta.cargo === Cargo.LOCADOR,
+        (c) => c.cargo === Cargo.LOCADOR,
       );
       const contasLocatario = contasCriadas.filter(
-        (conta) => conta.cargo === Cargo.LOCATARIO,
+        (c) => c.cargo === Cargo.LOCATARIO,
       );
 
+      // ── Locadores ─────────────────────────────────────────────────────────
       const locadores = [] as Array<
         Awaited<ReturnType<typeof tx.locador.create>>
       >;
@@ -236,6 +231,7 @@ async function main() {
         );
       }
 
+      // ── Deficiências ──────────────────────────────────────────────────────
       const deficiencias = [] as Array<
         Awaited<ReturnType<typeof tx.deficiencia.create>>
       >;
@@ -243,6 +239,7 @@ async function main() {
         deficiencias.push(await tx.deficiencia.create({ data: { descricao } }));
       }
 
+      // ── Locatários ────────────────────────────────────────────────────────
       const locatarios = [] as Array<
         Awaited<ReturnType<typeof tx.locatario.create>>
       >;
@@ -259,6 +256,7 @@ async function main() {
         );
       }
 
+      // ── Garagens ──────────────────────────────────────────────────────────
       const garagens = [] as Array<
         Awaited<ReturnType<typeof tx.garagem.create>>
       >;
@@ -277,31 +275,60 @@ async function main() {
         );
       }
 
+      // ── Modelos + Veículos ────────────────────────────────────────────────
+      // O upsert garante que modelos com mesma combinação [idLocador, marca, modelo, ano]
+      // não sejam duplicados, mesmo que o loop passe pelo mesmo locador mais de uma vez.
       const veiculos = [] as Array<
         Awaited<ReturnType<typeof tx.veiculo.create>>
       >;
-      for (let index = 0; index < 10; index += 1) {
+
+      for (let index = 0; index < 10; index++) {
         const locador = locadores[index % locadores.length];
         const garagem = garagens[index % garagens.length];
         const assignToGarage = index % 3 !== 0;
 
-        veiculos.push(
-          await tx.veiculo.create({
-            data: {
+        const marca = pick(vehicleBrands, index);
+        const modelo = pick(vehicleModels, index + 2);
+        const ano = 2020 + (index % 5);
+        const cambio = pick(transmissions, index);
+        const capacidade = 4 + (index % 3);
+        const eletrico = index % 5 === 0;
+        const adaptado = index % 4 === 1;
+
+        // Upsert do modelo — mesmo comportamento do repository em produção
+        const modeloVeiculo = await tx.modeloVeiculo.upsert({
+          where: {
+            idLocador_marca_modelo_ano: {
               idLocador: locador.id,
-              garagemId: assignToGarage ? garagem.id : null,
-              placa: formatPlaca(index + 1),
-              marca: pick(vehicleBrands, index),
-              modelo: pick(vehicleModels, index + 2),
-              ano: 2020 + (index % 5),
-              cambio: pick(transmissions, index),
-              capacidade: 4 + (index % 3),
-              status: index % 4 === 0 ? "MANUTENCAO" : "DISPONIVEL",
-              eletrico: index % 5 === 0,
-              adaptado: index % 4 === 1,
+              marca,
+              modelo,
+              ano,
             },
-          }),
-        );
+          },
+          update: {}, // já existe? não altera nada
+          create: {
+            idLocador: locador.id,
+            marca,
+            modelo,
+            ano,
+            cambio,
+            capacidade,
+            eletrico,
+            adaptado,
+          },
+        });
+
+        const veiculo = await tx.veiculo.create({
+          data: {
+            idLocador: locador.id,
+            idModeloVeiculo: modeloVeiculo.id,
+            garagemId: assignToGarage ? garagem.id : null,
+            placa: formatPlaca(index + 1),
+            status: index % 4 === 0 ? "MANUTENCAO" : "DISPONIVEL",
+          },
+        });
+
+        veiculos.push(veiculo);
 
         if (assignToGarage) {
           await tx.garagem.update({
@@ -317,6 +344,7 @@ async function main() {
         locatarios: locatarios.length,
         deficiencias: deficiencias.length,
         garagens: garagens.length,
+        modelosVeiculo: new Set(veiculos.map((v) => v.idModeloVeiculo)).size,
         veiculos: veiculos.length,
         senhaPadrao: DEFAULT_PASSWORD,
       };
@@ -330,6 +358,7 @@ async function main() {
   console.log(`- Locatarios: ${summary.locatarios}`);
   console.log(`- Deficiencias: ${summary.deficiencias}`);
   console.log(`- Garagens: ${summary.garagens}`);
+  console.log(`- Modelos de veiculo: ${summary.modelosVeiculo}`);
   console.log(`- Veiculos: ${summary.veiculos}`);
   console.log(`Senha padrao usada em todas as contas: ${summary.senhaPadrao}`);
 }
