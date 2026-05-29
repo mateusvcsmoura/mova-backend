@@ -1,6 +1,8 @@
 import {
   CreateVeiculoLoteRequest,
   CreateVeiculoRequest,
+  ModeloVeiculoResponse,
+  UpdateModeloVeiculoRequest,
   UpdateVeiculoRequest,
   VeiculoFilters,
   VeiculoResponse,
@@ -16,4 +18,6 @@ export interface IVeiculoRepository {
   createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]>;
   update(id: string, data: UpdateVeiculoRequest): Promise<VeiculoResponse>;
   delete(id: string): Promise<void>;
+  updateModelo(id: string, data: UpdateModeloVeiculoRequest): Promise<ModeloVeiculoResponse>;
+  updateModeloDoVeiculo(id: string, data: UpdateModeloVeiculoRequest): Promise<VeiculoResponse>;
 }

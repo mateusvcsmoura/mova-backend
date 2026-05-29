@@ -70,3 +70,10 @@ export interface VeiculoResponse {
   status: StatusVeiculo;
   criadoEm: Date;
 }
+
+export interface UpdateModeloVeiculoRequest {
+  cambio?: string;
+  capacidade?: number;
+  eletrico?: boolean;
+  adaptado?: boolean;
+}

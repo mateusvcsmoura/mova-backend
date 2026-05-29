@@ -4,6 +4,8 @@ import {
   CreateVeiculoLoteRequest,
   CreateVeiculoRequest,
   ListVeiculosRequest,
+  ModeloVeiculoData,
+  UpdateModeloVeiculoRequest,
   UpdateVeiculoRequest,
   VeiculoFilters,
 } from "../repositories/contracts/veiculo.contract.js";
@@ -125,5 +127,21 @@ export class VeiculoService {
       throw new HttpError(404, "Veículo não encontrado");
     }
     return this.veiculoRepository.delete(id);
+  };
+
+  updateModelo = async (idModelo: string, data: UpdateModeloVeiculoRequest) => {
+    const hasData = Object.values(data).some((v) => v !== undefined);
+    if (!hasData) {
+      throw new HttpError(400, "Nenhum campo informado para atualização.");
+    }
+
+    return this.veiculoRepository.updateModelo(idModelo, data);
+  };
+
+  updateModeloDoVeiculo = async (
+    idVeiculo: string,
+    data: ModeloVeiculoData,
+  ) => {
+    return this.veiculoRepository.updateModeloDoVeiculo(idVeiculo, data);
   };
 }

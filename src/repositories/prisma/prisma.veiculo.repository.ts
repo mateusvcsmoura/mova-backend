@@ -5,6 +5,8 @@ import {
   CreateVeiculoLoteRequest,
   CreateVeiculoRequest,
   ModeloVeiculoData,
+  ModeloVeiculoResponse,
+  UpdateModeloVeiculoRequest,
   UpdateVeiculoRequest,
   VeiculoFilters,
   VeiculoResponse,
@@ -162,5 +164,44 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
 
   async delete(id: string): Promise<void> {
     await prisma.veiculo.delete({ where: { id } });
+  }
+
+  async updateModelo(
+    idModelo: string,
+    data: UpdateModeloVeiculoRequest,
+  ): Promise<ModeloVeiculoResponse> {
+    try {
+      return await prisma.modeloVeiculo.update({
+        where: { id: idModelo },
+        data: {
+          cambio: data.cambio ?? undefined,
+          capacidade: data.capacidade ?? undefined,
+          eletrico: data.eletrico ?? undefined,
+          adaptado: data.adaptado ?? undefined,
+          // marca, modelo, ano intencionalmente fora — mudar isso
+          // quebraria o @@unique e a identidade do modelo
+        },
+      });
+    } catch {
+      throw new HttpError(404, "Modelo de veículo não encontrado.");
+    }
+  }
+
+  async updateModeloDoVeiculo(
+    idVeiculo: string,
+    data: ModeloVeiculoData,
+  ): Promise<VeiculoResponse> {
+    const modelo = await this.upsertModelo(data);
+
+    try {
+      const veiculo = await prisma.veiculo.update({
+        where: { id: idVeiculo },
+        data: { idModeloVeiculo: modelo.id },
+        include: withModelo,
+      });
+      return VeiculoMapper.toResponse(veiculo);
+    } catch {
+      throw new HttpError(404, "Veículo não encontrado.");
+    }
   }
 }
