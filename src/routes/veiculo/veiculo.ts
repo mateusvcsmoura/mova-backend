@@ -4,8 +4,8 @@ import { authMiddleware } from "../../middlewares/auth-middleware.js";
 
 const veiculoRouter = Router();
 
-veiculoRouter.get("/search", veiculoController.search);
 veiculoRouter.get("/locador/:id_locador", veiculoController.findByLocadorId);
+veiculoRouter.post("/veiculos/lote", veiculoController.createLote);
 veiculoRouter.get("/:id", veiculoController.findById);
 veiculoRouter.get("/", authMiddleware, veiculoController.index);
 veiculoRouter.post("/", veiculoController.create);
