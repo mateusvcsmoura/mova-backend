@@ -5,6 +5,8 @@ import {
   createVeiculoSchema,
   createVeiculoLoteSchema,
   updateVeiculoSchema,
+  updateModeloVeiculoSchema,
+  updateModeloDoVeiculoSchema,
 } from "../schemas/veiculo.schema.js";
 import { z } from "zod";
 import { VeiculoFilters } from "../repositories/contracts/veiculo.contract.js";
@@ -130,6 +132,53 @@ export class VeiculoController {
 
       await this.veiculoService.delete(result.data);
       return res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateModelo: Handler = async (req, res, next) => {
+    try {
+      const parsedId = z.string().uuid().safeParse(req.params.id_modelo);
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID do modelo inválido");
+      }
+
+      const result = updateModeloVeiculoSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ errors: result.error.format() });
+      }
+
+      const modelo = await this.veiculoService.updateModelo(
+        parsedId.data,
+        result.data,
+      );
+
+      return res.status(200).json({ result: modelo });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Troca o modelo de um veículo específico sem afetar os demais
+  updateModeloDoVeiculo: Handler = async (req, res, next) => {
+    try {
+      const parsedId = z.string().uuid().safeParse(req.params.id_veiculo);
+      if (!parsedId.success) {
+        throw new HttpError(400, "ID do veículo inválido");
+      }
+
+      const result = updateModeloDoVeiculoSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ errors: result.error.format() });
+      }
+
+      const veiculo = await this.veiculoService.updateModeloDoVeiculo(
+        parsedId.data,
+        result.data,
+      );
+
+      return res.status(200).json({ result: veiculo });
     } catch (error) {
       next(error);
     }
