@@ -54,6 +54,7 @@ model Conta {
 
   locatario Locatario?
   locador   Locador?
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Deficiencia {
@@ -61,6 +62,7 @@ model Deficiencia {
   descricao String
 
   locatarios Locatario[]
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Locatario {
@@ -74,6 +76,7 @@ model Locatario {
   deficiencia   Deficiencia? @relation(fields: [deficienciaId], references: [id])
 
   reservas Reserva[]
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Locador {
@@ -86,6 +89,7 @@ model Locador {
   veiculos       Veiculo[]
   garagens       Garagem[]
   modelosVeiculo ModeloVeiculo[]
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model ModeloVeiculo {
@@ -101,6 +105,7 @@ model ModeloVeiculo {
   adaptado   Boolean
   criadoEm   DateTime  @default(now())
   veiculos   Veiculo[]
+  atualizadoEm DateTime @default(now()) @updatedAt
 
   @@unique([idLocador, marca, modelo, ano])
 }
@@ -118,6 +123,7 @@ model Veiculo {
   criadoEm        DateTime      @default(now())
   reservas        Reserva[]
   localizacoes    Localizacao[]
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Garagem {
@@ -137,6 +143,7 @@ model Garagem {
   criadaEm DateTime @default(now())
 
   veiculos Veiculo[]
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Reserva {
@@ -159,6 +166,7 @@ model Reserva {
   statusPagamento StatusPagamento @default(AGUARDANDO_PAGAMENTO)
 
   avaliacao Avaliacao?
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Localizacao {
@@ -171,6 +179,7 @@ model Localizacao {
   longitude Decimal @db.Decimal(10, 8)
 
   dataHora DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model Avaliacao {
@@ -183,4 +192,5 @@ model Avaliacao {
   data       DateTime @default(now())
 
   nota Decimal @db.Decimal(2, 1)
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
