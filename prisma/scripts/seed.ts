@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import { Prisma, Cargo } from "@prisma/client";
-import { prisma } from "../src/database/prisma.js";
+import { prisma } from "../../src/database/prisma.js";
 
 const DEFAULT_PASSWORD = "Mova@123";
 const DEFAULT_PASSWORD_ROUNDS = 10;

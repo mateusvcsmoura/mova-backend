@@ -1,4 +1,4 @@
-import { prisma } from "../src/database/prisma.js";
+import { prisma } from "../../src/database/prisma.js";
 
 function assertSafeToReset() {
   if (process.env.NODE_ENV === "production") {
