@@ -2,6 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -52,17 +56,17 @@ model Conta {
   cep      String
   endereco String
 
-  locatario Locatario?
-  locador   Locador?
-  atualizadoEm DateTime @default(now()) @updatedAt
+  locatario    Locatario?
+  locador      Locador?
+  atualizadoEm DateTime   @default(now()) @updatedAt
 }
 
 model Deficiencia {
   id        String @id @default(uuid()) @db.Uuid
   descricao String
 
-  locatarios Locatario[]
-  atualizadoEm DateTime @default(now()) @updatedAt
+  locatarios   Locatario[]
+  atualizadoEm DateTime    @default(now()) @updatedAt
 }
 
 model Locatario {
@@ -75,8 +79,8 @@ model Locatario {
   deficienciaId String?      @db.Uuid
   deficiencia   Deficiencia? @relation(fields: [deficienciaId], references: [id])
 
-  reservas Reserva[]
-  atualizadoEm DateTime @default(now()) @updatedAt
+  reservas     Reserva[]
+  atualizadoEm DateTime  @default(now()) @updatedAt
 }
 
 model Locador {
@@ -89,23 +93,23 @@ model Locador {
   veiculos       Veiculo[]
   garagens       Garagem[]
   modelosVeiculo ModeloVeiculo[]
-  atualizadoEm DateTime @default(now()) @updatedAt
+  atualizadoEm   DateTime        @default(now()) @updatedAt
 }
 
 model ModeloVeiculo {
-  id         String    @id @default(uuid()) @db.Uuid
-  idLocador  String    @db.Uuid
-  locador    Locador   @relation(fields: [idLocador], references: [id], onDelete: Cascade)
-  marca      String
-  modelo     String
-  ano        Int
-  cambio     String
-  capacidade Int
-  eletrico   Boolean
-  adaptado   Boolean
-  criadoEm   DateTime  @default(now())
-  veiculos   Veiculo[]
-  atualizadoEm DateTime @default(now()) @updatedAt
+  id           String    @id @default(uuid()) @db.Uuid
+  idLocador    String    @db.Uuid
+  locador      Locador   @relation(fields: [idLocador], references: [id], onDelete: Cascade)
+  marca        String
+  modelo       String
+  ano          Int
+  cambio       String
+  capacidade   Int
+  eletrico     Boolean
+  adaptado     Boolean
+  criadoEm     DateTime  @default(now())
+  veiculos     Veiculo[]
+  atualizadoEm DateTime  @default(now()) @updatedAt
 
   @@unique([idLocador, marca, modelo, ano])
 }
@@ -123,7 +127,7 @@ model Veiculo {
   criadoEm        DateTime      @default(now())
   reservas        Reserva[]
   localizacoes    Localizacao[]
-  atualizadoEm DateTime @default(now()) @updatedAt
+  atualizadoEm    DateTime      @default(now()) @updatedAt
 }
 
 model Garagem {
@@ -142,8 +146,8 @@ model Garagem {
 
   criadaEm DateTime @default(now())
 
-  veiculos Veiculo[]
-  atualizadoEm DateTime @default(now()) @updatedAt
+  veiculos     Veiculo[]
+  atualizadoEm DateTime  @default(now()) @updatedAt
 }
 
 model Reserva {
@@ -165,8 +169,8 @@ model Reserva {
   status          StatusReserva   @default(AGUARDANDO_PAGAMENTO)
   statusPagamento StatusPagamento @default(AGUARDANDO_PAGAMENTO)
 
-  avaliacao Avaliacao?
-  atualizadoEm DateTime @default(now()) @updatedAt
+  avaliacao    Avaliacao?
+  atualizadoEm DateTime   @default(now()) @updatedAt
 }
 
 model Localizacao {
@@ -178,7 +182,7 @@ model Localizacao {
   latitude  Decimal @db.Decimal(10, 8)
   longitude Decimal @db.Decimal(10, 8)
 
-  dataHora DateTime @default(now())
+  dataHora     DateTime @default(now())
   atualizadoEm DateTime @default(now()) @updatedAt
 }
 
@@ -191,6 +195,6 @@ model Avaliacao {
   comentario String?
   data       DateTime @default(now())
 
-  nota Decimal @db.Decimal(2, 1)
+  nota         Decimal  @db.Decimal(2, 1)
   atualizadoEm DateTime @default(now()) @updatedAt
 }

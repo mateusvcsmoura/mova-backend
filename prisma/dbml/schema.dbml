@@ -1,0 +1,185 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table Conta {
+  id String [pk]
+  nome String [not null]
+  email String [unique, not null]
+  telefone String
+  senhaHash String [not null]
+  criadaEm DateTime [default: `now()`, not null]
+  cargo Cargo [not null, default: 'LOCATARIO']
+  cep String [not null]
+  endereco String [not null]
+  locatario Locatario
+  locador Locador
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Deficiencia {
+  id String [pk]
+  descricao String [not null]
+  locatarios Locatario [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Locatario {
+  id String [pk]
+  cpf String [unique, not null]
+  cnh String [unique, not null]
+  conta Conta [not null]
+  deficienciaId String
+  deficiencia Deficiencia
+  reservas Reserva [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Locador {
+  id String [pk]
+  empresa String [not null]
+  cnpj String [unique, not null]
+  conta Conta [not null]
+  veiculos Veiculo [not null]
+  garagens Garagem [not null]
+  modelosVeiculo ModeloVeiculo [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table ModeloVeiculo {
+  id String [pk]
+  idLocador String [not null]
+  locador Locador [not null]
+  marca String [not null]
+  modelo String [not null]
+  ano Int [not null]
+  cambio String [not null]
+  capacidade Int [not null]
+  eletrico Boolean [not null]
+  adaptado Boolean [not null]
+  criadoEm DateTime [default: `now()`, not null]
+  veiculos Veiculo [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+
+  indexes {
+    (idLocador, marca, modelo, ano) [unique]
+  }
+}
+
+Table Veiculo {
+  id String [pk]
+  idLocador String [not null]
+  locador Locador [not null]
+  idModeloVeiculo String [not null]
+  modeloVeiculo ModeloVeiculo [not null]
+  garagemId String
+  garagem Garagem
+  placa String [unique, not null]
+  status StatusVeiculo [not null, default: 'DISPONIVEL']
+  criadoEm DateTime [default: `now()`, not null]
+  reservas Reserva [not null]
+  localizacoes Localizacao [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Garagem {
+  id String [pk]
+  idLocador String [not null]
+  locador Locador [not null]
+  nome String [not null]
+  endereco String [not null]
+  capacidade Int [not null]
+  veiculosAlocados Int [not null]
+  acessibilidade Boolean [not null, default: true]
+  criadaEm DateTime [default: `now()`, not null]
+  veiculos Veiculo [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Reserva {
+  id String [pk]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  idLocatario String [not null]
+  locatario Locatario [not null]
+  dataHoraInicio DateTime [not null]
+  dataHoraFim DateTime [not null]
+  criadaEm DateTime [default: `now()`, not null]
+  valorTotal Decimal [not null]
+  status StatusReserva [not null, default: 'AGUARDANDO_PAGAMENTO']
+  statusPagamento StatusPagamento [not null, default: 'AGUARDANDO_PAGAMENTO']
+  avaliacao Avaliacao
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Localizacao {
+  id String [pk]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  latitude Decimal [not null]
+  longitude Decimal [not null]
+  dataHora DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table Avaliacao {
+  id String [pk]
+  idReserva String [unique, not null]
+  reserva Reserva [not null]
+  comentario String
+  data DateTime [default: `now()`, not null]
+  nota Decimal [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Enum Cargo {
+  LOCATARIO
+  LOCADOR
+  ADMIN
+}
+
+Enum StatusVeiculo {
+  DISPONIVEL
+  RESERVADO
+  MANUTENCAO
+  INATIVO
+}
+
+Enum StatusReserva {
+  AGUARDANDO_PAGAMENTO
+  CONFIRMADA
+  EM_ANDAMENTO
+  REALIZADA
+  CANCELADA
+}
+
+Enum StatusPagamento {
+  AGUARDANDO_PAGAMENTO
+  PROCESSANDO
+  SUCESSO
+  FALHA
+}
+
+Ref: Locatario.id - Conta.id [delete: Cascade]
+
+Ref: Locatario.deficienciaId > Deficiencia.id
+
+Ref: Locador.id - Conta.id [delete: Cascade]
+
+Ref: ModeloVeiculo.idLocador > Locador.id [delete: Cascade]
+
+Ref: Veiculo.idLocador > Locador.id [delete: Cascade]
+
+Ref: Veiculo.idModeloVeiculo > ModeloVeiculo.id
+
+Ref: Veiculo.garagemId > Garagem.id
+
+Ref: Garagem.idLocador > Locador.id [delete: Cascade]
+
+Ref: Reserva.idVeiculo > Veiculo.id
+
+Ref: Reserva.idLocatario > Locatario.id
+
+Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
+
+Ref: Avaliacao.idReserva - Reserva.id [delete: Cascade]
