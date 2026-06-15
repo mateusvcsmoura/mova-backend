@@ -13,6 +13,7 @@ import {
 } from "../contracts/garagem.contract.js";
 import { VeiculoResponse } from "../contracts/veiculo.contract.js";
 import { VeiculoMapper } from "../mappers/veiculo.mapper.js";
+import { prisma } from "../../database/prisma.js";
 
 type GaragemComLocadorEVeiculos = Prisma.GaragemGetPayload<{
   include: {
@@ -26,7 +27,6 @@ type GaragemComLocadorEVeiculos = Prisma.GaragemGetPayload<{
 }>;
 
 export class PrismaGaragemRepository implements IGaragemRepository {
-  constructor(private readonly prisma: PrismaClient) {}
 
   private toBaseResponse(garagem: Garagem): GaragemBaseResponse {
     return {
@@ -91,7 +91,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     const limit = Math.max(1, filters.limit ?? 10);
     const where = this.buildWhere(filters);
 
-    const garagems = await this.prisma.garagem.findMany({
+    const garagems = await prisma.garagem.findMany({
       where,
       orderBy: {
         criadaEm: "desc",
@@ -119,7 +119,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
   }
 
   async findById(id: string): Promise<GaragemDetalhadaResponse | null> {
-    const garagem = await this.prisma.garagem.findUnique({
+    const garagem = await prisma.garagem.findUnique({
       where: { id },
       include: {
         locador: true,
@@ -138,7 +138,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     garagemId: string,
     filters?: GaragemVeiculosFilters,
   ): Promise<VeiculoResponse[]> {
-    const garagem = await this.prisma.garagem.findUnique({
+    const garagem = await prisma.garagem.findUnique({
       where: { id: garagemId },
       select: { id: true },
     });
@@ -147,7 +147,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
       throw new HttpError(404, "Garagem não encontrada.");
     }
 
-    const veiculos = await this.prisma.veiculo.findMany({
+    const veiculos = await prisma.veiculo.findMany({
       where: {
         garagemId,
         ...(filters?.status ? { status: filters.status } : {}),
@@ -164,7 +164,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
   }
 
   async create(data: CreateGaragemRequest): Promise<GaragemBaseResponse> {
-    const garagem = await this.prisma.garagem.create({
+    const garagem = await prisma.garagem.create({
       data: {
         idLocador: data.idLocador,
         nome: data.nome,
@@ -189,7 +189,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     }
 
     try {
-      const garagem = await this.prisma.garagem.update({
+      const garagem = await prisma.garagem.update({
         where: { id },
         data: {
           nome: data.nome ?? undefined,
@@ -207,7 +207,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
 
   async delete(id: string): Promise<void> {
     try {
-      await this.prisma.garagem.delete({
+      await prisma.garagem.delete({
         where: { id },
       });
     } catch {
@@ -216,7 +216,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
   }
 
   async alocarVeiculo(garagemId: string, veiculoId: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const garagem = await tx.garagem.findUnique({
         where: { id: garagemId },
         select: {
@@ -273,7 +273,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
   }
 
   async desalocarVeiculo(garagemId: string, veiculoId: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const garagem = await tx.garagem.findUnique({
         where: { id: garagemId },
         select: {
