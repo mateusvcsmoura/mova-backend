@@ -1,0 +1,160 @@
+import request from "supertest";
+import { app } from "../src/app";
+
+type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
+
+// Contador global de processo — gera valores únicos entre chamadas.
+// O banco é limpo por arquivo (setup.ts), então não há colisão de constraints.
+let counter = 0;
+const seq = () => ++counter;
+
+const pad = (n: number, len: number) => String(n).padStart(len, "0").slice(-len);
+
+export const DEFAULT_SENHA = "StrongPass#123";
+
+export const uniqueEmail = (prefix = "acc") =>
+  `${prefix}.${seq()}.${Math.floor(Math.random() * 1_000_000)}@test.local`;
+
+export const uniqueCnpj = () => pad(20000000000000 + seq(), 14);
+export const uniqueCpf = () => pad(20000000000 + seq(), 11);
+export const uniqueCnh = () => pad(30000000000 + seq(), 11);
+export const uniquePlaca = () => `ABC${pad(1000 + seq(), 4)}`;
+
+export interface Account {
+  conta: any;
+  token: string;
+  email: string;
+  senha: string;
+}
+
+// Registra uma conta e faz login. Retorna o token de LOGIN, que contém o
+// cargo no payload do JWT (necessário para o authMiddleware aceitar a rota).
+export async function createAccount(
+  cargo: Cargo,
+  overrides: Record<string, unknown> = {},
+): Promise<Account> {
+  const email = uniqueEmail(cargo.toLowerCase());
+  const payload = {
+    nome: `Conta ${cargo} ${seq()}`,
+    email,
+    senha: DEFAULT_SENHA,
+    cep: "12345-678",
+    endereco: "Rua de Teste, 123",
+    cargo,
+    ...overrides,
+  };
+
+  const register = await request(app)
+    .post("/api/conta/auth/register")
+    .send(payload);
+
+  const conta = register.body.result.conta;
+
+  const login = await request(app)
+    .post("/api/conta/auth/login")
+    .send({ email, senha: DEFAULT_SENHA });
+
+  return { conta, token: login.body.result.token, email, senha: DEFAULT_SENHA };
+}
+
+export interface LocadorContext extends Account {
+  locador: any;
+  locadorId: string;
+  empresa: string;
+  cnpj: string;
+}
+
+// Conta LOCADOR + registro de Locador (Locador.id === Conta.id).
+export async function createLocador(): Promise<LocadorContext> {
+  const account = await createAccount("LOCADOR");
+  const empresa = `Empresa ${seq()} Ltda`;
+  const cnpj = uniqueCnpj();
+
+  const res = await request(app)
+    .post("/api/locador")
+    .send({ id: account.conta.id, empresa, cnpj });
+
+  return {
+    ...account,
+    locador: res.body.result,
+    locadorId: account.conta.id,
+    empresa,
+    cnpj,
+  };
+}
+
+export interface LocatarioContext extends Account {
+  locatario: any;
+  locatarioId: string;
+  cpf: string;
+  cnh: string;
+}
+
+// Conta LOCATARIO + registro de Locatario (Locatario.id === Conta.id).
+export async function createLocatario(
+  deficienciaId?: string,
+): Promise<LocatarioContext> {
+  const account = await createAccount("LOCATARIO");
+  const cpf = uniqueCpf();
+  const cnh = uniqueCnh();
+
+  const res = await request(app)
+    .post("/api/locatario")
+    .send({
+      id: account.conta.id,
+      cpf,
+      cnh,
+      ...(deficienciaId ? { deficiencia_id: deficienciaId } : {}),
+    });
+
+  return {
+    ...account,
+    locatario: res.body.result,
+    locatarioId: account.conta.id,
+    cpf,
+    cnh,
+  };
+}
+
+export async function createVeiculo(
+  idLocador: string,
+  overrides: Record<string, unknown> = {},
+) {
+  const payload = {
+    idLocador,
+    placa: uniquePlaca(),
+    marca: "Fiat",
+    modelo: "Argo",
+    ano: 2022,
+    cambio: "Manual",
+    capacidade: 5,
+    eletrico: false,
+    adaptado: false,
+    ...overrides,
+  };
+
+  const res = await request(app).post("/api/veiculo").send(payload);
+  return res.body.result;
+}
+
+export async function createGaragem(
+  token: string,
+  idLocador: string,
+  overrides: Record<string, unknown> = {},
+) {
+  const payload = {
+    idLocador,
+    nome: `Garagem ${seq()}`,
+    endereco: "Avenida das Garagens, 500",
+    capacidade: 10,
+    acessibilidade: true,
+    ...overrides,
+  };
+
+  const res = await request(app)
+    .post("/api/garagem")
+    .set("Authorization", `Bearer ${token}`)
+    .send(payload);
+
+  return res.body.result;
+}

@@ -1,7 +1,21 @@
-import { beforeAll, beforeEach } from "vitest";
+import { beforeAll } from "vitest";
 import { prisma } from "../src/database/prisma";
 
-beforeAll(async () => {
+// Limpa todas as tabelas respeitando as foreign keys do schema.prisma.
+// Roda uma vez antes de cada arquivo de teste, garantindo isolamento.
+async function resetDatabase() {
+  await prisma.avaliacao.deleteMany();
+  await prisma.localizacao.deleteMany();
   await prisma.reserva.deleteMany();
+  await prisma.veiculo.deleteMany();
+  await prisma.modeloVeiculo.deleteMany();
+  await prisma.garagem.deleteMany();
+  await prisma.locatario.deleteMany();
+  await prisma.locador.deleteMany();
+  await prisma.deficiencia.deleteMany();
   await prisma.conta.deleteMany();
+}
+
+beforeAll(async () => {
+  await resetDatabase();
 });
