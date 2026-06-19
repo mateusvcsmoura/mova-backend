@@ -1,0 +1,63 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # A cada 12 horas (00:00 e 12:00 UTC)
+    - cron: "0 */12 * * *"
+
+# Cancela execuções antigas do mesmo ref quando uma nova é disparada.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run automated tests
+    runs-on: ubuntu-latest
+
+    # Variáveis vindas exclusivamente dos GitHub Secrets.
+    # env.ts valida TODAS no boot, então todas precisam estar presentes.
+    env:
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      NODE_ENV: test
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
+      DIRECT_URL_TEST: ${{ secrets.DIRECT_URL_TEST }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Apply migrations to test database
+        # Prisma CLI lê a conexão de DATABASE_URL; aqui apontamos para o banco
+        # de teste para que as migrations sejam aplicadas no alvo correto.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL_TEST }}
+        run: npx prisma migrate deploy
+
+      - name: Run tests
+        # NODE_ENV=test faz o Prisma Client usar DATABASE_URL_TEST (src/database/prisma.ts)
+        run: npm run test
