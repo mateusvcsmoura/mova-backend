@@ -1,9 +1,16 @@
 import bcrypt from "bcrypt";
-import { Prisma, Cargo } from "@prisma/client";
+import { Cargo } from "@prisma/client";
 import { prisma } from "../../src/database/prisma.js";
 
 const DEFAULT_PASSWORD = "Mova@123";
 const DEFAULT_PASSWORD_ROUNDS = 10;
+
+// ── Quantidades pedidas ───────────────────────────────────────────────────
+const LOCATARIOS = 5;
+const LOCADORES = 5;
+const GARAGENS_POR_LOCADOR = 5;
+const MODELOS_POR_LOCADOR = 3;
+const VEICULOS_POR_LOCADOR = 5;
 
 const firstNames = [
   "Ana",
@@ -143,7 +150,7 @@ function buildEmail(name: string, index: number): string {
   const normalized = name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{Diacritic}/gu, "")
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.|\.$/g, "");
   return `${normalized}.${index + 1}@mova.local`;
@@ -166,7 +173,7 @@ async function main() {
       await tx.localizacao.deleteMany();
       await tx.reserva.deleteMany();
       await tx.veiculo.deleteMany();
-      await tx.modeloVeiculo.deleteMany(); // <- novo: limpa modelos após veículos
+      await tx.modeloVeiculo.deleteMany();
       await tx.garagem.deleteMany();
       await tx.locatario.deleteMany();
       await tx.locador.deleteMany();
@@ -175,7 +182,7 @@ async function main() {
 
       // ── Contas ────────────────────────────────────────────────────────────
       const contasData = [
-        ...Array.from({ length: 4 }, (_, index) => ({
+        ...Array.from({ length: LOCADORES }, (_, index) => ({
           nome: `Locador ${buildFullName(index)}`,
           email: `locador.${index + 1}@mova.local`,
           telefone: `+55 41 9${String(70000000 + index).slice(-8)}`,
@@ -184,11 +191,11 @@ async function main() {
           cep: `800${String(10000 + index).slice(-5)}`,
           endereco: buildAddress(index),
         })),
-        ...Array.from({ length: 7 }, (_, index) => {
-          const nome = `Locatario ${buildFullName(index + 4)}`;
+        ...Array.from({ length: LOCATARIOS }, (_, index) => {
+          const nome = `Locatario ${buildFullName(index + LOCADORES)}`;
           return {
             nome,
-            email: buildEmail(nome, index + 4),
+            email: buildEmail(nome, index + LOCADORES),
             telefone:
               index % 2 === 0
                 ? `+55 41 9${String(71000000 + index).slice(-8)}`
@@ -196,7 +203,7 @@ async function main() {
             senhaHash: passwordHash,
             cargo: Cargo.LOCATARIO,
             cep: `820${String(10000 + index).slice(-5)}`,
-            endereco: buildAddress(index + 4),
+            endereco: buildAddress(index + LOCADORES),
           };
         }),
       ];
@@ -250,91 +257,93 @@ async function main() {
               id: conta.id,
               cpf: formatCpf(index + 1),
               cnh: formatCnh(index + 1),
-              deficienciaId: index < 3 ? deficiencias[index].id : null,
+              deficienciaId:
+                index < deficiencias.length
+                  ? deficiencias[index].id
+                  : null,
             },
           }),
         );
       }
 
-      // ── Garagens ──────────────────────────────────────────────────────────
+      // ── Garagens, Modelos e Veículos por Locador ──────────────────────────
       const garagens = [] as Array<
         Awaited<ReturnType<typeof tx.garagem.create>>
       >;
-      for (const [index, locador] of locadores.entries()) {
-        garagens.push(
-          await tx.garagem.create({
-            data: {
-              idLocador: locador.id,
-              nome: `${locador.empresa} - Unidade ${index + 1}`,
-              endereco: buildAddress(index + 8),
-              capacidade: 6 + index,
-              veiculosAlocados: 0,
-              acessibilidade: index % 2 === 0,
-            },
-          }),
-        );
-      }
-
-      // ── Modelos + Veículos ────────────────────────────────────────────────
-      // O upsert garante que modelos com mesma combinação [idLocador, marca, modelo, ano]
-      // não sejam duplicados, mesmo que o loop passe pelo mesmo locador mais de uma vez.
+      const modelos = [] as Array<
+        Awaited<ReturnType<typeof tx.modeloVeiculo.create>>
+      >;
       const veiculos = [] as Array<
         Awaited<ReturnType<typeof tx.veiculo.create>>
       >;
 
-      for (let index = 0; index < 10; index++) {
-        const locador = locadores[index % locadores.length];
-        const garagem = garagens[index % garagens.length];
-        const assignToGarage = index % 3 !== 0;
+      let placaSeq = 0;
 
-        const marca = pick(vehicleBrands, index);
-        const modelo = pick(vehicleModels, index + 2);
-        const ano = 2020 + (index % 5);
-        const cambio = pick(transmissions, index);
-        const capacidade = 4 + (index % 3);
-        const eletrico = index % 5 === 0;
-        const adaptado = index % 4 === 1;
-
-        // Upsert do modelo — mesmo comportamento do repository em produção
-        const modeloVeiculo = await tx.modeloVeiculo.upsert({
-          where: {
-            idLocador_marca_modelo_ano: {
+      for (const [locadorIndex, locador] of locadores.entries()) {
+        // 5 garagens deste locador
+        const garagensDoLocador = [] as typeof garagens;
+        for (let g = 0; g < GARAGENS_POR_LOCADOR; g++) {
+          const seq = locadorIndex * GARAGENS_POR_LOCADOR + g;
+          const garagem = await tx.garagem.create({
+            data: {
               idLocador: locador.id,
-              marca,
-              modelo,
-              ano,
+              nome: `${locador.empresa} - Unidade ${g + 1}`,
+              endereco: buildAddress(seq),
+              capacidade: VEICULOS_POR_LOCADOR + g,
+              veiculosAlocados: 0,
+              acessibilidade: g % 2 === 0,
             },
-          },
-          update: {}, // já existe? não altera nada
-          create: {
-            idLocador: locador.id,
-            marca,
-            modelo,
-            ano,
-            cambio,
-            capacidade,
-            eletrico,
-            adaptado,
-          },
-        });
-
-        const veiculo = await tx.veiculo.create({
-          data: {
-            idLocador: locador.id,
-            idModeloVeiculo: modeloVeiculo.id,
-            garagemId: assignToGarage ? garagem.id : null,
-            placa: formatPlaca(index + 1),
-            status: index % 4 === 0 ? "MANUTENCAO" : "DISPONIVEL",
-          },
-        });
-
-        veiculos.push(veiculo);
-
-        if (assignToGarage) {
-          await tx.garagem.update({
-            where: { id: garagem.id },
-            data: { veiculosAlocados: { increment: 1 } },
           });
+          garagens.push(garagem);
+          garagensDoLocador.push(garagem);
+        }
+
+        // 3 modelos deste locador — ano distinto garante a unicidade
+        // [idLocador, marca, modelo, ano] mesmo com marca/modelo repetidos
+        const modelosDoLocador = [] as typeof modelos;
+        for (let m = 0; m < MODELOS_POR_LOCADOR; m++) {
+          const seq = locadorIndex * MODELOS_POR_LOCADOR + m;
+          const modelo = await tx.modeloVeiculo.create({
+            data: {
+              idLocador: locador.id,
+              marca: pick(vehicleBrands, seq),
+              modelo: pick(vehicleModels, seq + 1),
+              ano: 2020 + m,
+              cambio: pick(transmissions, m),
+              capacidade: 4 + (m % 3),
+              eletrico: m === 0,
+              adaptado: m === 1,
+            },
+          });
+          modelos.push(modelo);
+          modelosDoLocador.push(modelo);
+        }
+
+        // 5 veículos deste locador — distribuídos entre modelos e garagens
+        for (let v = 0; v < VEICULOS_POR_LOCADOR; v++) {
+          placaSeq += 1;
+          const modeloVeiculo = modelosDoLocador[v % modelosDoLocador.length];
+          // v === 0 fica sem garagem, demais ocupam uma vaga
+          const assignToGarage = v !== 0;
+          const garagem = garagensDoLocador[v % garagensDoLocador.length];
+
+          const veiculo = await tx.veiculo.create({
+            data: {
+              idLocador: locador.id,
+              idModeloVeiculo: modeloVeiculo.id,
+              garagemId: assignToGarage ? garagem.id : null,
+              placa: formatPlaca(placaSeq),
+              status: v % 4 === 0 ? "MANUTENCAO" : "DISPONIVEL",
+            },
+          });
+          veiculos.push(veiculo);
+
+          if (assignToGarage) {
+            await tx.garagem.update({
+              where: { id: garagem.id },
+              data: { veiculosAlocados: { increment: 1 } },
+            });
+          }
         }
       }
 
@@ -344,12 +353,12 @@ async function main() {
         locatarios: locatarios.length,
         deficiencias: deficiencias.length,
         garagens: garagens.length,
-        modelosVeiculo: new Set(veiculos.map((v) => v.idModeloVeiculo)).size,
+        modelosVeiculo: modelos.length,
         veiculos: veiculos.length,
         senhaPadrao: DEFAULT_PASSWORD,
       };
     },
-    { maxWait: 10000, timeout: 20000 },
+    { maxWait: 10000, timeout: 30000 },
   );
 
   console.log("Seed concluido com sucesso.");

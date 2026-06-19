@@ -11,11 +11,13 @@ async function main() {
 
   console.log("Iniciando reset total do banco...\n");
 
+  // Ordem respeita as foreign keys do schema.prisma atual.
   const [
     avaliacoes,
     localizacoes,
     reservas,
     veiculos,
+    modelosVeiculo,
     garagens,
     locatarios,
     locadores,
@@ -26,6 +28,7 @@ async function main() {
     prisma.localizacao.deleteMany(),
     prisma.reserva.deleteMany(),
     prisma.veiculo.deleteMany(),
+    prisma.modeloVeiculo.deleteMany(),
     prisma.garagem.deleteMany(),
     prisma.locatario.deleteMany(),
     prisma.locador.deleteMany(),
@@ -39,6 +42,7 @@ async function main() {
   console.log(`- Localizacoes: ${localizacoes.count}`);
   console.log(`- Reservas: ${reservas.count}`);
   console.log(`- Veiculos: ${veiculos.count}`);
+  console.log(`- Modelos de veiculo: ${modelosVeiculo.count}`);
   console.log(`- Garagens: ${garagens.count}`);
   console.log(`- Locatarios: ${locatarios.count}`);
   console.log(`- Locadores: ${locadores.count}`);
