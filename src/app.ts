@@ -9,6 +9,7 @@ import { veiculoRouter } from "./routes/veiculo/veiculo.js";
 import { apiMetadata } from "./middlewares/api-version.js";
 import { adminRouter } from "./routes/admin/admin.js";
 import { deficienciaRouter } from "./routes/deficiencia/deficiencia.js";
+import { garagemRouter } from "./routes/garagem/garagem.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/conta", contaRouter);
 app.use("/api/locador", locadorRouter);
 app.use("/api/locatario", locatarioRouter);
 app.use("/api/veiculo", veiculoRouter);
+app.use("/api/garagem", garagemRouter);
 
 app.use(errorHandler);
 

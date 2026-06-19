@@ -1,5 +1,6 @@
 import { ContaController } from "../controllers/conta.js";
 import { DeficienciaController } from "../controllers/deficiencia.js";
+import { GaragemController } from "../controllers/garagem.js";
 import { LocadorController } from "../controllers/locador.js";
 import { LocatarioController } from "../controllers/locatario.js";
 import { VeiculoController } from "../controllers/veiculo.js";
@@ -44,3 +45,4 @@ export const veiculoController = new VeiculoController(veiculoService);
 
 export const garagemRepository: IGaragemRepository = new PrismaGaragemRepository();
 export const garagemService = new GaragemService(garagemRepository, veiculoRepository);
+export const garagemController = new GaragemController(garagemService);
