@@ -118,6 +118,8 @@ export class LocatarioController {
       }
 
       await this.locatarioService.delete(result.data);
+
+      return res.status(204).send();
     } catch (error) {
       next(error);
     }
