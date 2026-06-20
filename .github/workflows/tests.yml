@@ -51,13 +51,13 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Apply migrations to test database
-        # Prisma CLI lê a conexão de DATABASE_URL; aqui apontamos para o banco
-        # de teste para que as migrations sejam aplicadas no alvo correto.
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL_TEST }}
-        run: npx prisma migrate deploy
+      # - name: Apply migrations to test database
+      #   # Prisma CLI lê a conexão de DATABASE_URL; aqui apontamos para o banco
+      #   # de teste para que as migrations sejam aplicadas no alvo correto.
+      #   env:
+      #     DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+      #     DIRECT_URL: ${{ secrets.DIRECT_URL_TEST }}
+      #   run: npx prisma migrate deploy
 
       - name: Run tests
         # NODE_ENV=test faz o Prisma Client usar DATABASE_URL_TEST (src/database/prisma.ts)
