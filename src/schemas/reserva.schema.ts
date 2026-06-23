@@ -57,3 +57,14 @@ export const reservaQuerySchema = z.object({
 export const reservaIdParamSchema = z.object({
   id: z.string().uuid(),
 });
+
+// Body do desbloqueio do veículo (POST /api/reserva/:id/desbloqueio)
+export const desbloquearReservaSchema = z.object({
+  codigo: z
+    .string()
+    .trim()
+    .transform((v) => v.toUpperCase())
+    .refine((v) => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(v), {
+      message: "Código deve estar no formato XXXX-XXXX",
+    }),
+});

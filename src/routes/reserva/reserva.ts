@@ -26,6 +26,12 @@ reservaRouter.post(
   authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.create,
 );
+reservaRouter.post(
+  "/:id/desbloqueio",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.desbloquear,
+);
 reservaRouter.put("/:id", authMiddleware, reservaController.update);
 reservaRouter.delete("/:id", authMiddleware, reservaController.delete);
 
