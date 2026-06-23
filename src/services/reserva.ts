@@ -1,4 +1,5 @@
-import { Cargo, StatusVeiculo } from "@prisma/client";
+import { randomInt } from "node:crypto";
+import { Cargo, StatusPagamento, StatusReserva, StatusVeiculo } from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
 import {
@@ -17,12 +18,86 @@ interface ReservaAccessContext {
   cargo: Cargo;
 }
 
+// Alfabeto sem caracteres ambíguos (sem O, 0, I, 1, L).
+const CODIGO_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const CODIGO_BLOCO = 4; // XXXX-XXXX
+const CODIGO_MAX_TENTATIVAS = 5; // tentativas para evitar colisão de unique
+// Janela de validade do código a partir da data de início (2 dias).
+const CODIGO_VALIDADE_MS = 2 * 24 * 60 * 60 * 1000;
+
 export class ReservaService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
     private readonly veiculoRepository: IVeiculoRepository,
     private readonly locatarioRepository: ILocatarioRepository,
   ) {}
+
+  // Gera uma string no formato XXXX-XXXX usando o alfabeto sem ambíguos.
+  private gerarCodigoAleatorio(): string {
+    const bloco = () =>
+      Array.from(
+        { length: CODIGO_BLOCO },
+        () => CODIGO_ALPHABET[randomInt(CODIGO_ALPHABET.length)],
+      ).join("");
+    return `${bloco()}-${bloco()}`;
+  }
+
+  // Gera um código único (consulta o repositório para evitar colisões).
+  private async gerarCodigoUnico(): Promise<string> {
+    for (let i = 0; i < CODIGO_MAX_TENTATIVAS; i++) {
+      const codigo = this.gerarCodigoAleatorio();
+      const existente =
+        await this.reservaRepository.findByCodigoDesbloqueio(codigo);
+      if (!existente) {
+        return codigo;
+      }
+    }
+    throw new HttpError(
+      500,
+      "Não foi possível gerar um código de desbloqueio único.",
+    );
+  }
+
+  // Instante em que o código expira: min(dataHoraInicio + 2 dias, dataHoraFim).
+  private calcularExpiracaoCodigo(reserva: ReservaResponse): Date {
+    const limitePorValidade = new Date(
+      reserva.dataHoraInicio.getTime() + CODIGO_VALIDADE_MS,
+    );
+    return limitePorValidade < reserva.dataHoraFim
+      ? limitePorValidade
+      : reserva.dataHoraFim;
+  }
+
+  // Valida se o código pode ser usado neste exato momento.
+  private assertCodigoUsavel(reserva: ReservaResponse): void {
+    if (!reserva.codigoDesbloqueio || !reserva.codigoGeradoEm) {
+      throw new HttpError(
+        409,
+        "Código de desbloqueio ainda não gerado. Confirme o pagamento primeiro.",
+      );
+    }
+
+    if (reserva.status === StatusReserva.CANCELADA) {
+      throw new HttpError(409, "Reserva cancelada.");
+    }
+
+    if (reserva.codigoUsadoEm) {
+      throw new HttpError(409, "Código de desbloqueio já utilizado.");
+    }
+
+    const agora = new Date();
+
+    if (agora < reserva.dataHoraInicio) {
+      throw new HttpError(
+        409,
+        "O código só pode ser usado a partir da data de início da reserva.",
+      );
+    }
+
+    if (agora > this.calcularExpiracaoCodigo(reserva)) {
+      throw new HttpError(409, "Código de desbloqueio expirado.");
+    }
+  }
 
   // Garante que o solicitante pode ver/alterar a reserva:
   // ADMIN sempre; LOCATARIO se for o dono; LOCADOR se o veículo for dele.
@@ -205,7 +280,52 @@ export class ReservaService {
       );
     }
 
-    return this.reservaRepository.update(id, data);
+    const atualizada = await this.reservaRepository.update(id, data);
+
+    // Pagamento confirmado agora e ainda sem código -> gera o código de desbloqueio.
+    if (
+      data.statusPagamento === StatusPagamento.SUCESSO &&
+      !reserva.codigoDesbloqueio
+    ) {
+      const codigo = await this.gerarCodigoUnico();
+      return this.reservaRepository.gerarCodigoDesbloqueio(
+        id,
+        codigo,
+        new Date(),
+      );
+    }
+
+    return atualizada;
+  };
+
+  // Usa o código de desbloqueio do veículo dentro da janela permitida.
+  usarCodigoDesbloqueio = async (
+    id: string,
+    codigo: string,
+    requester: ReservaAccessContext,
+  ): Promise<ReservaResponse> => {
+    const reserva = await this.reservaRepository.findById(id);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+
+    await this.assertReservaAccess(requester, reserva);
+
+    // Sem código gerado ainda é conflito de estado (pagamento não confirmado).
+    if (!reserva.codigoDesbloqueio || !reserva.codigoGeradoEm) {
+      throw new HttpError(
+        409,
+        "Código de desbloqueio ainda não gerado. Confirme o pagamento primeiro.",
+      );
+    }
+
+    if (reserva.codigoDesbloqueio !== codigo.toUpperCase()) {
+      throw new HttpError(400, "Código de desbloqueio inválido.");
+    }
+
+    this.assertCodigoUsavel(reserva);
+
+    return this.reservaRepository.marcarCodigoComoUsado(id, new Date());
   };
 
   delete = async (
