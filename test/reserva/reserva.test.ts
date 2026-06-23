@@ -1,14 +1,18 @@
 import request from "supertest";
 import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
+import { prisma } from "../../src/database/prisma";
 import {
   createLocador,
   createLocatario,
+  createReserva,
   createVeiculo,
   futurePeriod,
   type LocadorContext,
   type LocatarioContext,
 } from "../helpers";
+
+const CODIGO_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 
 describe("Reserva API", () => {
   let locador: LocadorContext;
@@ -255,5 +259,151 @@ describe("Reserva API", () => {
       expect(response.status).toBe(204);
       expect(response.body).toEqual({});
     });
+  });
+});
+
+describe("Reserva — código de desbloqueio", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  let veiculoId: string;
+  let reservaId: string;
+  let codigo: string;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.locadorId);
+    veiculoId = veiculo.id;
+
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(50, 3),
+    );
+    reservaId = reserva.id;
+  });
+
+  it("não deve ter código antes do pagamento", async () => {
+    const response = await request(app)
+      .get(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.codigoDesbloqueio).toBeNull();
+  });
+
+  it("deve recusar desbloqueio antes de gerar o código", async () => {
+    const response = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ codigo: "ABCD-2345" });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("deve gerar código no formato XXXX-XXXX ao confirmar pagamento", async () => {
+    const response = await request(app)
+      .put(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ statusPagamento: "SUCESSO" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.statusPagamento).toBe("SUCESSO");
+    expect(response.body.result.codigoDesbloqueio).toMatch(CODIGO_REGEX);
+    expect(response.body.result.codigoGeradoEm).not.toBeNull();
+    expect(response.body.result.codigoUsadoEm).toBeNull();
+
+    codigo = response.body.result.codigoDesbloqueio;
+  });
+
+  it("não deve regerar o código se o pagamento já estava confirmado", async () => {
+    const response = await request(app)
+      .put(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ statusPagamento: "SUCESSO" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.codigoDesbloqueio).toBe(codigo);
+  });
+
+  it("deve recusar uso do código antes da data de início", async () => {
+    const response = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ codigo });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("deve recusar código inválido", async () => {
+    const response = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ codigo: "ZZZZ-9999" });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("deve desbloquear dentro da janela válida", async () => {
+    // backdate: início ontem, fim amanhã -> dentro da janela de uso
+    await prisma.reserva.update({
+      where: { id: reservaId },
+      data: {
+        dataHoraInicio: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        dataHoraFim: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const response = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ codigo });
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.codigoUsadoEm).not.toBeNull();
+  });
+
+  it("deve recusar reuso de um código já utilizado", async () => {
+    const response = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ codigo });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("deve expirar o código após o fim da reserva", async () => {
+    // cria nova reserva, confirma pagamento, depois move a janela toda p/ o passado
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(80, 2),
+    );
+
+    await request(app)
+      .put(`/api/reserva/${reserva.id}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ statusPagamento: "SUCESSO" });
+
+    const detalhe = await prisma.reserva.findUnique({
+      where: { id: reserva.id },
+    });
+
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: {
+        dataHoraInicio: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        dataHoraFim: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const response = await request(app)
+      .post(`/api/reserva/${reserva.id}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ codigo: detalhe!.codigoDesbloqueio! });
+
+    expect(response.status).toBe(409);
   });
 });
