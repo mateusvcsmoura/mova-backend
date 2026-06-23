@@ -169,6 +169,13 @@ model Reserva {
   status          StatusReserva   @default(AGUARDANDO_PAGAMENTO)
   statusPagamento StatusPagamento @default(AGUARDANDO_PAGAMENTO)
 
+  // Código de desbloqueio do veículo (formato XXXX-XXXX), gerado quando o
+  // pagamento é confirmado (statusPagamento = SUCESSO). Janela de uso:
+  // a partir de dataHoraInicio até min(dataHoraInicio + 2 dias, dataHoraFim).
+  codigoDesbloqueio String?   @unique
+  codigoGeradoEm    DateTime?
+  codigoUsadoEm     DateTime?
+
   avaliacao    Avaliacao?
   atualizadoEm DateTime   @default(now()) @updatedAt
 }

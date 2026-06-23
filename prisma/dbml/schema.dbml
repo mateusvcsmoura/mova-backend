@@ -108,6 +108,9 @@ Table Reserva {
   valorTotal Decimal [not null]
   status StatusReserva [not null, default: 'AGUARDANDO_PAGAMENTO']
   statusPagamento StatusPagamento [not null, default: 'AGUARDANDO_PAGAMENTO']
+  codigoDesbloqueio String [unique]
+  codigoGeradoEm DateTime
+  codigoUsadoEm DateTime
   avaliacao Avaliacao
   atualizadoEm DateTime [default: `now()`, not null]
 }
