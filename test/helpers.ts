@@ -158,3 +158,37 @@ export async function createGaragem(
 
   return res.body.result;
 }
+
+// Gera um período no futuro (em dias a partir de agora) para reservas.
+export function futurePeriod(startInDays = 1, durationInDays = 2) {
+  const inicio = new Date();
+  inicio.setDate(inicio.getDate() + startInDays);
+  const fim = new Date(inicio);
+  fim.setDate(fim.getDate() + durationInDays);
+  return {
+    dataHoraInicio: inicio.toISOString(),
+    dataHoraFim: fim.toISOString(),
+  };
+}
+
+export async function createReserva(
+  token: string,
+  idVeiculo: string,
+  idLocatario: string,
+  overrides: Record<string, unknown> = {},
+) {
+  const payload = {
+    idVeiculo,
+    idLocatario,
+    valorTotal: 250.5,
+    ...futurePeriod(),
+    ...overrides,
+  };
+
+  const res = await request(app)
+    .post("/api/reserva")
+    .set("Authorization", `Bearer ${token}`)
+    .send(payload);
+
+  return res.body.result;
+}

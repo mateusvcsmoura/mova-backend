@@ -3,6 +3,7 @@ import { DeficienciaController } from "../controllers/deficiencia.js";
 import { GaragemController } from "../controllers/garagem.js";
 import { LocadorController } from "../controllers/locador.js";
 import { LocatarioController } from "../controllers/locatario.js";
+import { ReservaController } from "../controllers/reserva.js";
 import { VeiculoController } from "../controllers/veiculo.js";
 import { IContaRepository } from "../repositories/conta.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
@@ -14,13 +15,16 @@ import { PrismaDeficienciaRepository } from "../repositories/prisma/prisma.defic
 import { PrismaGaragemRepository } from "../repositories/prisma/prisma.garagem.repository.js";
 import { PrismaLocadorRepository } from "../repositories/prisma/prisma.locador.repository.js";
 import { PrismaLocatarioRepository } from "../repositories/prisma/prisma.locatario.repository.js";
+import { PrismaReservaRepository } from "../repositories/prisma/prisma.reserva.repository.js";
 import { PrismaVeiculoRepository } from "../repositories/prisma/prisma.veiculo.repository.js";
+import { IReservaRepository } from "../repositories/reserva.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ContaService } from "../services/conta.js";
 import { DeficienciaService } from "../services/deficiencia.js";
 import { GaragemService } from "../services/garagem.js";
 import { LocadorService } from "../services/locador.js";
 import { LocatarioService } from "../services/locatario.js";
+import { ReservaService } from "../services/reserva.js";
 import { VeiculoService } from "../services/veiculo.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
@@ -46,3 +50,7 @@ export const veiculoController = new VeiculoController(veiculoService);
 export const garagemRepository: IGaragemRepository = new PrismaGaragemRepository();
 export const garagemService = new GaragemService(garagemRepository, veiculoRepository);
 export const garagemController = new GaragemController(garagemService);
+
+export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository);
+export const reservaController = new ReservaController(reservaService);
