@@ -63,6 +63,15 @@ export class PrismaReservaRepository implements IReservaRepository {
     return ReservaMapper.toManyResponse(data);
   }
 
+  async findByCodigoDesbloqueio(
+    codigo: string,
+  ): Promise<ReservaResponse | null> {
+    const data = await prisma.reserva.findUnique({
+      where: { codigoDesbloqueio: codigo },
+    });
+    return data ? ReservaMapper.toResponse(data) : null;
+  }
+
   async create(data: CreateReservaRequest): Promise<ReservaResponse> {
     const reserva = await prisma.reserva.create({
       data: {
@@ -106,6 +115,41 @@ export class PrismaReservaRepository implements IReservaRepository {
 
   async delete(id: string): Promise<void> {
     await prisma.reserva.delete({ where: { id } });
+  }
+
+  async gerarCodigoDesbloqueio(
+    id: string,
+    codigo: string,
+    geradoEm: Date,
+  ): Promise<ReservaResponse> {
+    try {
+      const reserva = await prisma.reserva.update({
+        where: { id },
+        data: {
+          codigoDesbloqueio: codigo,
+          codigoGeradoEm: geradoEm,
+          codigoUsadoEm: null,
+        },
+      });
+      return ReservaMapper.toResponse(reserva);
+    } catch {
+      throw new HttpError(404, "Reserva não encontrada.");
+    }
+  }
+
+  async marcarCodigoComoUsado(
+    id: string,
+    usadoEm: Date,
+  ): Promise<ReservaResponse> {
+    try {
+      const reserva = await prisma.reserva.update({
+        where: { id },
+        data: { codigoUsadoEm: usadoEm },
+      });
+      return ReservaMapper.toResponse(reserva);
+    } catch {
+      throw new HttpError(404, "Reserva não encontrada.");
+    }
   }
 
   async hasOverlapForVeiculo(

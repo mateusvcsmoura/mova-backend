@@ -43,5 +43,8 @@ export interface ReservaResponse {
   valorTotal: number;
   status: StatusReserva;
   statusPagamento: StatusPagamento;
+  codigoDesbloqueio: string | null;
+  codigoGeradoEm: Date | null;
+  codigoUsadoEm: Date | null;
   atualizadoEm: Date;
 }

@@ -11,9 +11,18 @@ export interface IReservaRepository {
   findByLocatarioId(idLocatario: string): Promise<ReservaResponse[]>;
   findByVeiculoId(idVeiculo: string): Promise<ReservaResponse[]>;
   search(filters: ReservaFilters): Promise<ReservaResponse[]>;
+  findByCodigoDesbloqueio(codigo: string): Promise<ReservaResponse | null>;
   create(data: CreateReservaRequest): Promise<ReservaResponse>;
   update(id: string, data: UpdateReservaRequest): Promise<ReservaResponse>;
   delete(id: string): Promise<void>;
+  // Persiste o código de desbloqueio gerado na confirmação do pagamento.
+  gerarCodigoDesbloqueio(
+    id: string,
+    codigo: string,
+    geradoEm: Date,
+  ): Promise<ReservaResponse>;
+  // Marca o código como usado (desbloqueio efetivado).
+  marcarCodigoComoUsado(id: string, usadoEm: Date): Promise<ReservaResponse>;
   // Existe reserva ativa do veículo que colide com o período informado?
   hasOverlapForVeiculo(
     idVeiculo: string,

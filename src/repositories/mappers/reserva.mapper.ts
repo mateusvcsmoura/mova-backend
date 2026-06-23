@@ -14,6 +14,9 @@ export class ReservaMapper {
       valorTotal: Number(reserva.valorTotal),
       status: reserva.status,
       statusPagamento: reserva.statusPagamento,
+      codigoDesbloqueio: reserva.codigoDesbloqueio,
+      codigoGeradoEm: reserva.codigoGeradoEm,
+      codigoUsadoEm: reserva.codigoUsadoEm,
       atualizadoEm: reserva.atualizadoEm,
     };
   }
