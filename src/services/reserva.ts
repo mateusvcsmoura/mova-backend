@@ -13,6 +13,8 @@ import { IReservaRepository } from "../repositories/reserva.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
+import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
+import { LocatarioResponse } from "../repositories/contracts/locatario.contract.js";
 
 interface ReservaAccessContext {
   id: string;
@@ -32,6 +34,7 @@ export class ReservaService {
     private readonly veiculoRepository: IVeiculoRepository,
     private readonly locatarioRepository: ILocatarioRepository,
     private readonly garagemRepository: IGaragemRepository,
+    private readonly deficienciaRepository: IDeficienciaRepository,
   ) {}
 
   // Gera uma string no formato XXXX-XXXX usando o alfabeto sem ambíguos.
@@ -182,6 +185,38 @@ export class ReservaService {
     return garagemAtualVeiculo ?? undefined;
   }
 
+  // Veículo adaptado (PCD) só pode ser reservado por locatário com deficiência.
+  // Se o locatário ainda não possuir uma, aceita a deficiência informada no
+  // fluxo da reserva, valida-a e a associa ao cadastro.
+  private async assertLocatarioElegivelParaVeiculoAdaptado(
+    locatario: LocatarioResponse,
+    deficienciaIdInformada?: string,
+  ): Promise<void> {
+    // Já possui deficiência cadastrada -> elegível.
+    if (locatario.deficienciaId) {
+      return;
+    }
+
+    // Sem cadastro e sem deficiência informada -> bloqueia a reserva.
+    if (!deficienciaIdInformada) {
+      throw new HttpError(
+        403,
+        "Veículo adaptado: o locatário deve possuir uma necessidade especial cadastrada.",
+      );
+    }
+
+    const deficiencia =
+      await this.deficienciaRepository.findById(deficienciaIdInformada);
+    if (!deficiencia) {
+      throw new HttpError(404, "Deficiência não encontrada.");
+    }
+
+    // Associa a deficiência informada ao locatário (reutiliza o update existente).
+    await this.locatarioRepository.update(locatario.id, {
+      deficiencia_id: deficienciaIdInformada,
+    });
+  }
+
   // O local de devolução deve obrigatoriamente pertencer ao locador dono do veículo.
   private async assertGaragemDevolucao(
     idGaragemDevolucao: string,
@@ -296,6 +331,14 @@ export class ReservaService {
       await this.assertGaragemDevolucao(
         data.idGaragemDevolucao,
         veiculo.idLocador,
+      );
+    }
+
+    // Regra PCD: veículos adaptados exigem locatário com deficiência.
+    if (veiculo.modeloVeiculo.adaptado) {
+      await this.assertLocatarioElegivelParaVeiculoAdaptado(
+        locatario,
+        data.deficienciaId,
       );
     }
 
