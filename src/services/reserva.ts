@@ -12,6 +12,7 @@ import {
 import { IReservaRepository } from "../repositories/reserva.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
+import { IGaragemRepository } from "../repositories/garagem.repository.js";
 
 interface ReservaAccessContext {
   id: string;
@@ -30,6 +31,7 @@ export class ReservaService {
     private readonly reservaRepository: IReservaRepository,
     private readonly veiculoRepository: IVeiculoRepository,
     private readonly locatarioRepository: ILocatarioRepository,
+    private readonly garagemRepository: IGaragemRepository,
   ) {}
 
   // Gera uma string no formato XXXX-XXXX usando o alfabeto sem ambíguos.
@@ -162,6 +164,41 @@ export class ReservaService {
     }
   }
 
+  // O local de retirada é a garagem onde o veículo está atualmente alocado.
+  // Se o solicitante informar um local de retirada, ele deve coincidir.
+  private resolverGaragemRetirada(
+    garagemAtualVeiculo: string | null,
+    idGaragemRetiradaInformada?: string,
+  ): string | undefined {
+    if (
+      idGaragemRetiradaInformada !== undefined &&
+      idGaragemRetiradaInformada !== garagemAtualVeiculo
+    ) {
+      throw new HttpError(
+        400,
+        "O local de retirada deve corresponder à garagem onde o veículo está atualmente alocado.",
+      );
+    }
+    return garagemAtualVeiculo ?? undefined;
+  }
+
+  // O local de devolução deve obrigatoriamente pertencer ao locador dono do veículo.
+  private async assertGaragemDevolucao(
+    idGaragemDevolucao: string,
+    idLocadorVeiculo: string,
+  ): Promise<void> {
+    const garagem = await this.garagemRepository.findById(idGaragemDevolucao);
+    if (!garagem) {
+      throw new HttpError(404, "Garagem de devolução não encontrada.");
+    }
+    if (garagem.idLocador !== idLocadorVeiculo) {
+      throw new HttpError(
+        400,
+        "O local de devolução deve pertencer ao locador dono do veículo.",
+      );
+    }
+  }
+
   list = async (data: ListReservasRequest): Promise<ReservaResponse[]> => {
     switch (data.cargo) {
       case Cargo.ADMIN:
@@ -250,7 +287,19 @@ export class ReservaService {
       data.dataHoraFim,
     );
 
-    return this.reservaRepository.create(data);
+    const idGaragemRetirada = this.resolverGaragemRetirada(
+      veiculo.garagemId,
+      data.idGaragemRetirada,
+    );
+
+    if (data.idGaragemDevolucao !== undefined) {
+      await this.assertGaragemDevolucao(
+        data.idGaragemDevolucao,
+        veiculo.idLocador,
+      );
+    }
+
+    return this.reservaRepository.create({ ...data, idGaragemRetirada });
   };
 
   update = async (
@@ -277,6 +326,18 @@ export class ReservaService {
         data.dataHoraInicio ?? reserva.dataHoraInicio,
         data.dataHoraFim ?? reserva.dataHoraFim,
         id,
+      );
+    }
+
+    // Novo local de devolução deve pertencer ao locador dono do veículo.
+    if (data.idGaragemDevolucao !== undefined) {
+      const veiculo = await this.veiculoRepository.findById(reserva.idVeiculo);
+      if (!veiculo) {
+        throw new HttpError(404, "Veículo não encontrado");
+      }
+      await this.assertGaragemDevolucao(
+        data.idGaragemDevolucao,
+        veiculo.idLocador,
       );
     }
 
