@@ -9,6 +9,11 @@ export const createReservaSchema = z
     idVeiculo: z.string().uuid(),
     idLocatario: z.string().uuid(),
 
+    // Local de retirada (garagem atual do veículo) e local de devolução
+    // (garagem do mesmo locador dono do veículo).
+    idGaragemRetirada: z.string().uuid().optional(),
+    idGaragemDevolucao: z.string().uuid().optional(),
+
     dataHoraInicio: z.coerce.date(),
     dataHoraFim: z.coerce.date(),
 
@@ -25,6 +30,7 @@ export const createReservaSchema = z
 
 export const updateReservaSchema = z
   .object({
+    idGaragemDevolucao: z.string().uuid().optional(),
     dataHoraInicio: z.coerce.date().optional(),
     dataHoraFim: z.coerce.date().optional(),
     valorTotal: z.number().positive().optional(),
