@@ -3,6 +3,8 @@ import { Cargo, StatusPagamento, StatusReserva } from "@prisma/client";
 export interface CreateReservaRequest {
   idVeiculo: string;
   idLocatario: string;
+  idGaragemRetirada?: string;
+  idGaragemDevolucao?: string;
   dataHoraInicio: Date;
   dataHoraFim: Date;
   valorTotal: number;
@@ -11,6 +13,7 @@ export interface CreateReservaRequest {
 }
 
 export interface UpdateReservaRequest {
+  idGaragemDevolucao?: string;
   dataHoraInicio?: Date;
   dataHoraFim?: Date;
   valorTotal?: number;
@@ -37,6 +40,8 @@ export interface ReservaResponse {
   id: string;
   idVeiculo: string;
   idLocatario: string;
+  idGaragemRetirada: string | null;
+  idGaragemDevolucao: string | null;
   dataHoraInicio: Date;
   dataHoraFim: Date;
   criadaEm: Date;
