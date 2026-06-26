@@ -3,6 +3,8 @@ export interface LocatarioResponse {
   cpf: string;
   cnh: string;
   deficiencia_id?: string;
+  // Campo real persistido pelo Prisma (Locatario.deficienciaId).
+  deficienciaId?: string | null;
 }
 
 export interface CreateLocatarioRequest {
