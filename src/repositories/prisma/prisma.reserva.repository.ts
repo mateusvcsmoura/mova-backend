@@ -77,6 +77,8 @@ export class PrismaReservaRepository implements IReservaRepository {
       data: {
         idVeiculo: data.idVeiculo,
         idLocatario: data.idLocatario,
+        idGaragemRetirada: data.idGaragemRetirada ?? undefined,
+        idGaragemDevolucao: data.idGaragemDevolucao ?? undefined,
         dataHoraInicio: data.dataHoraInicio,
         dataHoraFim: data.dataHoraFim,
         valorTotal: data.valorTotal,
@@ -100,6 +102,7 @@ export class PrismaReservaRepository implements IReservaRepository {
       const reserva = await prisma.reserva.update({
         where: { id },
         data: {
+          idGaragemDevolucao: data.idGaragemDevolucao ?? undefined,
           dataHoraInicio: data.dataHoraInicio ?? undefined,
           dataHoraFim: data.dataHoraFim ?? undefined,
           valorTotal: data.valorTotal ?? undefined,
