@@ -3,6 +3,8 @@ import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
 import { prisma } from "../../src/database/prisma";
 import {
+  createAccount,
+  createDeficiencia,
   createGaragem,
   createLocador,
   createLocatario,
@@ -540,5 +542,130 @@ describe("Reserva — locais de retirada e devolução", () => {
       .send({ idGaragemDevolucao: garagemOutroLocador.id });
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("Reserva — veículos adaptados (PCD)", () => {
+  let locador: LocadorContext;
+  let comDeficiencia: LocatarioContext;
+  let semDeficiencia: LocatarioContext;
+  let outroSemDeficiencia: LocatarioContext;
+  let deficienciaId: string;
+  let veiculoComumId: string;
+  let veiculoAdaptadoId: string;
+
+  beforeAll(async () => {
+    const admin = await createAccount("ADMIN");
+    const deficiencia = await createDeficiencia(admin.token);
+    deficienciaId = deficiencia.id;
+
+    locador = await createLocador();
+    comDeficiencia = await createLocatario(deficienciaId);
+    semDeficiencia = await createLocatario();
+    outroSemDeficiencia = await createLocatario();
+
+    const comum = await createVeiculo(locador.locadorId, { adaptado: false });
+    veiculoComumId = comum.id;
+
+    const adaptado = await createVeiculo(locador.locadorId, {
+      adaptado: true,
+      marca: "Volkswagen",
+      modelo: "Adaptado",
+      ano: 2023,
+    });
+    veiculoAdaptadoId = adaptado.id;
+  });
+
+  it("permite reservar veículo comum sem deficiência cadastrada", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${semDeficiencia.token}`)
+      .send({
+        idVeiculo: veiculoComumId,
+        idLocatario: semDeficiencia.locatarioId,
+        valorTotal: 150,
+        ...futurePeriod(500, 1),
+      });
+
+    expect(response.status).toBe(201);
+  });
+
+  it("permite reservar veículo comum com deficiência cadastrada", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${comDeficiencia.token}`)
+      .send({
+        idVeiculo: veiculoComumId,
+        idLocatario: comDeficiencia.locatarioId,
+        valorTotal: 150,
+        ...futurePeriod(510, 1),
+      });
+
+    expect(response.status).toBe(201);
+  });
+
+  it("permite reservar veículo adaptado por locatário com deficiência cadastrada", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${comDeficiencia.token}`)
+      .send({
+        idVeiculo: veiculoAdaptadoId,
+        idLocatario: comDeficiencia.locatarioId,
+        valorTotal: 200,
+        ...futurePeriod(520, 1),
+      });
+
+    expect(response.status).toBe(201);
+  });
+
+  it("bloqueia veículo adaptado para locatário sem deficiência", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${semDeficiencia.token}`)
+      .send({
+        idVeiculo: veiculoAdaptadoId,
+        idLocatario: semDeficiencia.locatarioId,
+        valorTotal: 200,
+        ...futurePeriod(530, 1),
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toMatch(/necessidade especial/i);
+  });
+
+  it("recusa deficiência inexistente informada no fluxo da reserva", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${semDeficiencia.token}`)
+      .send({
+        idVeiculo: veiculoAdaptadoId,
+        idLocatario: semDeficiencia.locatarioId,
+        valorTotal: 200,
+        deficienciaId: "00000000-0000-0000-0000-000000000000",
+        ...futurePeriod(540, 1),
+      });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("permite reservar veículo adaptado informando a deficiência no fluxo da reserva", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${outroSemDeficiencia.token}`)
+      .send({
+        idVeiculo: veiculoAdaptadoId,
+        idLocatario: outroSemDeficiencia.locatarioId,
+        valorTotal: 200,
+        deficienciaId,
+        ...futurePeriod(550, 1),
+      });
+
+    expect(response.status).toBe(201);
+
+    // A deficiência informada deve ter sido associada ao locatário.
+    const locatario = await request(app).get(
+      `/api/locatario/${outroSemDeficiencia.locatarioId}`,
+    );
+    expect(locatario.body.result.deficienciaId).toBe(deficienciaId);
   });
 });
