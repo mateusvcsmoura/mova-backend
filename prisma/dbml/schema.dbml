@@ -93,6 +93,8 @@ Table Garagem {
   acessibilidade Boolean [not null, default: true]
   criadaEm DateTime [default: `now()`, not null]
   veiculos Veiculo [not null]
+  reservasRetirada Reserva [not null]
+  reservasDevolucao Reserva [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -102,6 +104,10 @@ Table Reserva {
   veiculo Veiculo [not null]
   idLocatario String [not null]
   locatario Locatario [not null]
+  idGaragemRetirada String
+  garagemRetirada Garagem
+  idGaragemDevolucao String
+  garagemDevolucao Garagem
   dataHoraInicio DateTime [not null]
   dataHoraFim DateTime [not null]
   criadaEm DateTime [default: `now()`, not null]
@@ -182,6 +188,10 @@ Ref: Garagem.idLocador > Locador.id [delete: Cascade]
 Ref: Reserva.idVeiculo > Veiculo.id
 
 Ref: Reserva.idLocatario > Locatario.id
+
+Ref: Reserva.idGaragemRetirada > Garagem.id
+
+Ref: Reserva.idGaragemDevolucao > Garagem.id
 
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 
