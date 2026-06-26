@@ -105,6 +105,8 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         idModeloVeiculo: modelo.id,
         placa: data.placa,
         garagemId: data.garagemId,
+        // undefined cai no @default(DISPONIVEL) do schema
+        status: data.status ?? undefined,
       },
       include: withModelo,
     });

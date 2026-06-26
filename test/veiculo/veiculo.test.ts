@@ -40,6 +40,26 @@ describe("Veiculo API", () => {
       modeloId = response.body.result.idModeloVeiculo;
     });
 
+    it("deve respeitar o status informado na criação", async () => {
+      const response = await request(app)
+        .post("/api/veiculo")
+        .send({
+          idLocador: locador.locadorId,
+          placa: uniquePlaca(),
+          marca: "Honda",
+          modelo: "Civic",
+          ano: 2023,
+          cambio: "Automatico",
+          capacidade: 5,
+          eletrico: false,
+          adaptado: false,
+          status: "MANUTENCAO",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.result.status).toBe("MANUTENCAO");
+    });
+
     it("deve recusar veículo com placa duplicada", async () => {
       const response = await request(app)
         .post("/api/veiculo")
