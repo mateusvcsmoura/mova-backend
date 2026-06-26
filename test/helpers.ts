@@ -171,6 +171,27 @@ export async function createDeficiencia(
   return res.body.result;
 }
 
+// Registra um ponto de localização para um veículo. Exige token LOCADOR/ADMIN.
+export async function createLocalizacao(
+  token: string,
+  idVeiculo: string,
+  overrides: Record<string, unknown> = {},
+) {
+  const payload = {
+    idVeiculo,
+    latitude: -23.5505,
+    longitude: -46.6333,
+    ...overrides,
+  };
+
+  const res = await request(app)
+    .post("/api/localizacao")
+    .set("Authorization", `Bearer ${token}`)
+    .send(payload);
+
+  return res.body.result;
+}
+
 // Gera um período no futuro (em dias a partir de agora) para reservas.
 export function futurePeriod(startInDays = 1, durationInDays = 2) {
   const inicio = new Date();
