@@ -159,6 +159,18 @@ export async function createGaragem(
   return res.body.result;
 }
 
+export async function createDeficiencia(
+  adminToken: string,
+  descricao = `Deficiência ${seq()}`,
+) {
+  const res = await request(app)
+    .post("/api/deficiencia")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ descricao });
+
+  return res.body.result;
+}
+
 // Gera um período no futuro (em dias a partir de agora) para reservas.
 export function futurePeriod(startInDays = 1, durationInDays = 2) {
   const inicio = new Date();
