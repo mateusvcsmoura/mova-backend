@@ -52,5 +52,5 @@ export const garagemService = new GaragemService(garagemRepository, veiculoRepos
 export const garagemController = new GaragemController(garagemService);
 
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
-export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository);
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository);
 export const reservaController = new ReservaController(reservaService);
