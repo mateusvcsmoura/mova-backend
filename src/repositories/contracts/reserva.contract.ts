@@ -3,6 +3,9 @@ import { Cargo, StatusPagamento, StatusReserva } from "@prisma/client";
 export interface CreateReservaRequest {
   idVeiculo: string;
   idLocatario: string;
+  // Deficiência informada durante a reserva (para veículos adaptados, quando o
+  // locatário ainda não possui uma cadastrada). Não é persistida na Reserva.
+  deficienciaId?: string;
   idGaragemRetirada?: string;
   idGaragemDevolucao?: string;
   dataHoraInicio: Date;
