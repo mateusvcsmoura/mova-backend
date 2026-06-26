@@ -146,8 +146,10 @@ model Garagem {
 
   criadaEm DateTime @default(now())
 
-  veiculos     Veiculo[]
-  atualizadoEm DateTime  @default(now()) @updatedAt
+  veiculos          Veiculo[]
+  reservasRetirada  Reserva[] @relation("ReservasRetirada")
+  reservasDevolucao Reserva[] @relation("ReservasDevolucao")
+  atualizadoEm      DateTime  @default(now()) @updatedAt
 }
 
 model Reserva {
@@ -158,6 +160,15 @@ model Reserva {
 
   idLocatario String    @db.Uuid
   locatario   Locatario @relation(fields: [idLocatario], references: [id])
+
+  // Local de retirada: garagem onde o veículo está hospedado no momento da
+  // criação da reserva. Local de devolução: garagem (do mesmo locador dono do
+  // veículo) escolhida pelo locatário para devolver o veículo ao final.
+  idGaragemRetirada String?  @db.Uuid
+  garagemRetirada   Garagem? @relation("ReservasRetirada", fields: [idGaragemRetirada], references: [id])
+
+  idGaragemDevolucao String?  @db.Uuid
+  garagemDevolucao   Garagem? @relation("ReservasDevolucao", fields: [idGaragemDevolucao], references: [id])
 
   dataHoraInicio DateTime
   dataHoraFim    DateTime
