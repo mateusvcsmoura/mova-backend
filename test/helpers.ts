@@ -225,3 +225,22 @@ export async function createReserva(
 
   return res.body.result;
 }
+
+export async function createAvaliacao(
+  token: string,
+  idReserva: string,
+  overrides: Record<string, unknown> = {},
+) {
+  const payload = {
+    idReserva,
+    nota: 5,
+    ...overrides,
+  };
+
+  const res = await request(app)
+    .post("/api/avaliacao")
+    .set("Authorization", `Bearer ${token}`)
+    .send(payload);
+
+  return res.body.result;
+}
