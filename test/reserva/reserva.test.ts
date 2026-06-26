@@ -3,6 +3,7 @@ import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
 import { prisma } from "../../src/database/prisma";
 import {
+  createGaragem,
   createLocador,
   createLocatario,
   createReserva,
@@ -11,6 +12,17 @@ import {
   type LocadorContext,
   type LocatarioContext,
 } from "../helpers";
+
+// Aloca um veículo numa garagem (define veiculo.garagemId).
+async function alocarVeiculo(
+  token: string,
+  garagemId: string,
+  veiculoId: string,
+) {
+  return request(app)
+    .post(`/api/garagem/${garagemId}/veiculos/${veiculoId}`)
+    .set("Authorization", `Bearer ${token}`);
+}
 
 const CODIGO_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 
@@ -405,5 +417,128 @@ describe("Reserva — código de desbloqueio", () => {
       .send({ codigo: detalhe!.codigoDesbloqueio! });
 
     expect(response.status).toBe(409);
+  });
+});
+
+describe("Reserva — locais de retirada e devolução", () => {
+  let locador: LocadorContext;
+  let outroLocador: LocadorContext;
+  let locatario: LocatarioContext;
+  let garagemRetirada: any;
+  let garagemDevolucao: any; // outra garagem do mesmo locador
+  let garagemOutroLocador: any;
+  let veiculoId: string;
+  let reservaId: string;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    outroLocador = await createLocador();
+    locatario = await createLocatario();
+
+    garagemRetirada = await createGaragem(locador.token, locador.locadorId);
+    garagemDevolucao = await createGaragem(locador.token, locador.locadorId);
+    garagemOutroLocador = await createGaragem(
+      outroLocador.token,
+      outroLocador.locadorId,
+    );
+
+    const veiculo = await createVeiculo(locador.locadorId);
+    veiculoId = veiculo.id;
+
+    // Hospeda o veículo na garagem de retirada (define veiculo.garagemId).
+    await alocarVeiculo(locador.token, garagemRetirada.id, veiculoId);
+  });
+
+  it("deve criar reserva com retirada (garagem atual) e devolução válidas", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 400,
+        idGaragemDevolucao: garagemDevolucao.id,
+        ...futurePeriod(100, 2),
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.result.idGaragemRetirada).toBe(garagemRetirada.id);
+    expect(response.body.result.idGaragemDevolucao).toBe(garagemDevolucao.id);
+
+    reservaId = response.body.result.id;
+  });
+
+  it("deve retornar os novos campos na consulta por id", async () => {
+    const response = await request(app)
+      .get(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.idGaragemRetirada).toBe(garagemRetirada.id);
+    expect(response.body.result.idGaragemDevolucao).toBe(garagemDevolucao.id);
+  });
+
+  it("deve recusar devolução em garagem de outro locador", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 400,
+        idGaragemDevolucao: garagemOutroLocador.id,
+        ...futurePeriod(200, 2),
+      });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("deve recusar retirada divergente da garagem atual do veículo", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 400,
+        idGaragemRetirada: garagemDevolucao.id, // não é a garagem onde está alocado
+        ...futurePeriod(300, 2),
+      });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("deve recusar devolução em garagem inexistente", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 400,
+        idGaragemDevolucao: "00000000-0000-0000-0000-000000000000",
+        ...futurePeriod(400, 2),
+      });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("deve atualizar o local de devolução para outra garagem do mesmo locador", async () => {
+    const response = await request(app)
+      .put(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ idGaragemDevolucao: garagemRetirada.id });
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.idGaragemDevolucao).toBe(garagemRetirada.id);
+  });
+
+  it("deve recusar atualização do local de devolução para garagem de outro locador", async () => {
+    const response = await request(app)
+      .put(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ idGaragemDevolucao: garagemOutroLocador.id });
+
+    expect(response.status).toBe(400);
   });
 });
