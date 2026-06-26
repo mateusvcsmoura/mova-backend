@@ -7,6 +7,8 @@ export class ReservaMapper {
       id: reserva.id,
       idVeiculo: reserva.idVeiculo,
       idLocatario: reserva.idLocatario,
+      idGaragemRetirada: reserva.idGaragemRetirada,
+      idGaragemDevolucao: reserva.idGaragemDevolucao,
       dataHoraInicio: reserva.dataHoraInicio,
       dataHoraFim: reserva.dataHoraFim,
       criadaEm: reserva.criadaEm,
