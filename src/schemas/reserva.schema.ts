@@ -9,6 +9,9 @@ export const createReservaSchema = z
     idVeiculo: z.string().uuid(),
     idLocatario: z.string().uuid(),
 
+    // Deficiência informada no fluxo da reserva (veículos adaptados).
+    deficienciaId: z.string().uuid().optional(),
+
     // Local de retirada (garagem atual do veículo) e local de devolução
     // (garagem do mesmo locador dono do veículo).
     idGaragemRetirada: z.string().uuid().optional(),
