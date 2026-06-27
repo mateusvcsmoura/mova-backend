@@ -14,6 +14,7 @@ import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
+import { BloqueioService } from "./bloqueio.js";
 import { LocatarioResponse } from "../repositories/contracts/locatario.contract.js";
 import {
   PaginatedResult,
@@ -39,6 +40,7 @@ export class ReservaService {
     private readonly locatarioRepository: ILocatarioRepository,
     private readonly garagemRepository: IGaragemRepository,
     private readonly deficienciaRepository: IDeficienciaRepository,
+    private readonly bloqueioService: BloqueioService,
   ) {}
 
   // Gera uma string no formato XXXX-XXXX usando o alfabeto sem ambíguos.
@@ -333,6 +335,9 @@ export class ReservaService {
       throw new HttpError(404, "Locatário não encontrado");
     }
 
+    // Locatário com bloqueio ativo (inadimplência, fraude, etc.) não reserva.
+    await this.bloqueioService.assertLocatarioLiberado(data.idLocatario);
+
     if (veiculo.status !== StatusVeiculo.DISPONIVEL) {
       throw new HttpError(409, "O veículo não está disponível para reserva.");
     }
@@ -382,6 +387,11 @@ export class ReservaService {
     }
 
     await this.assertReservaAccess(requester, reserva);
+
+    // Confirmar uma reserva também exige locatário liberado (sem bloqueio ativo).
+    if (data.status === StatusReserva.CONFIRMADA) {
+      await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
+    }
 
     // Se mexeu em qualquer das datas, revalida o período usando os valores finais.
     if (data.dataHoraInicio !== undefined || data.dataHoraFim !== undefined) {
