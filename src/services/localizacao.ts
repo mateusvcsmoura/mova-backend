@@ -5,6 +5,10 @@ import {
 } from "../repositories/contracts/localizacao.contract.js";
 import { ILocalizacaoRepository } from "../repositories/localizacao.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export class LocalizacaoService {
   constructor(
@@ -43,9 +47,10 @@ export class LocalizacaoService {
   // Histórico completo, ordenado cronologicamente (mais recente primeiro).
   findHistorico = async (
     idVeiculo: string,
-  ): Promise<LocalizacaoResponse[]> => {
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocalizacaoResponse>> => {
     await this.assertVeiculoExiste(idVeiculo);
-    return this.localizacaoRepository.findByVeiculoId(idVeiculo);
+    return this.localizacaoRepository.findByVeiculoId(idVeiculo, pagination);
   };
 
   // Apenas a última localização conhecida (consulta eficiente, sem histórico).

@@ -5,10 +5,23 @@ import {
   LocadorResponse,
   UpdateLocadorRequest,
 } from "../contracts/locador.contract.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaLocadorRepository implements ILocadorRepository {
-  async findAll(): Promise<LocadorResponse[]> {
-    return prisma.locador.findMany();
+  async findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocadorResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const [data, total] = await prisma.$transaction([
+      prisma.locador.findMany({ skip, take, orderBy: { empresa: "asc" } }),
+      prisma.locador.count(),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
   }
 
   async findById(id: string): Promise<LocadorResponse | null> {
@@ -23,15 +36,27 @@ export class PrismaLocadorRepository implements ILocadorRepository {
     });
   }
 
-  async findByEmpresa(empresa: string): Promise<LocadorResponse[]> {
-    return prisma.locador.findMany({
-      where: {
-        empresa: {
-          contains: empresa,
-          mode: "insensitive", // equivale ao ILIKE
-        },
+  async findByEmpresa(
+    empresa: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocadorResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = {
+      empresa: {
+        contains: empresa,
+        mode: "insensitive" as const, // equivale ao ILIKE
       },
-    });
+    };
+    const [data, total] = await prisma.$transaction([
+      prisma.locador.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { empresa: "asc" },
+      }),
+      prisma.locador.count({ where }),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
   }
 
   async create(data: CreateLocadorRequest): Promise<LocadorResponse> {

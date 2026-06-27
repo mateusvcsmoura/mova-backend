@@ -3,12 +3,19 @@ import {
   CreateLocadorRequest,
   UpdateLocadorRequest,
 } from "./contracts/locador.contract";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface ILocadorRepository {
-  findAll(): Promise<LocadorResponse[]>;
+  findAll(pagination: PaginationParams): Promise<PaginatedResult<LocadorResponse>>;
   findById(id: string): Promise<LocadorResponse | null>;
   findByCnpj(cnpj: string): Promise<LocadorResponse | null>;
-  findByEmpresa(empresa: string): Promise<LocadorResponse[]>;
+  findByEmpresa(
+    empresa: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocadorResponse>>;
   create(data: CreateLocadorRequest): Promise<LocadorResponse>;
   update(
     id: string,

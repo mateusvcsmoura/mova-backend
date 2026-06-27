@@ -10,6 +10,7 @@ import {
   VeiculoFilters,
 } from "../repositories/contracts/veiculo.contract.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class VeiculoService {
   constructor(private veiculoRepository: IVeiculoRepository) {}
@@ -18,28 +19,40 @@ export class VeiculoService {
     switch (data.cargo) {
       case "ADMIN":
         return data.filters
-          ? await this.veiculoRepository.search(data.filters)
-          : await this.veiculoRepository.findAll();
+          ? await this.veiculoRepository.search(data.filters, data.pagination)
+          : await this.veiculoRepository.findAll(data.pagination);
 
       case "LOCADOR":
         return data.filters
-          ? await this.veiculoRepository.search({
-              ...data.filters,
-              idLocador: data.id, // garante que só vê os próprios
-            })
-          : await this.veiculoRepository.findByLocadorId(data.id);
+          ? await this.veiculoRepository.search(
+              {
+                ...data.filters,
+                idLocador: data.id, // garante que só vê os próprios
+              },
+              data.pagination,
+            )
+          : await this.veiculoRepository.findByLocadorId(
+              data.id,
+              data.pagination,
+            );
 
       case "LOCATARIO":
-        return await this.veiculoRepository.search(data.filters ?? {});
+        return await this.veiculoRepository.search(
+          data.filters ?? {},
+          data.pagination,
+        );
 
       default:
         throw new HttpError(403, "Acesso negado");
     }
   };
 
-  findByLocadorId = async (idLocador: string) => {
-    const veiculos = await this.veiculoRepository.findByLocadorId(idLocador);
-    if (!veiculos || veiculos.length === 0) {
+  findByLocadorId = async (idLocador: string, pagination: PaginationParams) => {
+    const veiculos = await this.veiculoRepository.findByLocadorId(
+      idLocador,
+      pagination,
+    );
+    if (veiculos.total === 0) {
       throw new HttpError(404, "Nenhum veículo encontrado para este locador");
     }
     return veiculos;
@@ -61,9 +74,9 @@ export class VeiculoService {
     return veiculo;
   };
 
-  search = async (filters: VeiculoFilters) => {
-    const veiculos = await this.veiculoRepository.search(filters);
-    if (!veiculos || veiculos.length === 0) {
+  search = async (filters: VeiculoFilters, pagination: PaginationParams) => {
+    const veiculos = await this.veiculoRepository.search(filters, pagination);
+    if (veiculos.total === 0) {
       throw new HttpError(
         404,
         "Nenhum veículo encontrado com os filtros fornecidos",

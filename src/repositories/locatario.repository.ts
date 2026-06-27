@@ -3,9 +3,15 @@ import {
   CreateLocatarioRequest,
   UpdateLocatarioRequest,
 } from "./contracts/locatario.contract";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface ILocatarioRepository {
-  findAll(): Promise<LocatarioResponse[]>;
+  findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocatarioResponse>>;
   findById(id: string): Promise<LocatarioResponse | null>;
   findByCpf(cpf: string): Promise<LocatarioResponse | null>;
   findByCnh(cnh: string): Promise<LocatarioResponse | null>;

@@ -10,6 +10,10 @@ import {
 } from "../schemas/veiculo.schema.js";
 import { z } from "zod";
 import { VeiculoFilters } from "../repositories/contracts/veiculo.contract.js";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class VeiculoController {
   constructor(private veiculoService: VeiculoService) {}
@@ -37,6 +41,7 @@ export class VeiculoController {
 
       const { id, cargo } = req.user;
       const filters = this.buildFilters(req.query);
+      const pagination = getPaginationParams(req.query);
 
       // Só passa filters se ao menos um campo foi informado
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
@@ -45,9 +50,13 @@ export class VeiculoController {
         id,
         cargo,
         filters: hasFilters ? filters : undefined,
+        pagination,
       });
 
-      return res.status(200).json({ result: veiculos });
+      return res.status(200).json({
+        result: veiculos.data,
+        pagination: toPaginationMeta(veiculos),
+      });
     } catch (error) {
       next(error);
     }
@@ -70,8 +79,15 @@ export class VeiculoController {
       const result = z.string().uuid().safeParse(req.params.id_locador);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const veiculos = await this.veiculoService.findByLocadorId(result.data);
-      return res.status(200).json({ result: veiculos });
+      const pagination = getPaginationParams(req.query);
+      const veiculos = await this.veiculoService.findByLocadorId(
+        result.data,
+        pagination,
+      );
+      return res.status(200).json({
+        result: veiculos.data,
+        pagination: toPaginationMeta(veiculos),
+      });
     } catch (error) {
       next(error);
     }

@@ -6,10 +6,23 @@ import {
   LocatarioResponse,
   UpdateLocatarioRequest,
 } from "../contracts/locatario.contract.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaLocatarioRepository implements ILocatarioRepository {
-  async findAll(): Promise<LocatarioResponse[]> {
-    return prisma.locatario.findMany();
+  async findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocatarioResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const [data, total] = await prisma.$transaction([
+      prisma.locatario.findMany({ skip, take, orderBy: { id: "asc" } }),
+      prisma.locatario.count(),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
   }
 
   async findById(id: string): Promise<LocatarioResponse | null> {

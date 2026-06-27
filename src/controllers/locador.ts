@@ -3,15 +3,23 @@ import { Handler, NextFunction } from "express";
 import { HttpError } from "../errors/HttpError.js";
 import { createLocadorSchema, updateLocadorSchema } from "../schemas/locador.schema.js";
 import { z } from "zod";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class LocadorController {
   constructor(private readonly locadorService: LocadorService) {}
 
   index: Handler = async (req, res, next: NextFunction) => {
     try {
-      const locadores = await this.locadorService.findAll();
+      const pagination = getPaginationParams(req.query);
+      const locadores = await this.locadorService.findAll(pagination);
 
-      return res.status(200).json({ result: locadores });
+      return res.status(200).json({
+        result: locadores.data,
+        pagination: toPaginationMeta(locadores),
+      });
     } catch (error) {
       next(error);
     }
@@ -42,13 +50,24 @@ export class LocadorController {
         return res.status(200).json({ result: locador });
       }
 
+      const pagination = getPaginationParams(req.query);
+
       if (empresa && typeof empresa === "string") {
-        const locadores = await this.locadorService.findByEmpresa(empresa);
-        return res.status(200).json({ result: locadores });
+        const locadores = await this.locadorService.findByEmpresa(
+          empresa,
+          pagination,
+        );
+        return res.status(200).json({
+          result: locadores.data,
+          pagination: toPaginationMeta(locadores),
+        });
       }
 
-      const locadores = await this.locadorService.findAll();
-      return res.status(200).json({ result: locadores });
+      const locadores = await this.locadorService.findAll(pagination);
+      return res.status(200).json({
+        result: locadores.data,
+        pagination: toPaginationMeta(locadores),
+      });
     } catch (error) {
       next(error);
     }

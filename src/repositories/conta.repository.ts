@@ -3,9 +3,13 @@ import {
   CreateContaRequest,
   UpdateContaRequest,
 } from "./contracts/conta.contract.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface IContaRepository {
-  findAll(): Promise<ContaResponse[]>;
+  findAll(pagination: PaginationParams): Promise<PaginatedResult<ContaResponse>>;
   findByEmail(email: string): Promise<ContaResponse | null>;
   findAuthByEmail(email: string): Promise<{ id: string; email: string; senhaHash: string, cargo: string } | null>;
   findById(id: string): Promise<ContaResponse | null>;

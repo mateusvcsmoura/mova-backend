@@ -1,4 +1,5 @@
 import { Cargo, StatusPagamento, StatusReserva } from "@prisma/client";
+import { PaginationParams } from "../../shared/pagination.js";
 
 export interface CreateReservaRequest {
   idVeiculo: string;
@@ -37,6 +38,7 @@ export interface ListReservasRequest {
   id: string;
   cargo: Cargo;
   filters?: ReservaFilters;
+  pagination: PaginationParams;
 }
 
 export interface ReservaResponse {

@@ -4,13 +4,28 @@ import {
   ReservaResponse,
   UpdateReservaRequest,
 } from "./contracts/reserva.contract.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface IReservaRepository {
-  findAll(): Promise<ReservaResponse[]>;
+  findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>>;
   findById(id: string): Promise<ReservaResponse | null>;
-  findByLocatarioId(idLocatario: string): Promise<ReservaResponse[]>;
-  findByVeiculoId(idVeiculo: string): Promise<ReservaResponse[]>;
-  search(filters: ReservaFilters): Promise<ReservaResponse[]>;
+  findByLocatarioId(
+    idLocatario: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>>;
+  findByVeiculoId(
+    idVeiculo: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>>;
+  search(
+    filters: ReservaFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>>;
   findByCodigoDesbloqueio(codigo: string): Promise<ReservaResponse | null>;
   create(data: CreateReservaRequest): Promise<ReservaResponse>;
   update(id: string, data: UpdateReservaRequest): Promise<ReservaResponse>;

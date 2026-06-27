@@ -8,6 +8,10 @@ import {
 } from "../schemas/garagem.schema.js";
 import { z } from "zod";
 import { GaragemFilters } from "../repositories/contracts/garagem.contract.js";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class GaragemController {
   constructor(private garagemService: GaragemService) {}
@@ -30,8 +34,6 @@ export class GaragemController {
         query.comVagasDisponiveis !== undefined
           ? query.comVagasDisponiveis === "true"
           : undefined,
-      page: query.page ? Number(query.page) : undefined,
-      limit: query.limit ? Number(query.limit) : undefined,
     };
   }
 
@@ -40,6 +42,7 @@ export class GaragemController {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
       const filters = this.buildFilters(req.query);
+      const pagination = getPaginationParams(req.query);
 
       // Só passa filters se ao menos um campo foi informado
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
@@ -47,9 +50,13 @@ export class GaragemController {
       const garagens = await this.garagemService.list({
         requester: req.user,
         filters: hasFilters ? filters : undefined,
+        pagination,
       });
 
-      return res.status(200).json({ result: garagens });
+      return res.status(200).json({
+        result: garagens.data,
+        pagination: toPaginationMeta(garagens),
+      });
     } catch (error) {
       next(error);
     }
@@ -85,12 +92,17 @@ export class GaragemController {
         .safeParse(req.query.status);
       if (!status.success) throw new HttpError(400, "Status inválido");
 
+      const pagination = getPaginationParams(req.query);
       const veiculos = await this.garagemService.findVeiculosByGaragem(
         result.data,
         req.user,
+        pagination,
         status.data ? { status: status.data } : undefined,
       );
-      return res.status(200).json({ result: veiculos });
+      return res.status(200).json({
+        result: veiculos.data,
+        pagination: toPaginationMeta(veiculos),
+      });
     } catch (error) {
       next(error);
     }

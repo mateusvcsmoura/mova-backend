@@ -12,6 +12,13 @@ import {
   VeiculoResponse,
 } from "../contracts/veiculo.contract.js";
 import { VeiculoMapper } from "../mappers/veiculo.mapper.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
+import { Prisma } from "@prisma/client";
 
 const withModelo = { modeloVeiculo: true } as const;
 
@@ -44,19 +51,47 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   }
 
   // ── Queries ───────────────────────────────────────────────────────────────
-  async findAll(): Promise<VeiculoResponse[]> {
-    const data = await prisma.veiculo.findMany({
-      include: withModelo,
-    });
-    return VeiculoMapper.toManyResponse(data);
+  async findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const [data, total] = await prisma.$transaction([
+      prisma.veiculo.findMany({
+        skip,
+        take,
+        include: withModelo,
+        orderBy: { criadoEm: "desc" },
+      }),
+      prisma.veiculo.count(),
+    ]);
+    return buildPaginatedResult(
+      VeiculoMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
-  async findByLocadorId(idLocador: string): Promise<VeiculoResponse[]> {
-    const data = await prisma.veiculo.findMany({
-      where: { idLocador },
-      include: withModelo,
-    });
-    return VeiculoMapper.toManyResponse(data);
+  async findByLocadorId(
+    idLocador: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = { idLocador };
+    const [data, total] = await prisma.$transaction([
+      prisma.veiculo.findMany({
+        where,
+        skip,
+        take,
+        include: withModelo,
+        orderBy: { criadoEm: "desc" },
+      }),
+      prisma.veiculo.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      VeiculoMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
   async findById(id: string): Promise<VeiculoResponse | null> {
@@ -75,25 +110,40 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     return data ? VeiculoMapper.toResponse(data) : null;
   }
 
-  async search(filters: VeiculoFilters): Promise<VeiculoResponse[]> {
-    const data = await prisma.veiculo.findMany({
-      where: {
-        idLocador: filters.idLocador,
-        garagemId: filters.garagemId,
-        status: "DISPONIVEL",
-        modeloVeiculo: {
-          marca: filters.marca,
-          modelo: filters.modelo,
-          ano: filters.ano,
-          cambio: filters.cambio,
-          capacidade: filters.capacidade,
-          eletrico: filters.eletrico,
-          adaptado: filters.adaptado,
-        },
+  async search(
+    filters: VeiculoFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where: Prisma.VeiculoWhereInput = {
+      idLocador: filters.idLocador,
+      garagemId: filters.garagemId,
+      status: "DISPONIVEL",
+      modeloVeiculo: {
+        marca: filters.marca,
+        modelo: filters.modelo,
+        ano: filters.ano,
+        cambio: filters.cambio,
+        capacidade: filters.capacidade,
+        eletrico: filters.eletrico,
+        adaptado: filters.adaptado,
       },
-      include: withModelo,
-    });
-    return VeiculoMapper.toManyResponse(data);
+    };
+    const [data, total] = await prisma.$transaction([
+      prisma.veiculo.findMany({
+        where,
+        skip,
+        take,
+        include: withModelo,
+        orderBy: { criadoEm: "desc" },
+      }),
+      prisma.veiculo.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      VeiculoMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
   async create(data: CreateVeiculoRequest): Promise<VeiculoResponse> {

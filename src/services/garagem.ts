@@ -7,11 +7,15 @@ import {
   GaragemBaseResponse,
   GaragemDetalhadaResponse,
   GaragemFilters,
-  GaragemListResponse,
   GaragemVeiculosFilters,
   UpdateGaragemRequest,
 } from "../repositories/contracts/garagem.contract.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
+import { VeiculoResponse } from "../repositories/contracts/veiculo.contract.js";
 
 interface GaragemAccessContext {
   id: string;
@@ -21,6 +25,7 @@ interface GaragemAccessContext {
 interface ListGaragemRequest {
   requester: GaragemAccessContext;
   filters?: GaragemFilters;
+  pagination: PaginationParams;
 }
 
 export class GaragemService {
@@ -63,19 +68,23 @@ export class GaragemService {
   list = async ({
     requester,
     filters,
-  }: ListGaragemRequest): Promise<GaragemListResponse> => {
+    pagination,
+  }: ListGaragemRequest): Promise<PaginatedResult<GaragemBaseResponse>> => {
     if (requester.cargo === Cargo.ADMIN) {
-      return this.garagemRepository.findAll(filters ?? {});
+      return this.garagemRepository.findAll(filters ?? {}, pagination);
     }
 
     if (requester.cargo !== Cargo.LOCADOR) {
       throw new HttpError(403, "Acesso negado");
     }
 
-    return this.garagemRepository.findAll({
-      ...(filters ?? {}),
-      idLocador: requester.id,
-    });
+    return this.garagemRepository.findAll(
+      {
+        ...(filters ?? {}),
+        idLocador: requester.id,
+      },
+      pagination,
+    );
   };
 
   findById = async (
@@ -96,8 +105,9 @@ export class GaragemService {
   findVeiculosByGaragem = async (
     garagemId: string,
     requester: GaragemAccessContext,
+    pagination: PaginationParams,
     filters?: GaragemVeiculosFilters,
-  ) => {
+  ): Promise<PaginatedResult<VeiculoResponse>> => {
     const garagem = await this.garagemRepository.findById(garagemId);
 
     if (!garagem) {
@@ -106,7 +116,11 @@ export class GaragemService {
 
     this.assertGaragemAccess(requester, garagem);
 
-    return this.garagemRepository.findVeiculosByGaragem(garagemId, filters);
+    return this.garagemRepository.findVeiculosByGaragem(
+      garagemId,
+      pagination,
+      filters,
+    );
   };
 
   create = async (

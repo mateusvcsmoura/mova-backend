@@ -5,6 +5,12 @@ import {
   LocalizacaoResponse,
 } from "../contracts/localizacao.contract.js";
 import { LocalizacaoMapper } from "../mappers/localizacao.mapper.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaLocalizacaoRepository implements ILocalizacaoRepository {
   async create(data: CreateLocalizacaoRequest): Promise<LocalizacaoResponse> {
@@ -20,12 +26,26 @@ export class PrismaLocalizacaoRepository implements ILocalizacaoRepository {
     return LocalizacaoMapper.toResponse(localizacao);
   }
 
-  async findByVeiculoId(idVeiculo: string): Promise<LocalizacaoResponse[]> {
-    const data = await prisma.localizacao.findMany({
-      where: { idVeiculo },
-      orderBy: { dataHora: "desc" },
-    });
-    return LocalizacaoMapper.toManyResponse(data);
+  async findByVeiculoId(
+    idVeiculo: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<LocalizacaoResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = { idVeiculo };
+    const [data, total] = await prisma.$transaction([
+      prisma.localizacao.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { dataHora: "desc" },
+      }),
+      prisma.localizacao.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      LocalizacaoMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
   async findLatestByVeiculoId(

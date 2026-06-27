@@ -2,6 +2,7 @@ import { StatusVeiculo } from "@prisma/client";
 
 import { ILocalizacaoRepository } from "../repositories/localizacao.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
+import { VeiculoResponse } from "../repositories/contracts/veiculo.contract.js";
 import { LocalizacaoService } from "./localizacao.js";
 
 // Status de veículos que o simulador mantém em movimento.
@@ -75,8 +76,26 @@ export class LocalizacaoSimulador {
    * Executa uma rodada de atualização. Público para ser testável sem timer.
    * Retorna quantos veículos foram atualizados.
    */
+  // Percorre todas as páginas para obter a frota completa: o repositório agora é
+  // paginado, mas o simulador precisa avaliar todos os veículos a cada tick.
+  private async listarTodosVeiculos(): Promise<VeiculoResponse[]> {
+    const limit = 100;
+    const todos: VeiculoResponse[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const resultado = await this.veiculoRepository.findAll({ page, limit });
+      todos.push(...resultado.data);
+      totalPages = resultado.totalPages;
+      page++;
+    } while (page <= totalPages);
+
+    return todos;
+  }
+
   async tick(): Promise<number> {
-    const veiculos = await this.veiculoRepository.findAll();
+    const veiculos = await this.listarTodosVeiculos();
     const ativos = veiculos.filter((v) => STATUS_ATIVOS.includes(v.status));
 
     // Veículos são independentes: atualiza todos em paralelo.

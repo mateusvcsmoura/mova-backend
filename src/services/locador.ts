@@ -4,12 +4,13 @@ import {
   UpdateLocadorRequest,
 } from "../repositories/contracts/locador.contract.js";
 import { ILocadorRepository } from "../repositories/locador.repository.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class LocadorService {
   constructor(private readonly locadorRepository: ILocadorRepository) {}
 
-  findAll = async () => {
-    return await this.locadorRepository.findAll();
+  findAll = async (pagination: PaginationParams) => {
+    return await this.locadorRepository.findAll(pagination);
   };
 
   findById = async (id: string) => {
@@ -32,10 +33,13 @@ export class LocadorService {
     return locador;
   };
 
-  findByEmpresa = async (empresa: string) => {
-    const locadores = await this.locadorRepository.findByEmpresa(empresa);
+  findByEmpresa = async (empresa: string, pagination: PaginationParams) => {
+    const locadores = await this.locadorRepository.findByEmpresa(
+      empresa,
+      pagination,
+    );
 
-    if (locadores.length === 0) {
+    if (locadores.total === 0) {
       throw new HttpError(
         404,
         "Nenhum locador encontrado para a empresa especificada",
@@ -47,9 +51,12 @@ export class LocadorService {
 
   create = async (data: CreateLocadorRequest) => {
     const existingByCnpj = await this.locadorRepository.findByCnpj(data.cnpj);
-    const existingByEmpresa = await this.locadorRepository.findByEmpresa(data.empresa);
+    const existingByEmpresa = await this.locadorRepository.findByEmpresa(
+      data.empresa,
+      { page: 1, limit: 1 },
+    );
 
-    if (existingByCnpj || existingByEmpresa.length > 0) {
+    if (existingByCnpj || existingByEmpresa.total > 0) {
       throw new HttpError(409, "Locador com este CNPJ ou empresa já existe");
     }
 

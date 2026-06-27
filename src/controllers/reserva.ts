@@ -10,6 +10,10 @@ import {
   updateReservaSchema,
 } from "../schemas/reserva.schema.js";
 import { ReservaFilters } from "../repositories/contracts/reserva.contract.js";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class ReservaController {
   constructor(private reservaService: ReservaService) {}
@@ -34,6 +38,7 @@ export class ReservaController {
 
       const { id, cargo } = req.user;
       const filters = this.buildFilters(parsedQuery.data);
+      const pagination = getPaginationParams(req.query);
 
       // Só passa filters se ao menos um campo foi informado
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
@@ -42,9 +47,13 @@ export class ReservaController {
         id,
         cargo,
         filters: hasFilters ? filters : undefined,
+        pagination,
       });
 
-      return res.status(200).json({ result: reservas });
+      return res.status(200).json({
+        result: reservas.data,
+        pagination: toPaginationMeta(reservas),
+      });
     } catch (error) {
       next(error);
     }
@@ -69,8 +78,15 @@ export class ReservaController {
       const result = z.string().uuid().safeParse(req.params.id_locatario);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const reservas = await this.reservaService.findByLocatarioId(result.data);
-      return res.status(200).json({ result: reservas });
+      const pagination = getPaginationParams(req.query);
+      const reservas = await this.reservaService.findByLocatarioId(
+        result.data,
+        pagination,
+      );
+      return res.status(200).json({
+        result: reservas.data,
+        pagination: toPaginationMeta(reservas),
+      });
     } catch (error) {
       next(error);
     }
@@ -81,8 +97,15 @@ export class ReservaController {
       const result = z.string().uuid().safeParse(req.params.id_veiculo);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const reservas = await this.reservaService.findByVeiculoId(result.data);
-      return res.status(200).json({ result: reservas });
+      const pagination = getPaginationParams(req.query);
+      const reservas = await this.reservaService.findByVeiculoId(
+        result.data,
+        pagination,
+      );
+      return res.status(200).json({
+        result: reservas.data,
+        pagination: toPaginationMeta(reservas),
+      });
     } catch (error) {
       next(error);
     }

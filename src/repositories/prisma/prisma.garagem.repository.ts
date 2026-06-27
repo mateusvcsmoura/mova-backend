@@ -7,13 +7,18 @@ import {
   GaragemBaseResponse,
   GaragemDetalhadaResponse,
   GaragemFilters,
-  GaragemListResponse,
   GaragemVeiculosFilters,
   UpdateGaragemRequest,
 } from "../contracts/garagem.contract.js";
 import { VeiculoResponse } from "../contracts/veiculo.contract.js";
 import { VeiculoMapper } from "../mappers/veiculo.mapper.js";
 import { prisma } from "../../database/prisma.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 type GaragemComLocadorEVeiculos = Prisma.GaragemGetPayload<{
   include: {
@@ -86,36 +91,44 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     };
   }
 
-  async findAll(filters: GaragemFilters): Promise<GaragemListResponse> {
-    const page = Math.max(1, filters.page ?? 1);
-    const limit = Math.max(1, filters.limit ?? 10);
+  async findAll(
+    filters: GaragemFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<GaragemBaseResponse>> {
     const where = this.buildWhere(filters);
+    const { skip, take } = toSkipTake(pagination);
 
-    const garagems = await prisma.garagem.findMany({
-      where,
-      orderBy: {
-        criadaEm: "desc",
-      },
-    });
+    // comVagasDisponiveis compara duas colunas (veiculosAlocados < capacidade),
+    // o que o Prisma não expressa no `where`; nesse caso filtra/pagina em memória.
+    if (filters.comVagasDisponiveis) {
+      const garagems = await prisma.garagem.findMany({
+        where,
+        orderBy: { criadaEm: "desc" },
+      });
+      const filtradas = garagems.filter(
+        (garagem) => garagem.veiculosAlocados < garagem.capacidade,
+      );
+      const data = filtradas
+        .slice(skip, skip + take)
+        .map((garagem) => this.toBaseResponse(garagem));
+      return buildPaginatedResult(data, filtradas.length, pagination);
+    }
 
-    const filtradas = filters.comVagasDisponiveis
-      ? garagems.filter(
-          (garagem) => garagem.veiculosAlocados < garagem.capacidade,
-        )
-      : garagems;
+    const [garagems, total] = await prisma.$transaction([
+      prisma.garagem.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { criadaEm: "desc" },
+      }),
+      prisma.garagem.count({ where }),
+    ]);
 
-    const total = filtradas.length;
-    const start = (page - 1) * limit;
-    const data = filtradas
-      .slice(start, start + limit)
-      .map((garagem) => this.toBaseResponse(garagem));
-
-    return {
-      data,
+    return buildPaginatedResult(
+      garagems.map((garagem) => this.toBaseResponse(garagem)),
       total,
-      page,
-      limit,
-    };
+      pagination,
+    );
   }
 
   async findById(id: string): Promise<GaragemDetalhadaResponse | null> {
@@ -136,8 +149,9 @@ export class PrismaGaragemRepository implements IGaragemRepository {
 
   async findVeiculosByGaragem(
     garagemId: string,
+    pagination: PaginationParams,
     filters?: GaragemVeiculosFilters,
-  ): Promise<VeiculoResponse[]> {
+  ): Promise<PaginatedResult<VeiculoResponse>> {
     const garagem = await prisma.garagem.findUnique({
       where: { id: garagemId },
       select: { id: true },
@@ -147,20 +161,32 @@ export class PrismaGaragemRepository implements IGaragemRepository {
       throw new HttpError(404, "Garagem não encontrada.");
     }
 
-    const veiculos = await prisma.veiculo.findMany({
-      where: {
-        garagemId,
-        ...(filters?.status ? { status: filters.status } : {}),
-      },
-      include: {
-        modeloVeiculo: true,
-      },
-      orderBy: {
-        criadoEm: "desc",
-      },
-    });
+    const { skip, take } = toSkipTake(pagination);
+    const where = {
+      garagemId,
+      ...(filters?.status ? { status: filters.status } : {}),
+    };
 
-    return VeiculoMapper.toManyResponse(veiculos);
+    const [veiculos, total] = await prisma.$transaction([
+      prisma.veiculo.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          modeloVeiculo: true,
+        },
+        orderBy: {
+          criadoEm: "desc",
+        },
+      }),
+      prisma.veiculo.count({ where }),
+    ]);
+
+    return buildPaginatedResult(
+      VeiculoMapper.toManyResponse(veiculos),
+      total,
+      pagination,
+    );
   }
 
   async create(data: CreateGaragemRequest): Promise<GaragemBaseResponse> {

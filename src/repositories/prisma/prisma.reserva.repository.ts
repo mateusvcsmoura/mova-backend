@@ -10,6 +10,12 @@ import {
   UpdateReservaRequest,
 } from "../contracts/reserva.contract.js";
 import { ReservaMapper } from "../mappers/reserva.mapper.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaReservaRepository implements IReservaRepository {
   private buildWhere(filters: ReservaFilters): Prisma.ReservaWhereInput {
@@ -27,11 +33,19 @@ export class PrismaReservaRepository implements IReservaRepository {
     };
   }
 
-  async findAll(): Promise<ReservaResponse[]> {
-    const data = await prisma.reserva.findMany({
-      orderBy: { criadaEm: "desc" },
-    });
-    return ReservaMapper.toManyResponse(data);
+  async findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const [data, total] = await prisma.$transaction([
+      prisma.reserva.findMany({ skip, take, orderBy: { criadaEm: "desc" } }),
+      prisma.reserva.count(),
+    ]);
+    return buildPaginatedResult(
+      ReservaMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
   async findById(id: string): Promise<ReservaResponse | null> {
@@ -39,28 +53,70 @@ export class PrismaReservaRepository implements IReservaRepository {
     return data ? ReservaMapper.toResponse(data) : null;
   }
 
-  async findByLocatarioId(idLocatario: string): Promise<ReservaResponse[]> {
-    const data = await prisma.reserva.findMany({
-      where: { idLocatario },
-      orderBy: { criadaEm: "desc" },
-    });
-    return ReservaMapper.toManyResponse(data);
+  async findByLocatarioId(
+    idLocatario: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = { idLocatario };
+    const [data, total] = await prisma.$transaction([
+      prisma.reserva.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { criadaEm: "desc" },
+      }),
+      prisma.reserva.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      ReservaMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
-  async findByVeiculoId(idVeiculo: string): Promise<ReservaResponse[]> {
-    const data = await prisma.reserva.findMany({
-      where: { idVeiculo },
-      orderBy: { criadaEm: "desc" },
-    });
-    return ReservaMapper.toManyResponse(data);
+  async findByVeiculoId(
+    idVeiculo: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = { idVeiculo };
+    const [data, total] = await prisma.$transaction([
+      prisma.reserva.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { criadaEm: "desc" },
+      }),
+      prisma.reserva.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      ReservaMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
-  async search(filters: ReservaFilters): Promise<ReservaResponse[]> {
-    const data = await prisma.reserva.findMany({
-      where: this.buildWhere(filters),
-      orderBy: { criadaEm: "desc" },
-    });
-    return ReservaMapper.toManyResponse(data);
+  async search(
+    filters: ReservaFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = this.buildWhere(filters);
+    const [data, total] = await prisma.$transaction([
+      prisma.reserva.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { criadaEm: "desc" },
+      }),
+      prisma.reserva.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      ReservaMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 
   async findByCodigoDesbloqueio(
