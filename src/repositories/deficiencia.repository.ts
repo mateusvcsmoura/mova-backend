@@ -3,9 +3,15 @@ import {
   CreateDeficienciaRequest,
   UpdateDeficienciaRequest,
 } from "./contracts/deficiencia.contract.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface IDeficienciaRepository {
-  findAll(): Promise<DeficienciaResponse[]>;
+  findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<DeficienciaResponse>>;
   findById(id: string): Promise<DeficienciaResponse | null>;
   findByDescription(descricao: string): Promise<DeficienciaResponse | null>;
   create(data: CreateDeficienciaRequest): Promise<DeficienciaResponse>;

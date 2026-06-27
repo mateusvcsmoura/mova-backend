@@ -7,13 +7,25 @@ import {
   VeiculoFilters,
   VeiculoResponse,
 } from "./contracts/veiculo.contract.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface IVeiculoRepository {
-  findAll(): Promise<VeiculoResponse[]>;
-  findByLocadorId(idLocador: string): Promise<VeiculoResponse[]>;
+  findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>>;
+  findByLocadorId(
+    idLocador: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>>;
   findById(id: string): Promise<VeiculoResponse | null>;
   findByPlaca(placa: string): Promise<VeiculoResponse | null>;
-  search(filters: VeiculoFilters): Promise<VeiculoResponse[]>;
+  search(
+    filters: VeiculoFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>>;
   create(data: CreateVeiculoRequest): Promise<VeiculoResponse>;
   createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]>;
   update(id: string, data: UpdateVeiculoRequest): Promise<VeiculoResponse>;

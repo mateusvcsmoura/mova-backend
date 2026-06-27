@@ -3,15 +3,23 @@ import { DeficienciaService } from "../services/deficiencia.js";
 import { HttpError } from "../errors/HttpError.js";
 import { createDeficienciaSchema } from "../schemas/deficiencia.schema.js";
 import { z } from "zod";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class DeficienciaController {
   constructor(private readonly deficienciaService: DeficienciaService) {}
 
   index: Handler = async (req, res, next: NextFunction) => {
     try {
-      const deficiencias = await this.deficienciaService.findAll();
+      const pagination = getPaginationParams(req.query);
+      const deficiencias = await this.deficienciaService.findAll(pagination);
 
-      return res.status(200).json({ result: deficiencias });
+      return res.status(200).json({
+        result: deficiencias.data,
+        pagination: toPaginationMeta(deficiencias),
+      });
     } catch (error) {
       next(error);
     }

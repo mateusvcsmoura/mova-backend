@@ -20,13 +20,6 @@ export interface GaragemDetalhadaResponse extends GaragemBaseResponse {
   veiculos: VeiculoResponse[];
 }
 
-export interface GaragemListResponse {
-  data: GaragemBaseResponse[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export interface CreateGaragemRequest {
   idLocador: string;
   nome: string;
@@ -49,8 +42,6 @@ export interface GaragemFilters {
   capacidadeMax?: number;
   nome?: string;
   comVagasDisponiveis?: boolean;
-  page?: number;
-  limit?: number;
 }
 
 export interface GaragemVeiculosFilters {

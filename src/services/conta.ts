@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { ILocadorRepository } from "../repositories/locador.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class ContaService {
   constructor(
@@ -16,8 +17,8 @@ export class ContaService {
     private locatarioRepository: ILocatarioRepository,
   ) {}
 
-  findAll = async () => {
-    return await this.contaRepository.findAll();
+  findAll = async (pagination: PaginationParams) => {
+    return await this.contaRepository.findAll(pagination);
   };
 
   findByEmail = async (email: string) => {

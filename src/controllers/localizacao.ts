@@ -4,6 +4,10 @@ import { z } from "zod";
 import { LocalizacaoService } from "../services/localizacao.js";
 import { HttpError } from "../errors/HttpError.js";
 import { createLocalizacaoSchema } from "../schemas/localizacao.schema.js";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class LocalizacaoController {
   constructor(private localizacaoService: LocalizacaoService) {}
@@ -27,10 +31,14 @@ export class LocalizacaoController {
       const result = z.string().uuid().safeParse(req.params.id_veiculo);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const localizacoes = await this.localizacaoService.findHistorico(
+      const pagination = getPaginationParams(req.query);
+      const r = await this.localizacaoService.findHistorico(
         result.data,
+        pagination,
       );
-      return res.status(200).json({ result: localizacoes });
+      return res
+        .status(200)
+        .json({ result: r.data, pagination: toPaginationMeta(r) });
     } catch (error) {
       next(error);
     }

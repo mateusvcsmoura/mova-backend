@@ -4,12 +4,13 @@ import {
   UpdateDeficienciaRequest,
 } from "../repositories/contracts/deficiencia.contract.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class DeficienciaService {
   constructor(private readonly deficienciaRepository: IDeficienciaRepository) {}
 
-  async findAll() {
-    return await this.deficienciaRepository.findAll();
+  async findAll(pagination: PaginationParams) {
+    return await this.deficienciaRepository.findAll(pagination);
   }
 
   async findById(id: string) {

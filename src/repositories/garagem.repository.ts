@@ -3,19 +3,26 @@ import {
   GaragemBaseResponse,
   GaragemDetalhadaResponse,
   GaragemFilters,
-  GaragemListResponse,
   GaragemVeiculosFilters,
   UpdateGaragemRequest,
 } from "./contracts/garagem.contract.js";
 import { VeiculoResponse } from "./contracts/veiculo.contract.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 export interface IGaragemRepository {
-  findAll(filters: GaragemFilters): Promise<GaragemListResponse>;
+  findAll(
+    filters: GaragemFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<GaragemBaseResponse>>;
   findById(id: string): Promise<GaragemDetalhadaResponse | null>;
   findVeiculosByGaragem(
     garagemId: string,
+    pagination: PaginationParams,
     filters?: GaragemVeiculosFilters,
-  ): Promise<VeiculoResponse[]>;
+  ): Promise<PaginatedResult<VeiculoResponse>>;
   create(data: CreateGaragemRequest): Promise<GaragemBaseResponse>;
   update(
     id: string,

@@ -5,10 +5,23 @@ import {
   DeficienciaResponse,
   UpdateDeficienciaRequest,
 } from "../contracts/deficiencia.contract.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaDeficienciaRepository implements IDeficienciaRepository {
-  async findAll(): Promise<DeficienciaResponse[]> {
-    return prisma.deficiencia.findMany();
+  async findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<DeficienciaResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const [data, total] = await prisma.$transaction([
+      prisma.deficiencia.findMany({ skip, take, orderBy: { id: "asc" } }),
+      prisma.deficiencia.count(),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
   }
 
   async findById(id: string): Promise<DeficienciaResponse | null> {

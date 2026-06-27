@@ -15,6 +15,10 @@ import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
 import { LocatarioResponse } from "../repositories/contracts/locatario.contract.js";
+import {
+  PaginatedResult,
+  PaginationParams,
+} from "../shared/pagination.js";
 
 interface ReservaAccessContext {
   id: string;
@@ -234,24 +238,32 @@ export class ReservaService {
     }
   }
 
-  list = async (data: ListReservasRequest): Promise<ReservaResponse[]> => {
+  list = async (
+    data: ListReservasRequest,
+  ): Promise<PaginatedResult<ReservaResponse>> => {
     switch (data.cargo) {
       case Cargo.ADMIN:
         return data.filters
-          ? await this.reservaRepository.search(data.filters)
-          : await this.reservaRepository.findAll();
+          ? await this.reservaRepository.search(data.filters, data.pagination)
+          : await this.reservaRepository.findAll(data.pagination);
 
       case Cargo.LOCATARIO:
-        return await this.reservaRepository.search({
-          ...(data.filters ?? {}),
-          idLocatario: data.id, // garante que só vê as próprias
-        });
+        return await this.reservaRepository.search(
+          {
+            ...(data.filters ?? {}),
+            idLocatario: data.id, // garante que só vê as próprias
+          },
+          data.pagination,
+        );
 
       case Cargo.LOCADOR:
-        return await this.reservaRepository.search({
-          ...(data.filters ?? {}),
-          idLocador: data.id, // só vê reservas dos próprios veículos
-        });
+        return await this.reservaRepository.search(
+          {
+            ...(data.filters ?? {}),
+            idLocador: data.id, // só vê reservas dos próprios veículos
+          },
+          data.pagination,
+        );
 
       default:
         throw new HttpError(403, "Acesso negado");
@@ -274,18 +286,27 @@ export class ReservaService {
 
   findByLocatarioId = async (
     idLocatario: string,
-  ): Promise<ReservaResponse[]> => {
-    const reservas =
-      await this.reservaRepository.findByLocatarioId(idLocatario);
-    if (!reservas || reservas.length === 0) {
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> => {
+    const reservas = await this.reservaRepository.findByLocatarioId(
+      idLocatario,
+      pagination,
+    );
+    if (reservas.total === 0) {
       throw new HttpError(404, "Nenhuma reserva encontrada para este locatário");
     }
     return reservas;
   };
 
-  findByVeiculoId = async (idVeiculo: string): Promise<ReservaResponse[]> => {
-    const reservas = await this.reservaRepository.findByVeiculoId(idVeiculo);
-    if (!reservas || reservas.length === 0) {
+  findByVeiculoId = async (
+    idVeiculo: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> => {
+    const reservas = await this.reservaRepository.findByVeiculoId(
+      idVeiculo,
+      pagination,
+    );
+    if (reservas.total === 0) {
       throw new HttpError(404, "Nenhuma reserva encontrada para este veículo");
     }
     return reservas;
@@ -446,9 +467,12 @@ export class ReservaService {
     return this.reservaRepository.delete(id);
   };
 
-  search = async (filters: ReservaFilters): Promise<ReservaResponse[]> => {
-    const reservas = await this.reservaRepository.search(filters);
-    if (!reservas || reservas.length === 0) {
+  search = async (
+    filters: ReservaFilters,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ReservaResponse>> => {
+    const reservas = await this.reservaRepository.search(filters, pagination);
+    if (reservas.total === 0) {
       throw new HttpError(
         404,
         "Nenhuma reserva encontrada com os filtros fornecidos",

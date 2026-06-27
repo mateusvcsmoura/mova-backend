@@ -2,12 +2,13 @@ import { CreateLocatarioRequest } from "./../repositories/contracts/locatario.co
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { HttpError } from "../errors/HttpError.js";
 import { UpdateLocatarioRequest } from "../repositories/contracts/locatario.contract.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class LocatarioService {
   constructor(private readonly locatarioRepository: ILocatarioRepository) {}
 
-  findAll = async () => {
-    return await this.locatarioRepository.findAll();
+  findAll = async (pagination: PaginationParams) => {
+    return await this.locatarioRepository.findAll(pagination);
   };
 
   findById = async (id: string) => {

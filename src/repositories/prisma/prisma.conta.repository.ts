@@ -5,21 +5,37 @@ import {
   CreateContaRequest,
   UpdateContaRequest,
 } from "../contracts/conta.contract.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaContaRepository implements IContaRepository {
-  async findAll(): Promise<ContaResponse[]> {
-    return prisma.conta.findMany({
-      select: {
-        id: true,
-        nome: true,
-        email: true,
-        telefone: true,
-        criadaEm: true,
-        endereco: true,
-        cep: true,
-        cargo: true
-      },
-    });
+  async findAll(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<ContaResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const [data, total] = await prisma.$transaction([
+      prisma.conta.findMany({
+        skip,
+        take,
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          telefone: true,
+          criadaEm: true,
+          endereco: true,
+          cep: true,
+          cargo: true
+        },
+      }),
+      prisma.conta.count(),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
   }
 
   async findByEmail(email: string): Promise<ContaResponse | null> {

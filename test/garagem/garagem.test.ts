@@ -58,8 +58,8 @@ describe("Garagem API", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(Array.isArray(response.body.result.data)).toBe(true);
-      expect(response.body.result.total).toBeGreaterThan(0);
+      expect(Array.isArray(response.body.result)).toBe(true);
+      expect(response.body.pagination.total).toBeGreaterThan(0);
     });
   });
 

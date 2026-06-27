@@ -1,4 +1,5 @@
 import { Cargo, StatusVeiculo } from "@prisma/client";
+import { PaginationParams } from "../../shared/pagination.js";
 
 export interface ModeloVeiculoData {
   idLocador: string;
@@ -45,6 +46,7 @@ export interface ListVeiculosRequest {
   id: string;
   cargo: Cargo;
   filters?: VeiculoFilters;
+  pagination: PaginationParams;
 }
 
 export interface ModeloVeiculoResponse {

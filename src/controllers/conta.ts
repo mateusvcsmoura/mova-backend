@@ -7,6 +7,10 @@ import {
   loginSchema,
   updateContaSchema,
 } from "../schemas/conta.schema.js";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 import { z } from "zod";
 export class ContaController {
@@ -14,9 +18,13 @@ export class ContaController {
 
   index: Handler = async (req, res, next: NextFunction) => {
     try {
-      const contas = await this.contaService.findAll();
+      const pagination = getPaginationParams(req.query);
+      const contas = await this.contaService.findAll(pagination);
 
-      return res.status(200).json({ result: contas });
+      return res.status(200).json({
+        result: contas.data,
+        pagination: toPaginationMeta(contas),
+      });
     } catch (error) {
       next(error);
     }

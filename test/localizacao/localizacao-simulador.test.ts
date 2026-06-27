@@ -34,15 +34,23 @@ describe("LocalizacaoSimulador", () => {
     const atualizados = await simulador.tick();
     expect(atualizados).toBeGreaterThanOrEqual(2);
 
-    const hDisponivel =
-      await localizacaoRepository.findByVeiculoId(disponivel.id);
-    const hReservado =
-      await localizacaoRepository.findByVeiculoId(reservado.id);
-    const hInativo = await localizacaoRepository.findByVeiculoId(inativo.id);
+    const paginacao = { page: 1, limit: 100 };
+    const hDisponivel = await localizacaoRepository.findByVeiculoId(
+      disponivel.id,
+      paginacao,
+    );
+    const hReservado = await localizacaoRepository.findByVeiculoId(
+      reservado.id,
+      paginacao,
+    );
+    const hInativo = await localizacaoRepository.findByVeiculoId(
+      inativo.id,
+      paginacao,
+    );
 
-    expect(hDisponivel.length).toBe(1);
-    expect(hReservado.length).toBe(1);
-    expect(hInativo.length).toBe(0);
+    expect(hDisponivel.total).toBe(1);
+    expect(hReservado.total).toBe(1);
+    expect(hInativo.total).toBe(0);
   }, 20_000);
 
   it("gera posição dentro dos limites válidos de coordenada", async () => {
@@ -67,12 +75,15 @@ describe("LocalizacaoSimulador", () => {
     await simulador.tick();
     await simulador.tick();
 
-    const historico = await localizacaoRepository.findByVeiculoId(veiculo.id);
+    const historico = await localizacaoRepository.findByVeiculoId(veiculo.id, {
+      page: 1,
+      limit: 100,
+    });
     // 3 ticks => pelo menos 3 registros para este veículo.
-    expect(historico.length).toBeGreaterThanOrEqual(3);
+    expect(historico.total).toBeGreaterThanOrEqual(3);
 
     // Drift contido: posições próximas da base (jitter acumulado pequeno).
-    for (const ponto of historico) {
+    for (const ponto of historico.data) {
       expect(Math.abs(ponto.latitude - -23.55)).toBeLessThan(1);
       expect(Math.abs(ponto.longitude - -46.63)).toBeLessThan(1);
     }

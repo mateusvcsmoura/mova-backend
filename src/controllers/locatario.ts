@@ -6,15 +6,23 @@ import {
   updateLocatarioSchema,
 } from "../schemas/locatario.schema.js";
 import { z } from "zod";
+import {
+  getPaginationParams,
+  toPaginationMeta,
+} from "../shared/pagination.js";
 
 export class LocatarioController {
   constructor(private readonly locatarioService: LocatarioService) {}
 
   index: Handler = async (req, res, next: NextFunction) => {
     try {
-      const locatarios = await this.locatarioService.findAll();
+      const pagination = getPaginationParams(req.query);
+      const locatarios = await this.locatarioService.findAll(pagination);
 
-      return res.status(200).json({ result: locatarios });
+      return res.status(200).json({
+        result: locatarios.data,
+        pagination: toPaginationMeta(locatarios),
+      });
     } catch (error) {
       next(error);
     }
@@ -54,8 +62,12 @@ export class LocatarioController {
         return res.status(200).json({ result: locatario });
       }
 
-      const locadarios = await this.locatarioService.findAll();
-      return res.status(200).json({ result: locadarios });
+      const pagination = getPaginationParams(req.query);
+      const locadarios = await this.locatarioService.findAll(pagination);
+      return res.status(200).json({
+        result: locadarios.data,
+        pagination: toPaginationMeta(locadarios),
+      });
     } catch (error) {
       next(error);
     }
