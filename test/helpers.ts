@@ -226,6 +226,26 @@ export async function createReserva(
   return res.body.result;
 }
 
+// Cria um bloqueio de locatário via endpoint administrativo. Exige token ADMIN.
+export async function createBloqueio(
+  adminToken: string,
+  idLocatario: string,
+  overrides: Record<string, unknown> = {},
+) {
+  const payload = {
+    idLocatario,
+    motivo: "INADIMPLENCIA",
+    ...overrides,
+  };
+
+  const res = await request(app)
+    .post("/api/admin/bloqueio")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send(payload);
+
+  return res.body.result;
+}
+
 export async function createAvaliacao(
   token: string,
   idReserva: string,

@@ -10,6 +10,7 @@ async function resetDatabase() {
   await prisma.veiculo.deleteMany();
   await prisma.modeloVeiculo.deleteMany();
   await prisma.garagem.deleteMany();
+  await prisma.bloqueioLocatario.deleteMany();
   await prisma.locatario.deleteMany();
   await prisma.locador.deleteMany();
   await prisma.deficiencia.deleteMany();

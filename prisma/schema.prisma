@@ -42,6 +42,17 @@ enum StatusPagamento {
   FALHA
 }
 
+// Motivos pelos quais um locatário pode ser impedido de reservar. Extensível:
+// novos motivos (ex.: comportamento) entram aqui sem alterar a regra de negócio.
+enum MotivoBloqueio {
+  INADIMPLENCIA
+  FRAUDE
+  DOCUMENTACAO
+  MULTA
+  ADMINISTRATIVO
+  OUTRO
+}
+
 // Models para as entidades do sistema
 
 model Conta {
@@ -80,6 +91,7 @@ model Locatario {
   deficiencia   Deficiencia? @relation(fields: [deficienciaId], references: [id])
 
   reservas     Reserva[]
+  bloqueios    BloqueioLocatario[]
   atualizadoEm DateTime  @default(now()) @updatedAt
 }
 
@@ -220,4 +232,37 @@ model Avaliacao {
 
   nota         Decimal  @db.Decimal(2, 1)
   atualizadoEm DateTime @default(now()) @updatedAt
+}
+
+// Bloqueio de um locatário. Entidade própria, desacoplada de Reserva e
+// Pagamento: a criação/confirmação de reservas apenas consulta esta tabela.
+// O histórico é preservado — bloqueios não são removidos, apenas revogados
+// (revogadoEm) ou expirados (expiraEm). Um bloqueio é "ativo/impeditivo"
+// quando revogadoEm IS NULL e (expiraEm IS NULL OU expiraEm > agora).
+model BloqueioLocatario {
+  id String @id @default(uuid()) @db.Uuid
+
+  idLocatario String    @db.Uuid
+  locatario   Locatario @relation(fields: [idLocatario], references: [id], onDelete: Cascade)
+
+  motivo    MotivoBloqueio
+  descricao String?
+
+  criadoEm DateTime @default(now())
+
+  // null = bloqueio permanente; caso contrário, deixa de ser impeditivo após a data.
+  expiraEm DateTime?
+
+  // Revogação administrativa. Preserva o registro para auditoria (não deletamos).
+  revogadoEm DateTime?
+
+  // Auditoria: contas (admin) que criaram/revogaram o bloqueio.
+  criadoPor   String? @db.Uuid
+  revogadoPor String? @db.Uuid
+
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  // Acelera a verificação de bloqueio ativo por locatário (consulta crítica
+  // executada a cada criação/confirmação de reserva).
+  @@index([idLocatario, revogadoEm, expiraEm])
 }
