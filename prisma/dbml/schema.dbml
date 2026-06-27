@@ -32,6 +32,7 @@ Table Locatario {
   deficienciaId String
   deficiencia Deficiencia
   reservas Reserva [not null]
+  bloqueios BloqueioLocatario [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -141,6 +142,20 @@ Table Avaliacao {
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
+Table BloqueioLocatario {
+  id String [pk]
+  idLocatario String [not null]
+  locatario Locatario [not null]
+  motivo MotivoBloqueio [not null]
+  descricao String
+  criadoEm DateTime [default: `now()`, not null]
+  expiraEm DateTime
+  revogadoEm DateTime
+  criadoPor String
+  revogadoPor String
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
 Enum Cargo {
   LOCATARIO
   LOCADOR
@@ -167,6 +182,15 @@ Enum StatusPagamento {
   PROCESSANDO
   SUCESSO
   FALHA
+}
+
+Enum MotivoBloqueio {
+  INADIMPLENCIA
+  FRAUDE
+  DOCUMENTACAO
+  MULTA
+  ADMINISTRATIVO
+  OUTRO
 }
 
 Ref: Locatario.id - Conta.id [delete: Cascade]
@@ -196,3 +220,5 @@ Ref: Reserva.idGaragemDevolucao > Garagem.id
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 
 Ref: Avaliacao.idReserva - Reserva.id [delete: Cascade]
+
+Ref: BloqueioLocatario.idLocatario > Locatario.id [delete: Cascade]
