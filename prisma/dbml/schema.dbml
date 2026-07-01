@@ -120,6 +120,21 @@ Table Reserva {
   codigoUsadoEm DateTime
   avaliacao Avaliacao
   servicos ReservaServico [not null]
+  notificacoes NotificacaoReserva [not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table NotificacaoReserva {
+  id String [pk]
+  idReserva String [not null]
+  reserva Reserva [not null]
+  destinatario String [not null]
+  assunto String [not null]
+  canal String [not null, default: 'EMAIL']
+  status StatusNotificacao [not null, default: 'PENDENTE']
+  mensagemErro String
+  criadaEm DateTime [default: `now()`, not null]
+  enviadaEm DateTime
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -209,6 +224,12 @@ Enum StatusPagamento {
   FALHA
 }
 
+Enum StatusNotificacao {
+  PENDENTE
+  ENVIADA
+  FALHA
+}
+
 Enum MotivoBloqueio {
   INADIMPLENCIA
   FRAUDE
@@ -241,6 +262,8 @@ Ref: Reserva.idLocatario > Locatario.id
 Ref: Reserva.idGaragemRetirada > Garagem.id
 
 Ref: Reserva.idGaragemDevolucao > Garagem.id
+
+Ref: NotificacaoReserva.idReserva > Reserva.id [delete: Cascade]
 
 Ref: ReservaServico.idReserva > Reserva.id [delete: Cascade]
 

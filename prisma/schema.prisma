@@ -42,6 +42,16 @@ enum StatusPagamento {
   FALHA
 }
 
+// Status do envio de uma notificação (ex.: relatório de reserva por e-mail).
+// PENDENTE  -> registro criado antes da tentativa de envio.
+// ENVIADA   -> provedor aceitou a mensagem.
+// FALHA     -> provedor recusou/indisponível (mensagemErro guarda o motivo).
+enum StatusNotificacao {
+  PENDENTE
+  ENVIADA
+  FALHA
+}
+
 // Motivos pelos quais um locatário pode ser impedido de reservar. Extensível:
 // novos motivos (ex.: comportamento) entram aqui sem alterar a regra de negócio.
 enum MotivoBloqueio {
@@ -202,7 +212,38 @@ model Reserva {
   avaliacao    Avaliacao?
   // Serviços opcionais contratados nesta reserva (catálogo + junção).
   servicos     ReservaServico[]
+  // Histórico de notificações (relatório por e-mail etc.) desta reserva.
+  notificacoes NotificacaoReserva[]
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+// Registro/auditoria dos envios de notificação de uma reserva (ex.: relatório
+// enviado por e-mail na confirmação do pagamento). Desacoplada da regra de
+// negócio: a falha no envio não impacta a reserva — apenas fica registrada aqui.
+// Guarda um snapshot do destinatário/assunto para auditoria posterior.
+model NotificacaoReserva {
+  id String @id @default(uuid()) @db.Uuid
+
+  idReserva String  @db.Uuid
+  reserva   Reserva @relation(fields: [idReserva], references: [id], onDelete: Cascade)
+
+  // Snapshot do destinatário e do assunto no momento da tentativa.
+  destinatario String
+  assunto      String
+  // Canal de envio. Hoje só EMAIL; deixado como String para permitir SMS/push
+  // no futuro sem alterar o schema.
+  canal        String @default("EMAIL")
+
+  status       StatusNotificacao @default(PENDENTE)
+  // Motivo da falha (mensagem do provedor), quando status = FALHA.
+  mensagemErro String?
+
+  criadaEm     DateTime  @default(now())
+  // Instante em que o provedor aceitou a mensagem (status = ENVIADA).
+  enviadaEm    DateTime?
+  atualizadoEm DateTime  @default(now()) @updatedAt
+
+  @@index([idReserva])
 }
 
 // Catálogo de serviços opcionais (ex.: Seguro adicional, Tanque cheio).
