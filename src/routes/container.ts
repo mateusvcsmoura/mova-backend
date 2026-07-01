@@ -43,6 +43,13 @@ import { ServicoOpcionalService } from "../services/servico-opcional.js";
 import { BloqueioService } from "../services/bloqueio.js";
 import { AvaliacaoService } from "../services/avaliacao.js";
 import { VeiculoService } from "../services/veiculo.js";
+import { INotificacaoRepository } from "../repositories/notificacao.repository.js";
+import { PrismaNotificacaoRepository } from "../repositories/prisma/prisma.notificacao.repository.js";
+import { NodemailerMailProvider } from "../infra/email/nodemailer.provider.js";
+import { IMailProvider } from "../infra/email/mail-provider.js";
+import { ReservaReportService } from "../services/reserva-report.js";
+import { NotificacaoReservaService } from "../services/notificacao-reserva.js";
+import { env } from "../config/env.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
 export const locadorService = new LocadorService(locadorRepository);
@@ -52,7 +59,7 @@ export const locatarioRepository: ILocatarioRepository = new PrismaLocatarioRepo
 export const locatarioService = new LocatarioService(locatarioRepository);
 export const locatarioController = new LocatarioController(locatarioService);
 
-const contaRepository: IContaRepository = new PrismaContaRepository();
+export const contaRepository: IContaRepository = new PrismaContaRepository();
 export const contaService = new ContaService(contaRepository, locadorRepository, locatarioRepository);
 export const contaController = new ContaController(contaService);
 
@@ -76,8 +83,23 @@ export const servicoOpcionalRepository: IServicoOpcionalRepository = new PrismaS
 export const servicoOpcionalService = new ServicoOpcionalService(servicoOpcionalRepository);
 export const servicoOpcionalController = new ServicoOpcionalController(servicoOpcionalService);
 
+// Camada de infraestrutura de e-mail. Provedor concreto (Nodemailer/SMTP) fica
+// atrás da abstração IMailProvider — trocar por SES/Resend/etc. é só instanciar
+// outra implementação aqui, sem tocar nos services.
+export const mailProvider: IMailProvider = new NodemailerMailProvider({
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  user: env.SMTP_USER,
+  pass: env.SMTP_PASS,
+  from: env.SMTP_FROM,
+});
+
+export const notificacaoRepository: INotificacaoRepository = new PrismaNotificacaoRepository();
+export const reservaReportService = new ReservaReportService(veiculoRepository, contaRepository, locadorRepository, garagemRepository);
+export const notificacaoReservaService = new NotificacaoReservaService(reservaReportService, mailProvider, notificacaoRepository);
+
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
-export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository);
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, notificacaoReservaService);
 export const reservaController = new ReservaController(reservaService);
 
 export const avaliacaoRepository: IAvaliacaoRepository = new PrismaAvaliacaoRepository();

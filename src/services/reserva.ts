@@ -17,6 +17,7 @@ import { IDeficienciaRepository } from "../repositories/deficiencia.repository.j
 import { IServicoOpcionalRepository } from "../repositories/servico-opcional.repository.js";
 import { ReservaServicoInput } from "../repositories/contracts/reserva.contract.js";
 import { BloqueioService } from "./bloqueio.js";
+import { IReservaNotifier } from "./notificacao-reserva.js";
 import { LocatarioResponse } from "../repositories/contracts/locatario.contract.js";
 import {
   PaginatedResult,
@@ -44,6 +45,9 @@ export class ReservaService {
     private readonly deficienciaRepository: IDeficienciaRepository,
     private readonly bloqueioService: BloqueioService,
     private readonly servicoOpcionalRepository: IServicoOpcionalRepository,
+    // Notificação (relatório por e-mail). Opcional para não acoplar a regra de
+    // negócio ao envio; quando ausente, a reserva funciona normalmente.
+    private readonly reservaNotifier?: IReservaNotifier,
   ) {}
 
   // Valida os serviços opcionais selecionados contra o catálogo e resolve o
@@ -472,11 +476,18 @@ export class ReservaService {
       !reserva.codigoDesbloqueio
     ) {
       const codigo = await this.gerarCodigoUnico();
-      return this.reservaRepository.gerarCodigoDesbloqueio(
+      const confirmada = await this.reservaRepository.gerarCodigoDesbloqueio(
         id,
         codigo,
         new Date(),
       );
+
+      // Pagamento confirmado agora -> envia o relatório por e-mail. O envio é
+      // best-effort (o notifier nunca lança): se o SMTP falhar, a reserva já
+      // confirmada não é afetada.
+      await this.reservaNotifier?.notificarReservaConfirmada(confirmada);
+
+      return confirmada;
     }
 
     return atualizada;
