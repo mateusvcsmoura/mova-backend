@@ -20,8 +20,11 @@ export const createReservaSchema = z
     dataHoraInicio: z.coerce.date(),
     dataHoraFim: z.coerce.date(),
 
-    // Decimal(10,2) no schema -> valor monetário positivo
+    // Decimal(10,2) no schema -> valor base positivo (o service soma os serviços)
     valorTotal: z.number().positive(),
+
+    // Serviços opcionais selecionados (nenhum, um ou vários). Lista de UUIDs.
+    servicosIds: z.array(z.string().uuid()).optional(),
 
     status: z.nativeEnum(StatusReserva).optional(),
     statusPagamento: z.nativeEnum(StatusPagamento).optional(),

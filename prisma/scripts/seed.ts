@@ -88,6 +88,21 @@ const disabilityDescriptions = [
   "Necessidade de controle manual",
 ];
 
+// Catálogo inicial de serviços opcionais. Novos serviços (cadeirinha, motorista
+// adicional, etc.) entram aqui como novos registros, sem alterar a Reserva.
+const servicosOpcionais = [
+  {
+    nome: "Seguro adicional",
+    descricao: "Cobertura adicional contra danos e terceiros durante a locacao.",
+    valor: 49.9,
+  },
+  {
+    nome: "Tanque cheio",
+    descricao: "Devolucao do veiculo sem necessidade de reabastecer.",
+    valor: 250.0,
+  },
+];
+
 const vehicleBrands = [
   "Fiat",
   "Volkswagen",
@@ -171,7 +186,9 @@ async function main() {
       // ── Limpeza — ordem respeita as foreign keys ──────────────────────────
       await tx.avaliacao.deleteMany();
       await tx.localizacao.deleteMany();
+      await tx.reservaServico.deleteMany();
       await tx.reserva.deleteMany();
+      await tx.servicoOpcional.deleteMany();
       await tx.veiculo.deleteMany();
       await tx.modeloVeiculo.deleteMany();
       await tx.garagem.deleteMany();
@@ -244,6 +261,14 @@ async function main() {
       >;
       for (const descricao of disabilityDescriptions) {
         deficiencias.push(await tx.deficiencia.create({ data: { descricao } }));
+      }
+
+      // ── Serviços opcionais (catálogo) ─────────────────────────────────────
+      const servicos = [] as Array<
+        Awaited<ReturnType<typeof tx.servicoOpcional.create>>
+      >;
+      for (const servico of servicosOpcionais) {
+        servicos.push(await tx.servicoOpcional.create({ data: servico }));
       }
 
       // ── Locatários ────────────────────────────────────────────────────────
@@ -352,6 +377,7 @@ async function main() {
         locadores: locadores.length,
         locatarios: locatarios.length,
         deficiencias: deficiencias.length,
+        servicosOpcionais: servicos.length,
         garagens: garagens.length,
         modelosVeiculo: modelos.length,
         veiculos: veiculos.length,
@@ -366,6 +392,7 @@ async function main() {
   console.log(`- Locadores: ${summary.locadores}`);
   console.log(`- Locatarios: ${summary.locatarios}`);
   console.log(`- Deficiencias: ${summary.deficiencias}`);
+  console.log(`- Servicos opcionais: ${summary.servicosOpcionais}`);
   console.log(`- Garagens: ${summary.garagens}`);
   console.log(`- Modelos de veiculo: ${summary.modelosVeiculo}`);
   console.log(`- Veiculos: ${summary.veiculos}`);

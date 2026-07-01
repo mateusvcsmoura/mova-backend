@@ -1,5 +1,6 @@
 import request from "supertest";
 import { app } from "../src/app";
+import { prisma } from "../src/database/prisma";
 
 type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
 
@@ -169,6 +170,24 @@ export async function createDeficiencia(
     .send({ descricao });
 
   return res.body.result;
+}
+
+// Cria um serviço opcional no catálogo. Inserido direto via Prisma porque o
+// catálogo é populado por seed (não há endpoint público de criação).
+export async function createServico(
+  overrides: Record<string, unknown> = {},
+) {
+  const servico = await prisma.servicoOpcional.create({
+    data: {
+      nome: `Servico ${seq()}`,
+      descricao: "Servico opcional de teste",
+      valor: 50,
+      ativo: true,
+      ...overrides,
+    },
+  });
+  // Normaliza Decimal -> number para uso direto nas asserções dos testes.
+  return { ...servico, valor: Number(servico.valor) };
 }
 
 // Registra um ponto de localização para um veículo. Exige token LOCADOR/ADMIN.

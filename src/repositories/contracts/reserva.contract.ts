@@ -1,6 +1,13 @@
 import { Cargo, StatusPagamento, StatusReserva } from "@prisma/client";
 import { PaginationParams } from "../../shared/pagination.js";
 
+// Serviço opcional já resolvido (id + valor snapshot), pronto para persistir.
+// Preenchido pelo ReservaService após validar os IDs contra o catálogo.
+export interface ReservaServicoInput {
+  idServico: string;
+  valor: number;
+}
+
 export interface CreateReservaRequest {
   idVeiculo: string;
   idLocatario: string;
@@ -11,9 +18,16 @@ export interface CreateReservaRequest {
   idGaragemDevolucao?: string;
   dataHoraInicio: Date;
   dataHoraFim: Date;
+  // valorTotal recebido é o valor base; o ReservaService soma os serviços
+  // opcionais selecionados antes de persistir.
   valorTotal: number;
   status?: StatusReserva;
   statusPagamento?: StatusPagamento;
+  // IDs dos serviços opcionais selecionados pelo locatário (entrada do cliente).
+  servicosIds?: string[];
+  // Serviços resolvidos (id + valor snapshot) — preenchido pelo service e
+  // consumido pelo repositório para criar as associações.
+  servicos?: ReservaServicoInput[];
 }
 
 export interface UpdateReservaRequest {
@@ -41,6 +55,14 @@ export interface ListReservasRequest {
   pagination: PaginationParams;
 }
 
+// Serviço opcional contratado, como retornado nas consultas de reserva.
+export interface ReservaServicoResponse {
+  idServico: string;
+  nome: string;
+  descricao: string;
+  valor: number;
+}
+
 export interface ReservaResponse {
   id: string;
   idVeiculo: string;
@@ -56,5 +78,7 @@ export interface ReservaResponse {
   codigoDesbloqueio: string | null;
   codigoGeradoEm: Date | null;
   codigoUsadoEm: Date | null;
+  // Serviços opcionais vinculados a esta reserva.
+  servicos: ReservaServicoResponse[];
   atualizadoEm: Date;
 }

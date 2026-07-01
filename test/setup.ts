@@ -6,7 +6,9 @@ import { prisma } from "../src/database/prisma";
 async function resetDatabase() {
   await prisma.avaliacao.deleteMany();
   await prisma.localizacao.deleteMany();
+  await prisma.reservaServico.deleteMany();
   await prisma.reserva.deleteMany();
+  await prisma.servicoOpcional.deleteMany();
   await prisma.veiculo.deleteMany();
   await prisma.modeloVeiculo.deleteMany();
   await prisma.garagem.deleteMany();

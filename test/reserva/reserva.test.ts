@@ -9,6 +9,7 @@ import {
   createLocador,
   createLocatario,
   createReserva,
+  createServico,
   createVeiculo,
   futurePeriod,
   type LocadorContext,
@@ -667,5 +668,146 @@ describe("Reserva — veículos adaptados (PCD)", () => {
       `/api/locatario/${outroSemDeficiencia.locatarioId}`,
     );
     expect(locatario.body.result.deficienciaId).toBe(deficienciaId);
+  });
+});
+
+describe("Reserva — serviços opcionais", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  let veiculoId: string;
+  let seguro: Awaited<ReturnType<typeof createServico>>;
+  let tanque: Awaited<ReturnType<typeof createServico>>;
+
+  const VALOR_BASE = 300;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.locadorId);
+    veiculoId = veiculo.id;
+
+    seguro = await createServico({
+      nome: "Seguro adicional",
+      descricao: "Cobertura adicional",
+      valor: 49.9,
+    });
+    tanque = await createServico({
+      nome: "Tanque cheio",
+      descricao: "Devolucao com tanque cheio",
+      valor: 250,
+    });
+  });
+
+  it("cria reserva sem serviços opcionais (valor base inalterado)", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: VALOR_BASE,
+        ...futurePeriod(600, 1),
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.result.valorTotal).toBe(VALOR_BASE);
+    expect(response.body.result.servicos).toEqual([]);
+  });
+
+  it("cria reserva com Seguro adicional e soma ao valor total", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: VALOR_BASE,
+        servicosIds: [seguro.id],
+        ...futurePeriod(610, 1),
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.result.valorTotal).toBe(VALOR_BASE + seguro.valor);
+    expect(response.body.result.servicos).toHaveLength(1);
+    expect(response.body.result.servicos[0].idServico).toBe(seguro.id);
+    expect(response.body.result.servicos[0].nome).toBe(seguro.nome);
+    expect(response.body.result.servicos[0].valor).toBe(seguro.valor);
+  });
+
+  it("cria reserva com Tanque cheio e soma ao valor total", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: VALOR_BASE,
+        servicosIds: [tanque.id],
+        ...futurePeriod(620, 1),
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.result.valorTotal).toBe(VALOR_BASE + tanque.valor);
+    expect(response.body.result.servicos).toHaveLength(1);
+    expect(response.body.result.servicos[0].idServico).toBe(tanque.id);
+  });
+
+  it("cria reserva com ambos os serviços e soma corretamente", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: VALOR_BASE,
+        servicosIds: [seguro.id, tanque.id],
+        ...futurePeriod(630, 1),
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.result.valorTotal).toBe(
+      VALOR_BASE + seguro.valor + tanque.valor,
+    );
+    expect(response.body.result.servicos).toHaveLength(2);
+  });
+
+  it("retorna os serviços contratados ao consultar a reserva por id", async () => {
+    const criacao = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: VALOR_BASE,
+        servicosIds: [seguro.id, tanque.id],
+        ...futurePeriod(640, 1),
+      });
+
+    const reservaId = criacao.body.result.id;
+
+    const response = await request(app)
+      .get(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.servicos).toHaveLength(2);
+    const nomes = response.body.result.servicos.map((s: any) => s.nome);
+    expect(nomes).toContain(seguro.nome);
+    expect(nomes).toContain(tanque.nome);
+  });
+
+  it("recusa reserva com serviço inexistente", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: VALOR_BASE,
+        servicosIds: ["00000000-0000-0000-0000-000000000000"],
+        ...futurePeriod(650, 1),
+      });
+
+    expect(response.status).toBe(400);
   });
 });

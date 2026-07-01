@@ -15,7 +15,9 @@ async function main() {
   const [
     avaliacoes,
     localizacoes,
+    reservaServicos,
     reservas,
+    servicosOpcionais,
     veiculos,
     modelosVeiculo,
     garagens,
@@ -26,7 +28,9 @@ async function main() {
   ] = await prisma.$transaction([
     prisma.avaliacao.deleteMany(),
     prisma.localizacao.deleteMany(),
+    prisma.reservaServico.deleteMany(),
     prisma.reserva.deleteMany(),
+    prisma.servicoOpcional.deleteMany(),
     prisma.veiculo.deleteMany(),
     prisma.modeloVeiculo.deleteMany(),
     prisma.garagem.deleteMany(),
@@ -40,7 +44,9 @@ async function main() {
   console.log("Resumo de registros removidos:");
   console.log(`- Avaliacoes: ${avaliacoes.count}`);
   console.log(`- Localizacoes: ${localizacoes.count}`);
+  console.log(`- Reserva-servicos: ${reservaServicos.count}`);
   console.log(`- Reservas: ${reservas.count}`);
+  console.log(`- Servicos opcionais: ${servicosOpcionais.count}`);
   console.log(`- Veiculos: ${veiculos.count}`);
   console.log(`- Modelos de veiculo: ${modelosVeiculo.count}`);
   console.log(`- Garagens: ${garagens.count}`);

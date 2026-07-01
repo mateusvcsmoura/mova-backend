@@ -14,6 +14,8 @@ import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
+import { IServicoOpcionalRepository } from "../repositories/servico-opcional.repository.js";
+import { ReservaServicoInput } from "../repositories/contracts/reserva.contract.js";
 import { BloqueioService } from "./bloqueio.js";
 import { LocatarioResponse } from "../repositories/contracts/locatario.contract.js";
 import {
@@ -41,7 +43,42 @@ export class ReservaService {
     private readonly garagemRepository: IGaragemRepository,
     private readonly deficienciaRepository: IDeficienciaRepository,
     private readonly bloqueioService: BloqueioService,
+    private readonly servicoOpcionalRepository: IServicoOpcionalRepository,
   ) {}
+
+  // Valida os serviços opcionais selecionados contra o catálogo e resolve o
+  // valor de cada um (snapshot). Todos os IDs informados devem existir e estar
+  // ativos; caso contrário a reserva não é criada. Centraliza aqui a regra para
+  // evitar cálculos espalhados pela aplicação.
+  private async resolverServicosOpcionais(
+    servicosIds?: string[],
+  ): Promise<{ servicos: ReservaServicoInput[]; valorServicos: number }> {
+    if (!servicosIds || servicosIds.length === 0) {
+      return { servicos: [], valorServicos: 0 };
+    }
+
+    // Remove duplicatas para não cobrar o mesmo serviço duas vezes.
+    const idsUnicos = [...new Set(servicosIds)];
+
+    const encontrados =
+      await this.servicoOpcionalRepository.findByIds(idsUnicos);
+
+    // findByIds só retorna serviços ativos; divergência = id inexistente ou inativo.
+    if (encontrados.length !== idsUnicos.length) {
+      throw new HttpError(
+        400,
+        "Um ou mais serviços opcionais informados são inválidos ou indisponíveis.",
+      );
+    }
+
+    const servicos = encontrados.map((s) => ({
+      idServico: s.id,
+      valor: s.valor,
+    }));
+    const valorServicos = encontrados.reduce((acc, s) => acc + s.valor, 0);
+
+    return { servicos, valorServicos };
+  }
 
   // Gera uma string no formato XXXX-XXXX usando o alfabeto sem ambíguos.
   private gerarCodigoAleatorio(): string {
@@ -368,7 +405,19 @@ export class ReservaService {
       );
     }
 
-    return this.reservaRepository.create({ ...data, idGaragemRetirada });
+    // Serviços opcionais: valida os IDs e calcula a soma dos valores. O valor
+    // total = valor base (informado) + soma dos serviços contratados.
+    const { servicos, valorServicos } = await this.resolverServicosOpcionais(
+      data.servicosIds,
+    );
+    const valorTotal = data.valorTotal + valorServicos;
+
+    return this.reservaRepository.create({
+      ...data,
+      idGaragemRetirada,
+      valorTotal,
+      servicos,
+    });
   };
 
   update = async (

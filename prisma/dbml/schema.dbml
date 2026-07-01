@@ -119,7 +119,32 @@ Table Reserva {
   codigoGeradoEm DateTime
   codigoUsadoEm DateTime
   avaliacao Avaliacao
+  servicos ReservaServico [not null]
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table ServicoOpcional {
+  id String [pk]
+  nome String [unique, not null]
+  descricao String [not null]
+  valor Decimal [not null]
+  ativo Boolean [not null, default: true]
+  criadoEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+  reservas ReservaServico [not null]
+}
+
+Table ReservaServico {
+  idReserva String [not null]
+  reserva Reserva [not null]
+  idServico String [not null]
+  servico ServicoOpcional [not null]
+  valor Decimal [not null]
+  criadoEm DateTime [default: `now()`, not null]
+
+  indexes {
+    (idReserva, idServico) [pk]
+  }
 }
 
 Table Localizacao {
@@ -216,6 +241,10 @@ Ref: Reserva.idLocatario > Locatario.id
 Ref: Reserva.idGaragemRetirada > Garagem.id
 
 Ref: Reserva.idGaragemDevolucao > Garagem.id
+
+Ref: ReservaServico.idReserva > Reserva.id [delete: Cascade]
+
+Ref: ReservaServico.idServico > ServicoOpcional.id
 
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 
