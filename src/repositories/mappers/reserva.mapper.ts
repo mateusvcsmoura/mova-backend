@@ -1,8 +1,13 @@
-import { Reserva } from "@prisma/client";
+import { Reserva, ReservaServico, ServicoOpcional } from "@prisma/client";
 import { ReservaResponse } from "../contracts/reserva.contract.js";
 
+// Reserva carregada com a junção de serviços (servicos -> servico do catálogo).
+export type ReservaComServicos = Reserva & {
+  servicos?: (ReservaServico & { servico: ServicoOpcional })[];
+};
+
 export class ReservaMapper {
-  static toResponse(reserva: Reserva): ReservaResponse {
+  static toResponse(reserva: ReservaComServicos): ReservaResponse {
     return {
       id: reserva.id,
       idVeiculo: reserva.idVeiculo,
@@ -19,11 +24,18 @@ export class ReservaMapper {
       codigoDesbloqueio: reserva.codigoDesbloqueio,
       codigoGeradoEm: reserva.codigoGeradoEm,
       codigoUsadoEm: reserva.codigoUsadoEm,
+      servicos: (reserva.servicos ?? []).map((rs) => ({
+        idServico: rs.idServico,
+        nome: rs.servico.nome,
+        descricao: rs.servico.descricao,
+        // valor contratado (snapshot), não o valor atual do catálogo
+        valor: Number(rs.valor),
+      })),
       atualizadoEm: reserva.atualizadoEm,
     };
   }
 
-  static toManyResponse(reservas: Reserva[]): ReservaResponse[] {
+  static toManyResponse(reservas: ReservaComServicos[]): ReservaResponse[] {
     return reservas.map((r) => this.toResponse(r));
   }
 }
