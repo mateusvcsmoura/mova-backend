@@ -200,7 +200,49 @@ model Reserva {
   codigoUsadoEm     DateTime?
 
   avaliacao    Avaliacao?
+  // Serviços opcionais contratados nesta reserva (catálogo + junção).
+  servicos     ReservaServico[]
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+// Catálogo de serviços opcionais (ex.: Seguro adicional, Tanque cheio).
+// Extensível: novos serviços entram como registros, sem alterar a Reserva.
+model ServicoOpcional {
+  id        String  @id @default(uuid()) @db.Uuid
+  nome      String  @unique
+  descricao String
+  valor     Decimal @db.Decimal(10, 2)
+
+  // Serviço fora do catálogo deixa de poder ser contratado, mas o histórico
+  // de quem já contratou é preservado (ver ReservaServico.valor — snapshot).
+  ativo Boolean @default(true)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  reservas ReservaServico[]
+
+  // Acelera a listagem dos serviços disponíveis (ativo = true).
+  @@index([ativo])
+}
+
+// Tabela intermediária N:N entre Reserva e ServicoOpcional. Guarda o valor
+// contratado como snapshot — assim, reajustes futuros no catálogo não alteram
+// o valor já cobrado em reservas existentes.
+model ReservaServico {
+  idReserva String  @db.Uuid
+  reserva   Reserva @relation(fields: [idReserva], references: [id], onDelete: Cascade)
+
+  idServico String          @db.Uuid
+  servico   ServicoOpcional @relation(fields: [idServico], references: [id])
+
+  // Snapshot do valor do serviço no momento da contratação.
+  valor Decimal @db.Decimal(10, 2)
+
+  criadoEm DateTime @default(now())
+
+  @@id([idReserva, idServico])
+  @@index([idServico])
 }
 
 model Localizacao {
