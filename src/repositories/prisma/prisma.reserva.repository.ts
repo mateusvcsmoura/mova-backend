@@ -17,6 +17,12 @@ import {
   toSkipTake,
 } from "../../shared/pagination.js";
 
+// Carrega os serviços contratados junto com o serviço do catálogo, em uma
+// única consulta (evita N+1 ao montar a resposta).
+const RESERVA_INCLUDE = {
+  servicos: { include: { servico: true } },
+} satisfies Prisma.ReservaInclude;
+
 export class PrismaReservaRepository implements IReservaRepository {
   private buildWhere(filters: ReservaFilters): Prisma.ReservaWhereInput {
     return {
@@ -38,7 +44,12 @@ export class PrismaReservaRepository implements IReservaRepository {
   ): Promise<PaginatedResult<ReservaResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const [data, total] = await prisma.$transaction([
-      prisma.reserva.findMany({ skip, take, orderBy: { criadaEm: "desc" } }),
+      prisma.reserva.findMany({
+        skip,
+        take,
+        orderBy: { criadaEm: "desc" },
+        include: RESERVA_INCLUDE,
+      }),
       prisma.reserva.count(),
     ]);
     return buildPaginatedResult(
@@ -49,7 +60,10 @@ export class PrismaReservaRepository implements IReservaRepository {
   }
 
   async findById(id: string): Promise<ReservaResponse | null> {
-    const data = await prisma.reserva.findUnique({ where: { id } });
+    const data = await prisma.reserva.findUnique({
+      where: { id },
+      include: RESERVA_INCLUDE,
+    });
     return data ? ReservaMapper.toResponse(data) : null;
   }
 
@@ -65,6 +79,7 @@ export class PrismaReservaRepository implements IReservaRepository {
         skip,
         take,
         orderBy: { criadaEm: "desc" },
+        include: RESERVA_INCLUDE,
       }),
       prisma.reserva.count({ where }),
     ]);
@@ -87,6 +102,7 @@ export class PrismaReservaRepository implements IReservaRepository {
         skip,
         take,
         orderBy: { criadaEm: "desc" },
+        include: RESERVA_INCLUDE,
       }),
       prisma.reserva.count({ where }),
     ]);
@@ -109,6 +125,7 @@ export class PrismaReservaRepository implements IReservaRepository {
         skip,
         take,
         orderBy: { criadaEm: "desc" },
+        include: RESERVA_INCLUDE,
       }),
       prisma.reserva.count({ where }),
     ]);
@@ -124,6 +141,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   ): Promise<ReservaResponse | null> {
     const data = await prisma.reserva.findUnique({
       where: { codigoDesbloqueio: codigo },
+      include: RESERVA_INCLUDE,
     });
     return data ? ReservaMapper.toResponse(data) : null;
   }
@@ -140,7 +158,20 @@ export class PrismaReservaRepository implements IReservaRepository {
         valorTotal: data.valorTotal,
         status: data.status ?? undefined,
         statusPagamento: data.statusPagamento ?? undefined,
+        // Cria as associações de serviços opcionais na mesma operação,
+        // gravando o valor contratado como snapshot.
+        ...(data.servicos && data.servicos.length > 0
+          ? {
+              servicos: {
+                create: data.servicos.map((s) => ({
+                  idServico: s.idServico,
+                  valor: s.valor,
+                })),
+              },
+            }
+          : {}),
       },
+      include: RESERVA_INCLUDE,
     });
     return ReservaMapper.toResponse(reserva);
   }
@@ -165,6 +196,7 @@ export class PrismaReservaRepository implements IReservaRepository {
           status: data.status ?? undefined,
           statusPagamento: data.statusPagamento ?? undefined,
         },
+        include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
     } catch {
@@ -189,6 +221,7 @@ export class PrismaReservaRepository implements IReservaRepository {
           codigoGeradoEm: geradoEm,
           codigoUsadoEm: null,
         },
+        include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
     } catch {
@@ -204,6 +237,7 @@ export class PrismaReservaRepository implements IReservaRepository {
       const reserva = await prisma.reserva.update({
         where: { id },
         data: { codigoUsadoEm: usadoEm },
+        include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
     } catch {
