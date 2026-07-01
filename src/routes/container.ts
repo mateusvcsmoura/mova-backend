@@ -7,6 +7,7 @@ import { LocalizacaoController } from "../controllers/localizacao.js";
 import { LocadorController } from "../controllers/locador.js";
 import { LocatarioController } from "../controllers/locatario.js";
 import { ReservaController } from "../controllers/reserva.js";
+import { ServicoOpcionalController } from "../controllers/servico-opcional.js";
 import { VeiculoController } from "../controllers/veiculo.js";
 import { IContaRepository } from "../repositories/conta.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
@@ -24,8 +25,10 @@ import { PrismaLocalizacaoRepository } from "../repositories/prisma/prisma.local
 import { PrismaLocadorRepository } from "../repositories/prisma/prisma.locador.repository.js";
 import { PrismaLocatarioRepository } from "../repositories/prisma/prisma.locatario.repository.js";
 import { PrismaReservaRepository } from "../repositories/prisma/prisma.reserva.repository.js";
+import { PrismaServicoOpcionalRepository } from "../repositories/prisma/prisma.servico-opcional.repository.js";
 import { PrismaVeiculoRepository } from "../repositories/prisma/prisma.veiculo.repository.js";
 import { IReservaRepository } from "../repositories/reserva.repository.js";
+import { IServicoOpcionalRepository } from "../repositories/servico-opcional.repository.js";
 import { IAvaliacaoRepository } from "../repositories/avaliacao.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { ContaService } from "../services/conta.js";
@@ -36,6 +39,7 @@ import { LocalizacaoSimulador } from "../services/localizacao-simulador.js";
 import { LocadorService } from "../services/locador.js";
 import { LocatarioService } from "../services/locatario.js";
 import { ReservaService } from "../services/reserva.js";
+import { ServicoOpcionalService } from "../services/servico-opcional.js";
 import { BloqueioService } from "../services/bloqueio.js";
 import { AvaliacaoService } from "../services/avaliacao.js";
 import { VeiculoService } from "../services/veiculo.js";
@@ -68,8 +72,12 @@ export const bloqueioRepository: IBloqueioRepository = new PrismaBloqueioReposit
 export const bloqueioService = new BloqueioService(bloqueioRepository, locatarioRepository);
 export const bloqueioController = new BloqueioController(bloqueioService);
 
+export const servicoOpcionalRepository: IServicoOpcionalRepository = new PrismaServicoOpcionalRepository();
+export const servicoOpcionalService = new ServicoOpcionalService(servicoOpcionalRepository);
+export const servicoOpcionalController = new ServicoOpcionalController(servicoOpcionalService);
+
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
-export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService);
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository);
 export const reservaController = new ReservaController(reservaService);
 
 export const avaliacaoRepository: IAvaliacaoRepository = new PrismaAvaliacaoRepository();
