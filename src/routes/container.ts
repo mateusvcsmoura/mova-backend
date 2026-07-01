@@ -1,4 +1,5 @@
 import { AvaliacaoController } from "../controllers/avaliacao.js";
+import { AvaliacaoRelatorioController } from "../controllers/avaliacao-relatorio.js";
 import { FavoritoController } from "../controllers/favorito.js";
 import { BloqueioController } from "../controllers/bloqueio.js";
 import { ContaController } from "../controllers/conta.js";
@@ -17,6 +18,8 @@ import { ILocalizacaoRepository } from "../repositories/localizacao.repository.j
 import { ILocadorRepository } from "../repositories/locador.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { PrismaAvaliacaoRepository } from "../repositories/prisma/prisma.avaliacao.repository.js";
+import { PrismaAvaliacaoRelatorioRepository } from "../repositories/prisma/prisma.avaliacao-relatorio.repository.js";
+import { IAvaliacaoRelatorioRepository } from "../repositories/avaliacao-relatorio.repository.js";
 import { PrismaFavoritoRepository } from "../repositories/prisma/prisma.favorito.repository.js";
 import { IFavoritoRepository } from "../repositories/favorito.repository.js";
 import { PrismaBloqueioRepository } from "../repositories/prisma/prisma.bloqueio.repository.js";
@@ -45,6 +48,7 @@ import { ReservaService } from "../services/reserva.js";
 import { ServicoOpcionalService } from "../services/servico-opcional.js";
 import { BloqueioService } from "../services/bloqueio.js";
 import { AvaliacaoService } from "../services/avaliacao.js";
+import { AvaliacaoRelatorioService } from "../services/avaliacao-relatorio.js";
 import { FavoritoService } from "../services/favorito.js";
 import { VeiculoService } from "../services/veiculo.js";
 import { INotificacaoRepository } from "../repositories/notificacao.repository.js";
@@ -119,6 +123,10 @@ export const reservaController = new ReservaController(reservaService);
 export const avaliacaoRepository: IAvaliacaoRepository = new PrismaAvaliacaoRepository();
 export const avaliacaoService = new AvaliacaoService(avaliacaoRepository, reservaRepository, veiculoRepository);
 export const avaliacaoController = new AvaliacaoController(avaliacaoService);
+
+export const avaliacaoRelatorioRepository: IAvaliacaoRelatorioRepository = new PrismaAvaliacaoRelatorioRepository();
+export const avaliacaoRelatorioService = new AvaliacaoRelatorioService(avaliacaoRelatorioRepository);
+export const avaliacaoRelatorioController = new AvaliacaoRelatorioController(avaliacaoRelatorioService);
 
 export const favoritoRepository: IFavoritoRepository = new PrismaFavoritoRepository();
 export const favoritoService = new FavoritoService(favoritoRepository, veiculoRepository, locatarioRepository);
