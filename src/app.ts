@@ -14,6 +14,7 @@ import { reservaRouter } from "./routes/reserva/reserva.js";
 import { servicoOpcionalRouter } from "./routes/servico-opcional/servico-opcional.js";
 import { localizacaoRouter } from "./routes/localizacao/localizacao.js";
 import { avaliacaoRouter } from "./routes/avaliacao/avaliacao.js";
+import { favoritoRouter } from "./routes/favorito/favorito.js";
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use("/api/reserva", reservaRouter);
 app.use("/api/servico", servicoOpcionalRouter);
 app.use("/api/localizacao", localizacaoRouter);
 app.use("/api/avaliacao", avaliacaoRouter);
+app.use("/api/favorito", favoritoRouter);
 
 app.use(errorHandler);
 
