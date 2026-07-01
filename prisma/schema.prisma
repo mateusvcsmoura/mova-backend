@@ -102,6 +102,7 @@ model Locatario {
 
   reservas     Reserva[]
   bloqueios    BloqueioLocatario[]
+  favoritos    Favorito[]
   atualizadoEm DateTime  @default(now()) @updatedAt
 }
 
@@ -149,6 +150,7 @@ model Veiculo {
   criadoEm        DateTime      @default(now())
   reservas        Reserva[]
   localizacoes    Localizacao[]
+  favoritos       Favorito[]
   atualizadoEm    DateTime      @default(now()) @updatedAt
 }
 
@@ -284,6 +286,30 @@ model ReservaServico {
 
   @@id([idReserva, idServico])
   @@index([idServico])
+}
+
+// Favorito: relacionamento N:N entre Locatario e Veiculo. Entidade própria
+// (não array de IDs) com PK surrogate — preparada para evoluir com novos
+// atributos (ordenação personalizada, categorias, listas, notificações de
+// disponibilidade) sem alterar Locatario/Veiculo. criadoEm já registra a data
+// em que o veículo foi favoritado.
+model Favorito {
+  id String @id @default(uuid()) @db.Uuid
+
+  idLocatario String    @db.Uuid
+  locatario   Locatario @relation(fields: [idLocatario], references: [id], onDelete: Cascade)
+
+  idVeiculo String  @db.Uuid
+  veiculo   Veiculo @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  // Um locatário não pode favoritar o mesmo veículo duas vezes. O índice
+  // composto também acelera a listagem/verificação de favoritos por locatário.
+  @@unique([idLocatario, idVeiculo])
+  // Acelera estatísticas de veículos mais favoritados e o cascade por veículo.
+  @@index([idVeiculo])
 }
 
 model Localizacao {

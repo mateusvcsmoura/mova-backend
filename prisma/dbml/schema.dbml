@@ -33,6 +33,7 @@ Table Locatario {
   deficiencia Deficiencia
   reservas Reserva [not null]
   bloqueios BloqueioLocatario [not null]
+  favoritos Favorito [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -80,6 +81,7 @@ Table Veiculo {
   criadoEm DateTime [default: `now()`, not null]
   reservas Reserva [not null]
   localizacoes Localizacao [not null]
+  favoritos Favorito [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -159,6 +161,20 @@ Table ReservaServico {
 
   indexes {
     (idReserva, idServico) [pk]
+  }
+}
+
+Table Favorito {
+  id String [pk]
+  idLocatario String [not null]
+  locatario Locatario [not null]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  criadoEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+
+  indexes {
+    (idLocatario, idVeiculo) [unique]
   }
 }
 
@@ -268,6 +284,10 @@ Ref: NotificacaoReserva.idReserva > Reserva.id [delete: Cascade]
 Ref: ReservaServico.idReserva > Reserva.id [delete: Cascade]
 
 Ref: ReservaServico.idServico > ServicoOpcional.id
+
+Ref: Favorito.idLocatario > Locatario.id [delete: Cascade]
+
+Ref: Favorito.idVeiculo > Veiculo.id [delete: Cascade]
 
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 
