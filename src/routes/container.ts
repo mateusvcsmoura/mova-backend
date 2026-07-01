@@ -90,13 +90,23 @@ export const servicoOpcionalController = new ServicoOpcionalController(servicoOp
 // Camada de infraestrutura de e-mail. Provedor concreto (Nodemailer/SMTP) fica
 // atrás da abstração IMailProvider — trocar por SES/Resend/etc. é só instanciar
 // outra implementação aqui, sem tocar nos services.
-export const mailProvider: IMailProvider = new NodemailerMailProvider({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  user: env.SMTP_USER,
-  pass: env.SMTP_PASS,
-  from: env.SMTP_FROM,
-});
+//
+// Em NODE_ENV=test o provedor fica desabilitado (config vazia) mesmo com SMTP
+// no .env: a suíte de integração jamais envia e-mail real — o PUT de reserva
+// travava >5s no handshake SMTP e estourava o timeout do vitest. O envio real
+// é opt-in apenas em test/notificacao/real-email.test.ts, que monta o próprio
+// provedor.
+export const mailProvider: IMailProvider = new NodemailerMailProvider(
+  env.NODE_ENV === "test"
+    ? {}
+    : {
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        user: env.SMTP_USER,
+        pass: env.SMTP_PASS,
+        from: env.SMTP_FROM,
+      },
+);
 
 export const notificacaoRepository: INotificacaoRepository = new PrismaNotificacaoRepository();
 export const reservaReportService = new ReservaReportService(veiculoRepository, contaRepository, locadorRepository, garagemRepository);
