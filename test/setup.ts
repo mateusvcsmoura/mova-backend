@@ -4,6 +4,7 @@ import { prisma } from "../src/database/prisma";
 // Limpa todas as tabelas respeitando as foreign keys do schema.prisma.
 // Roda uma vez antes de cada arquivo de teste, garantindo isolamento.
 async function resetDatabase() {
+  // Favorito não é limpo explicitamente: cascade de Veiculo/Locatario cobre.
   await prisma.avaliacao.deleteMany();
   await prisma.localizacao.deleteMany();
   await prisma.reservaServico.deleteMany();

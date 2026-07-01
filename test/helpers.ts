@@ -265,6 +265,19 @@ export async function createBloqueio(
   return res.body.result;
 }
 
+// Favorita um veículo em nome do locatário autenticado (token LOCATARIO).
+export async function createFavorito(
+  token: string,
+  idVeiculo: string,
+) {
+  const res = await request(app)
+    .post("/api/favorito")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ idVeiculo });
+
+  return res.body.result;
+}
+
 export async function createAvaliacao(
   token: string,
   idReserva: string,
