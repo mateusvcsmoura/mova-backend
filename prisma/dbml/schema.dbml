@@ -46,6 +46,7 @@ Table Locador {
   veiculos Veiculo [not null]
   garagens Garagem [not null]
   modelosVeiculo ModeloVeiculo [not null]
+  alertas AlertaVeiculo [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -84,6 +85,8 @@ Table Veiculo {
   localizacoes Localizacao [not null]
   favoritos Favorito [not null]
   interesses InteresseVeiculo [not null]
+  statusHistorico VeiculoStatusHistorico [not null]
+  alertas AlertaVeiculo [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -213,6 +216,33 @@ Table NotificacaoInteresse {
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
+Table VeiculoStatusHistorico {
+  id String [pk]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  status StatusVeiculo [not null]
+  criadoEm DateTime [default: `now()`, not null]
+}
+
+Table AlertaVeiculo {
+  id String [pk]
+  tipo TipoAlertaVeiculo [not null]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  idLocador String [not null]
+  locador Locador [not null]
+  descricao String [not null]
+  destinatario String [not null]
+  assunto String [not null]
+  canal String [not null, default: 'EMAIL']
+  status StatusNotificacao [not null, default: 'PENDENTE']
+  mensagemErro String
+  criadoEm DateTime [default: `now()`, not null]
+  enviadoEm DateTime
+  resolvidoEm DateTime
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
 Table Localizacao {
   id String [pk]
   idVeiculo String [not null]
@@ -287,6 +317,11 @@ Enum StatusInteresse {
   NOTIFICADO
 }
 
+Enum TipoAlertaVeiculo {
+  INATIVIDADE
+  BAIXA_AVALIACAO
+}
+
 Enum MotivoBloqueio {
   INADIMPLENCIA
   FRAUDE
@@ -335,6 +370,12 @@ Ref: InteresseVeiculo.idLocatario > Locatario.id [delete: Cascade]
 Ref: InteresseVeiculo.idVeiculo > Veiculo.id [delete: Cascade]
 
 Ref: NotificacaoInteresse.idInteresse > InteresseVeiculo.id [delete: Cascade]
+
+Ref: VeiculoStatusHistorico.idVeiculo > Veiculo.id [delete: Cascade]
+
+Ref: AlertaVeiculo.idVeiculo > Veiculo.id [delete: Cascade]
+
+Ref: AlertaVeiculo.idLocador > Locador.id [delete: Cascade]
 
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 

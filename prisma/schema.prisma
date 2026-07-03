@@ -62,6 +62,14 @@ enum StatusInteresse {
   NOTIFICADO
 }
 
+// Tipos de alerta gerados pelo monitoramento da frota. Extensível: novas
+// regras (excesso de cancelamentos, baixa utilização, manutenções etc.)
+// entram como novos valores sem alterar a estrutura de alertas.
+enum TipoAlertaVeiculo {
+  INATIVIDADE
+  BAIXA_AVALIACAO
+}
+
 // Motivos pelos quais um locatário pode ser impedido de reservar. Extensível:
 // novos motivos (ex.: comportamento) entram aqui sem alterar a regra de negócio.
 enum MotivoBloqueio {
@@ -127,6 +135,7 @@ model Locador {
   veiculos       Veiculo[]
   garagens       Garagem[]
   modelosVeiculo ModeloVeiculo[]
+  alertas        AlertaVeiculo[]
   atualizadoEm   DateTime        @default(now()) @updatedAt
 }
 
@@ -163,6 +172,8 @@ model Veiculo {
   localizacoes    Localizacao[]
   favoritos       Favorito[]
   interesses      InteresseVeiculo[]
+  statusHistorico VeiculoStatusHistorico[]
+  alertas         AlertaVeiculo[]
   atualizadoEm    DateTime      @default(now()) @updatedAt
 }
 
@@ -389,6 +400,69 @@ model NotificacaoInteresse {
   atualizadoEm DateTime  @default(now()) @updatedAt
 
   @@index([idInteresse])
+}
+
+// Histórico de transições de status do veículo. Registrado a cada mudança de
+// status (VeiculoService.update); a migration faz backfill do estado atual da
+// frota. A linha mais recente de um veículo indica DESDE QUANDO ele está no
+// status atual — base da regra de inatividade do monitoramento. Imutável
+// (append-only), o que também habilita regras futuras (ex.: excesso de
+// manutenções) sem novos campos no Veiculo.
+model VeiculoStatusHistorico {
+  id String @id @default(uuid()) @db.Uuid
+
+  idVeiculo String  @db.Uuid
+  veiculo   Veiculo @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
+
+  status StatusVeiculo
+
+  criadoEm DateTime @default(now())
+
+  // Acelera a busca da transição mais recente por veículo (LATERAL/max).
+  @@index([idVeiculo, criadoEm])
+}
+
+// Alerta de monitoramento da frota, gerado pela rotina periódica. Auditável:
+// guarda o indicador no momento da geração (descricao), o snapshot do
+// destinatário/assunto e o resultado do envio (reusa StatusNotificacao).
+//
+// Deduplicação: um alerta é "ativo" enquanto resolvidoEm IS NULL. A rotina não
+// gera novo alerta do mesmo tipo para o mesmo veículo enquanto houver um ativo;
+// quando a condição deixa de valer, o alerta é resolvido automaticamente —
+// permitindo novo alerta se o problema reincidir.
+model AlertaVeiculo {
+  id String @id @default(uuid()) @db.Uuid
+
+  tipo TipoAlertaVeiculo
+
+  idVeiculo String  @db.Uuid
+  veiculo   Veiculo @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
+
+  idLocador String  @db.Uuid
+  locador   Locador @relation(fields: [idLocador], references: [id], onDelete: Cascade)
+
+  // Resumo humano do indicador no momento da geração
+  // (ex.: "Inativo há 9 dias", "Média 2.3 em 5 avaliações").
+  descricao String
+
+  // Snapshot do destinatário e do assunto no momento da tentativa de envio.
+  destinatario String
+  assunto      String
+  canal        String @default("EMAIL")
+
+  status       StatusNotificacao @default(PENDENTE)
+  mensagemErro String?
+
+  criadoEm     DateTime  @default(now())
+  enviadoEm    DateTime?
+  // Encerramento do alerta (condição deixou de valer). NULL = ativo.
+  resolvidoEm  DateTime?
+  atualizadoEm DateTime  @default(now()) @updatedAt
+
+  // Consulta crítica da deduplicação: alerta ativo por (veículo, tipo).
+  @@index([idVeiculo, tipo, resolvidoEm])
+  // Histórico de alertas por locador (auditoria).
+  @@index([idLocador, criadoEm])
 }
 
 model Localizacao {
