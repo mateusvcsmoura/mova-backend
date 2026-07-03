@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { Cargo } from "@prisma/client";
-import { bloqueioController, contaController } from "../container.js";
+import {
+  bloqueioController,
+  contaController,
+  monitoramentoController,
+} from "../container.js";
 import { authMiddleware } from "../../middlewares/auth-middleware.js";
 import { authorize } from "../../middlewares/authorization-middleware.js";
 
@@ -39,6 +43,15 @@ adminRouter.post(
   authMiddleware,
   authorize(Cargo.ADMIN),
   bloqueioController.revogar,
+);
+
+// MONITORAMENTO DA FROTA (somente ADMIN) — acionamento manual da rotina que
+// normalmente roda via scheduler no boot.
+adminRouter.post(
+  "/monitoramento/executar",
+  authMiddleware,
+  authorize(Cargo.ADMIN),
+  monitoramentoController.executar,
 );
 
 export { adminRouter };

@@ -64,6 +64,12 @@ import { PrismaNotificacaoInteresseRepository } from "../repositories/prisma/pri
 import { NotificacaoVeiculoDisponivelService } from "../services/notificacao-veiculo-disponivel.js";
 import { InteresseVeiculoService } from "../services/interesse-veiculo.js";
 import { InteresseController } from "../controllers/interesse.js";
+import { IMonitoramentoVeiculoRepository } from "../repositories/monitoramento.repository.js";
+import { PrismaMonitoramentoVeiculoRepository } from "../repositories/prisma/prisma.monitoramento.repository.js";
+import { NotificacaoAlertaVeiculoService } from "../services/notificacao-alerta-veiculo.js";
+import { MonitoramentoVeiculoService } from "../services/monitoramento-veiculo.js";
+import { MonitoramentoScheduler } from "../services/monitoramento-scheduler.js";
+import { MonitoramentoController } from "../controllers/monitoramento.js";
 import { env } from "../config/env.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
@@ -130,7 +136,20 @@ export const interesseRepository: IInteresseVeiculoRepository = new PrismaIntere
 export const notificacaoInteresseRepository: INotificacaoInteresseRepository = new PrismaNotificacaoInteresseRepository();
 export const notificacaoVeiculoDisponivelService = new NotificacaoVeiculoDisponivelService(interesseRepository, notificacaoInteresseRepository, locadorRepository, garagemRepository, mailProvider);
 
-export const veiculoService = new VeiculoService(veiculoRepository, notificacaoVeiculoDisponivelService);
+// Monitoramento da frota: histórico de status + alertas (inatividade e baixa
+// avaliação), com dispatcher de e-mail e rotina periódica opcional no boot.
+export const monitoramentoRepository: IMonitoramentoVeiculoRepository = new PrismaMonitoramentoVeiculoRepository();
+export const notificacaoAlertaVeiculoService = new NotificacaoAlertaVeiculoService(monitoramentoRepository, mailProvider);
+export const monitoramentoVeiculoService = new MonitoramentoVeiculoService(monitoramentoRepository, notificacaoAlertaVeiculoService);
+export const monitoramentoController = new MonitoramentoController(monitoramentoVeiculoService);
+export const monitoramentoScheduler = new MonitoramentoScheduler(
+  monitoramentoVeiculoService,
+  {
+    intervaloMs: Number(process.env.MONITORAMENTO_INTERVALO_MS) || 3_600_000,
+  },
+);
+
+export const veiculoService = new VeiculoService(veiculoRepository, notificacaoVeiculoDisponivelService, monitoramentoRepository);
 export const veiculoController = new VeiculoController(veiculoService);
 
 export const interesseService = new InteresseVeiculoService(interesseRepository, veiculoRepository, locatarioRepository);
