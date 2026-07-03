@@ -52,6 +52,16 @@ enum StatusNotificacao {
   FALHA
 }
 
+// Ciclo de vida de uma inscrição de interesse em veículo (watchlist).
+// ATIVO      -> aguardando o veículo voltar a DISPONIVEL.
+// CANCELADO  -> encerrada pelo próprio locatário (opt-out).
+// NOTIFICADO -> encerrada automaticamente após notificação enviada com sucesso.
+enum StatusInteresse {
+  ATIVO
+  CANCELADO
+  NOTIFICADO
+}
+
 // Motivos pelos quais um locatário pode ser impedido de reservar. Extensível:
 // novos motivos (ex.: comportamento) entram aqui sem alterar a regra de negócio.
 enum MotivoBloqueio {
@@ -103,6 +113,7 @@ model Locatario {
   reservas     Reserva[]
   bloqueios    BloqueioLocatario[]
   favoritos    Favorito[]
+  interesses   InteresseVeiculo[]
   atualizadoEm DateTime  @default(now()) @updatedAt
 }
 
@@ -151,6 +162,7 @@ model Veiculo {
   reservas        Reserva[]
   localizacoes    Localizacao[]
   favoritos       Favorito[]
+  interesses      InteresseVeiculo[]
   atualizadoEm    DateTime      @default(now()) @updatedAt
 }
 
@@ -310,6 +322,73 @@ model Favorito {
   @@unique([idLocatario, idVeiculo])
   // Acelera estatísticas de veículos mais favoritados e o cascade por veículo.
   @@index([idVeiculo])
+}
+
+// Inscrição de interesse em veículo (watchlist de disponibilidade). Entidade
+// própria, desacoplada de Reserva e de Favorito: o locatário faz opt-in para
+// ser notificado quando o veículo voltar a DISPONIVEL.
+//
+// Unicidade: o par (idLocatario, idVeiculo) é @@unique — garante no banco que
+// não existam duas inscrições para o mesmo par. Reinscrição após cancelamento/
+// notificação REATIVA a linha existente (status volta a ATIVO e optInEm é
+// renovado); o histórico de envios fica preservado em NotificacaoInteresse.
+model InteresseVeiculo {
+  id String @id @default(uuid()) @db.Uuid
+
+  idLocatario String    @db.Uuid
+  locatario   Locatario @relation(fields: [idLocatario], references: [id], onDelete: Cascade)
+
+  idVeiculo String  @db.Uuid
+  veiculo   Veiculo @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
+
+  status StatusInteresse @default(ATIVO)
+
+  // Consentimento explícito (opt-in) para receber notificações. Renovado a
+  // cada reativação da inscrição.
+  optInEm DateTime @default(now())
+
+  // Encerramentos: cancelamento manual (opt-out) ou notificação bem-sucedida.
+  canceladoEm  DateTime?
+  notificadoEm DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  // Histórico/auditoria dos envios desta inscrição.
+  notificacoes NotificacaoInteresse[]
+
+  @@unique([idLocatario, idVeiculo])
+  // Consulta crítica do disparo automático: inscrições ATIVAS de um veículo.
+  @@index([idVeiculo, status])
+}
+
+// Registro/auditoria dos envios de notificação de disponibilidade (uma linha
+// por tentativa). Espelha NotificacaoReserva: snapshot de destinatário/assunto,
+// canal extensível (EMAIL hoje; push/SMS/WhatsApp no futuro) e status reusando
+// o enum StatusNotificacao. A falha no envio não afeta a inscrição — apenas
+// fica registrada aqui.
+model NotificacaoInteresse {
+  id String @id @default(uuid()) @db.Uuid
+
+  idInteresse String           @db.Uuid
+  interesse   InteresseVeiculo @relation(fields: [idInteresse], references: [id], onDelete: Cascade)
+
+  // Snapshot do destinatário e do assunto no momento da tentativa.
+  destinatario String
+  assunto      String
+  // Canal de envio. String (não enum) para permitir novos canais sem migração.
+  canal        String @default("EMAIL")
+
+  status       StatusNotificacao @default(PENDENTE)
+  // Motivo da falha (mensagem do provedor), quando status = FALHA.
+  mensagemErro String?
+
+  criadaEm     DateTime  @default(now())
+  // Instante em que o provedor aceitou a mensagem (status = ENVIADA).
+  enviadaEm    DateTime?
+  atualizadoEm DateTime  @default(now()) @updatedAt
+
+  @@index([idInteresse])
 }
 
 model Localizacao {

@@ -34,6 +34,7 @@ Table Locatario {
   reservas Reserva [not null]
   bloqueios BloqueioLocatario [not null]
   favoritos Favorito [not null]
+  interesses InteresseVeiculo [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -82,6 +83,7 @@ Table Veiculo {
   reservas Reserva [not null]
   localizacoes Localizacao [not null]
   favoritos Favorito [not null]
+  interesses InteresseVeiculo [not null]
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -178,6 +180,39 @@ Table Favorito {
   }
 }
 
+Table InteresseVeiculo {
+  id String [pk]
+  idLocatario String [not null]
+  locatario Locatario [not null]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  status StatusInteresse [not null, default: 'ATIVO']
+  optInEm DateTime [default: `now()`, not null]
+  canceladoEm DateTime
+  notificadoEm DateTime
+  criadoEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+  notificacoes NotificacaoInteresse [not null]
+
+  indexes {
+    (idLocatario, idVeiculo) [unique]
+  }
+}
+
+Table NotificacaoInteresse {
+  id String [pk]
+  idInteresse String [not null]
+  interesse InteresseVeiculo [not null]
+  destinatario String [not null]
+  assunto String [not null]
+  canal String [not null, default: 'EMAIL']
+  status StatusNotificacao [not null, default: 'PENDENTE']
+  mensagemErro String
+  criadaEm DateTime [default: `now()`, not null]
+  enviadaEm DateTime
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
 Table Localizacao {
   id String [pk]
   idVeiculo String [not null]
@@ -246,6 +281,12 @@ Enum StatusNotificacao {
   FALHA
 }
 
+Enum StatusInteresse {
+  ATIVO
+  CANCELADO
+  NOTIFICADO
+}
+
 Enum MotivoBloqueio {
   INADIMPLENCIA
   FRAUDE
@@ -288,6 +329,12 @@ Ref: ReservaServico.idServico > ServicoOpcional.id
 Ref: Favorito.idLocatario > Locatario.id [delete: Cascade]
 
 Ref: Favorito.idVeiculo > Veiculo.id [delete: Cascade]
+
+Ref: InteresseVeiculo.idLocatario > Locatario.id [delete: Cascade]
+
+Ref: InteresseVeiculo.idVeiculo > Veiculo.id [delete: Cascade]
+
+Ref: NotificacaoInteresse.idInteresse > InteresseVeiculo.id [delete: Cascade]
 
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 
