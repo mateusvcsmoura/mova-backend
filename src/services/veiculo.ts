@@ -10,10 +10,16 @@ import {
   VeiculoFilters,
 } from "../repositories/contracts/veiculo.contract.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
+import { IVeiculoDisponivelNotifier } from "./notificacao-veiculo-disponivel.js";
 import { PaginationParams } from "../shared/pagination.js";
 
 export class VeiculoService {
-  constructor(private veiculoRepository: IVeiculoRepository) {}
+  // O notifier é opcional para não obrigar todos os pontos de construção
+  // (testes, scripts) a fornecê-lo; em produção é injetado pelo container.
+  constructor(
+    private veiculoRepository: IVeiculoRepository,
+    private readonly disponibilidadeNotifier?: IVeiculoDisponivelNotifier,
+  ) {}
 
   list = async (data: ListVeiculosRequest) => {
     switch (data.cargo) {
@@ -131,7 +137,20 @@ export class VeiculoService {
     if (!veiculo) {
       throw new HttpError(404, "Veículo não encontrado");
     }
-    return this.veiculoRepository.update(id, data);
+    const atualizado = await this.veiculoRepository.update(id, data);
+
+    // Disparo automático da watchlist: apenas na TRANSIÇÃO para DISPONIVEL
+    // (não em updates que já estavam DISPONIVEL). O notifier nunca lança —
+    // falha de envio não afeta a atualização do veículo, já persistida.
+    if (
+      this.disponibilidadeNotifier &&
+      veiculo.status !== StatusVeiculo.DISPONIVEL &&
+      atualizado.status === StatusVeiculo.DISPONIVEL
+    ) {
+      await this.disponibilidadeNotifier.notificarVeiculoDisponivel(atualizado);
+    }
+
+    return atualizado;
   };
 
   delete = async (id: string) => {
