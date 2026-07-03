@@ -10,16 +10,37 @@ import {
   VeiculoFilters,
 } from "../repositories/contracts/veiculo.contract.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
+import { IVeiculoStatusRecorder } from "../repositories/monitoramento.repository.js";
 import { IVeiculoDisponivelNotifier } from "./notificacao-veiculo-disponivel.js";
 import { PaginationParams } from "../shared/pagination.js";
 
 export class VeiculoService {
-  // O notifier é opcional para não obrigar todos os pontos de construção
-  // (testes, scripts) a fornecê-lo; em produção é injetado pelo container.
+  // Notifier e recorder são opcionais para não obrigar todos os pontos de
+  // construção (testes, scripts) a fornecê-los; em produção o container injeta.
   constructor(
     private veiculoRepository: IVeiculoRepository,
     private readonly disponibilidadeNotifier?: IVeiculoDisponivelNotifier,
+    private readonly statusRecorder?: IVeiculoStatusRecorder,
   ) {}
+
+  // Registra a transição de status no histórico (base da regra de inatividade
+  // do monitoramento). Nunca lança: o histórico é auxiliar e a sua falha
+  // (ex.: migration ainda não aplicada) não pode afetar a atualização do
+  // veículo, já persistida.
+  private async registrarTransicaoStatus(
+    idVeiculo: string,
+    status: StatusVeiculo,
+  ): Promise<void> {
+    if (!this.statusRecorder) return;
+    try {
+      await this.statusRecorder.registrarStatus(idVeiculo, status);
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[monitoramento] falha ao registrar transição de status do veículo ${idVeiculo}: ${mensagem}`,
+      );
+    }
+  }
 
   list = async (data: ListVeiculosRequest) => {
     switch (data.cargo) {
@@ -138,6 +159,11 @@ export class VeiculoService {
       throw new HttpError(404, "Veículo não encontrado");
     }
     const atualizado = await this.veiculoRepository.update(id, data);
+
+    // Histórico de transições (monitoramento de inatividade).
+    if (veiculo.status !== atualizado.status) {
+      await this.registrarTransicaoStatus(atualizado.id, atualizado.status);
+    }
 
     // Disparo automático da watchlist: apenas na TRANSIÇÃO para DISPONIVEL
     // (não em updates que já estavam DISPONIVEL). O notifier nunca lança —
