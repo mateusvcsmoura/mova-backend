@@ -57,6 +57,13 @@ import { NodemailerMailProvider } from "../infra/email/nodemailer.provider.js";
 import { IMailProvider } from "../infra/email/mail-provider.js";
 import { ReservaReportService } from "../services/reserva-report.js";
 import { NotificacaoReservaService } from "../services/notificacao-reserva.js";
+import { IInteresseVeiculoRepository } from "../repositories/interesse.repository.js";
+import { PrismaInteresseVeiculoRepository } from "../repositories/prisma/prisma.interesse.repository.js";
+import { INotificacaoInteresseRepository } from "../repositories/notificacao-interesse.repository.js";
+import { PrismaNotificacaoInteresseRepository } from "../repositories/prisma/prisma.notificacao-interesse.repository.js";
+import { NotificacaoVeiculoDisponivelService } from "../services/notificacao-veiculo-disponivel.js";
+import { InteresseVeiculoService } from "../services/interesse-veiculo.js";
+import { InteresseController } from "../controllers/interesse.js";
 import { env } from "../config/env.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
@@ -76,8 +83,9 @@ export const deficienciaService = new DeficienciaService(deficienciaRepository);
 export const deficienciaController = new DeficienciaController(deficienciaService);
 
 export const veiculoRepository: IVeiculoRepository = new PrismaVeiculoRepository();
-export const veiculoService = new VeiculoService(veiculoRepository);
-export const veiculoController = new VeiculoController(veiculoService);
+// veiculoService/veiculoController são criados mais abaixo: dependem do
+// notifier de disponibilidade, que por sua vez depende do mailProvider e dos
+// repositórios de interesse/garagem.
 
 export const garagemRepository: IGaragemRepository = new PrismaGaragemRepository();
 export const garagemService = new GaragemService(garagemRepository, veiculoRepository);
@@ -115,6 +123,18 @@ export const mailProvider: IMailProvider = new NodemailerMailProvider(
 export const notificacaoRepository: INotificacaoRepository = new PrismaNotificacaoRepository();
 export const reservaReportService = new ReservaReportService(veiculoRepository, contaRepository, locadorRepository, garagemRepository);
 export const notificacaoReservaService = new NotificacaoReservaService(reservaReportService, mailProvider, notificacaoRepository);
+
+// Watchlist de disponibilidade de veículos: inscrições de interesse + registro
+// dos envios + dispatcher que notifica quando o veículo volta a DISPONIVEL.
+export const interesseRepository: IInteresseVeiculoRepository = new PrismaInteresseVeiculoRepository();
+export const notificacaoInteresseRepository: INotificacaoInteresseRepository = new PrismaNotificacaoInteresseRepository();
+export const notificacaoVeiculoDisponivelService = new NotificacaoVeiculoDisponivelService(interesseRepository, notificacaoInteresseRepository, locadorRepository, garagemRepository, mailProvider);
+
+export const veiculoService = new VeiculoService(veiculoRepository, notificacaoVeiculoDisponivelService);
+export const veiculoController = new VeiculoController(veiculoService);
+
+export const interesseService = new InteresseVeiculoService(interesseRepository, veiculoRepository, locatarioRepository);
+export const interesseController = new InteresseController(interesseService);
 
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
 export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, notificacaoReservaService);
