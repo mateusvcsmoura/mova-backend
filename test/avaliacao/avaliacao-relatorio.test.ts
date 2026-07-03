@@ -104,7 +104,10 @@ describe("Relatório de Avaliações (dashboard do locador)", () => {
       data: DATA_JUN,
       comentario: "Ruim",
     });
-  });
+    // Setup pesado (2 registros de locador + locatário + 3 veículos + 4 seeds,
+    // com bcrypt): folga além do hookTimeout padrão (10s) para não flakar em
+    // execução fria/máquina lenta.
+  }, 30000);
 
   describe("Resumo geral", () => {
     it("deve calcular total, média, maior e menor nota", async () => {
