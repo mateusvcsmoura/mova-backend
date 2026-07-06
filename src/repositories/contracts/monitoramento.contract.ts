@@ -67,6 +67,7 @@ export interface AlertaVeiculoResponse {
   canal: string;
   status: StatusNotificacao;
   mensagemErro: string | null;
+  tentativas: number;
   criadoEm: Date;
   enviadoEm: Date | null;
   resolvidoEm: Date | null;

@@ -72,6 +72,21 @@ describe("Locatario API", () => {
       expect(response.status).toBe(400);
     });
 
+    it("deve recusar CPF com dígitos verificadores inválidos (400)", async () => {
+      const account = await createAccount("LOCATARIO");
+      const response = await request(app)
+        .post("/api/locatario")
+        .send({
+          id: account.conta.id,
+          cpf: "52998224724", // checksum inválido
+          cnh: uniqueCnh(),
+          rg: uniqueRg(),
+          dataNascimento: DEFAULT_DATA_NASCIMENTO,
+        });
+
+      expect(response.status).toBe(400);
+    });
+
     it("deve recusar RG inválido (400)", async () => {
       const account = await createAccount("LOCATARIO");
       const response = await request(app)

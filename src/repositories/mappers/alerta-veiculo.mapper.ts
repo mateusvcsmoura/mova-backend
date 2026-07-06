@@ -14,6 +14,7 @@ export class AlertaVeiculoMapper {
       canal: alerta.canal,
       status: alerta.status,
       mensagemErro: alerta.mensagemErro,
+      tentativas: alerta.tentativas,
       criadoEm: alerta.criadoEm,
       enviadoEm: alerta.enviadoEm,
       resolvidoEm: alerta.resolvidoEm,

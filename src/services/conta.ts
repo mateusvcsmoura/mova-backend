@@ -143,6 +143,15 @@ export class ContaService {
       throw new HttpError(404, "Conta não encontrada");
     }
 
+    // Unicidade de e-mail no update: rejeita se o novo e-mail já pertence a
+    // outra conta (o create já valida; aqui fecha a lacuna apontada na auditoria).
+    if (data.email && data.email !== existingConta.email) {
+      const emailEmUso = await this.contaRepository.findByEmail(data.email);
+      if (emailEmUso && emailEmUso.id !== id) {
+        throw new HttpError(409, "Email já está em uso");
+      }
+    }
+
     return await this.contaRepository.update(id, data);
   };
 

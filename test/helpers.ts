@@ -16,9 +16,58 @@ export const DEFAULT_SENHA = "StrongPass#123";
 export const uniqueEmail = (prefix = "acc") =>
   `${prefix}.${seq()}.${Math.floor(Math.random() * 1_000_000)}@test.local`;
 
-export const uniqueCnpj = () => pad(20000000000000 + seq(), 14);
-export const uniqueCpf = () => pad(20000000000 + seq(), 11);
-export const uniqueCnh = () => pad(30000000000 + seq(), 11);
+// Geradores de documentos com dígitos verificadores VÁLIDOS (as validações
+// reais rejeitam checksum inválido). Base sequencial garante unicidade.
+function cpfComDv(base9: string): string {
+  const dv = (base: string, pesoInicial: number) => {
+    let soma = 0;
+    for (let i = 0; i < base.length; i++)
+      soma += Number(base[i]) * (pesoInicial - i);
+    const r = (soma * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  const d1 = dv(base9, 10);
+  const d2 = dv(base9 + d1, 11);
+  return `${base9}${d1}${d2}`;
+}
+
+function cnpjComDv(base12: string): string {
+  const calc = (num: string) => {
+    const pesos =
+      num.length === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let soma = 0;
+    for (let i = 0; i < num.length; i++) soma += Number(num[i]) * pesos[i];
+    const r = soma % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const d1 = calc(base12);
+  const d2 = calc(base12 + d1);
+  return `${base12}${d1}${d2}`;
+}
+
+function cnhComDv(base9: string): string {
+  let soma = 0;
+  for (let i = 0, p = 9; i < 9; i++, p--) soma += Number(base9[i]) * p;
+  let dsc = 0;
+  let dv1 = soma % 11;
+  if (dv1 >= 10) {
+    dv1 = 0;
+    dsc = 2;
+  }
+  soma = 0;
+  for (let i = 0, p = 1; i < 9; i++, p++) soma += Number(base9[i]) * p;
+  let dv2 = soma % 11;
+  if (dv2 >= 10) dv2 = 0;
+  dv2 -= dsc;
+  if (dv2 < 0) dv2 += 11;
+  return `${base9}${dv1}${dv2}`;
+}
+
+export const uniqueCnpj = () => cnpjComDv(pad(100000000000 + seq(), 12));
+export const uniqueCpf = () => cpfComDv(pad(100000000 + seq(), 9));
+export const uniqueCnh = () => cnhComDv(pad(200000000 + seq(), 9));
 export const uniqueRg = () => pad(100000000 + seq(), 9);
 // Data de nascimento válida (maioridade garantida) para os testes.
 export const DEFAULT_DATA_NASCIMENTO = "1990-05-15";

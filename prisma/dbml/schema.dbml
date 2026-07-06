@@ -243,6 +243,7 @@ Table AlertaVeiculo {
   canal String [not null, default: 'EMAIL']
   status StatusNotificacao [not null, default: 'PENDENTE']
   mensagemErro String
+  tentativas Int [not null, default: 0]
   criadoEm DateTime [default: `now()`, not null]
   enviadoEm DateTime
   resolvidoEm DateTime

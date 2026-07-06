@@ -36,6 +36,15 @@ describe("Locador API", () => {
 
       expect(response.status).toBe(409);
     });
+
+    it("deve recusar CNPJ com dígitos verificadores inválidos (400)", async () => {
+      const conta = await createAccount("LOCADOR");
+      const response = await request(app)
+        .post("/api/locador")
+        .send({ id: conta.conta.id, empresa: "Empresa X", cnpj: "11444777000160" });
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe("GET /api/locador/all", () => {

@@ -15,6 +15,11 @@ import { IAlertaVeiculoDispatcher } from "./notificacao-alerta-veiculo.js";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
+// Teto de tentativas de envio de um alerta. Ao atingir, a rotina para de
+// reenviar (dead-letter) — evita marteladas em SMTP indisponível.
+// ponytail: fixo; virar config se o cenário exigir backoff/reset.
+const MAX_TENTATIVAS_ALERTA = 5;
+
 export interface MonitoramentoVeiculoConfig {
   // Regra 1: dias consecutivos em INATIVO para gerar alerta.
   diasInatividade: number;
@@ -240,6 +245,20 @@ export class MonitoramentoVeiculoService {
       // Deduplicação: alerta ativo já notificado com sucesso — o locador não
       // recebe e-mail repetido enquanto a condição persistir.
       if (ativo && ativo.status === StatusNotificacao.ENVIADA) {
+        resultado.ignoradosDuplicados++;
+        return;
+      }
+
+      // Dead-letter: alerta que já falhou o número máximo de vezes não é
+      // reprocessado (evita retry infinito contra um provedor indisponível).
+      if (
+        ativo &&
+        ativo.status === StatusNotificacao.FALHA &&
+        ativo.tentativas >= MAX_TENTATIVAS_ALERTA
+      ) {
+        console.warn(
+          `[monitoramento] alerta ${ativo.id} excedeu ${MAX_TENTATIVAS_ALERTA} tentativas de envio — não será reenviado.`,
+        );
         resultado.ignoradosDuplicados++;
         return;
       }
