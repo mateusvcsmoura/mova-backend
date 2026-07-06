@@ -131,6 +131,7 @@ Table Reserva {
   codigoGeradoEm DateTime
   codigoUsadoEm DateTime
   avaliacao Avaliacao
+  condutores CondutorAdicional [not null]
   servicos ReservaServico [not null]
   notificacoes NotificacaoReserva [not null]
   atualizadoEm DateTime [default: `now()`, not null]
@@ -246,6 +247,21 @@ Table AlertaVeiculo {
   enviadoEm DateTime
   resolvidoEm DateTime
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table CondutorAdicional {
+  id String [pk]
+  idReserva String [not null]
+  reserva Reserva [not null]
+  nome String [not null]
+  cpf String
+  cnh String [not null]
+  criadoEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+
+  indexes {
+    (idReserva, cnh) [unique]
+  }
 }
 
 Table Localizacao {
@@ -401,6 +417,8 @@ Ref: VeiculoStatusHistorico.idVeiculo > Veiculo.id [delete: Cascade]
 Ref: AlertaVeiculo.idVeiculo > Veiculo.id [delete: Cascade]
 
 Ref: AlertaVeiculo.idLocador > Locador.id [delete: Cascade]
+
+Ref: CondutorAdicional.idReserva > Reserva.id [delete: Cascade]
 
 Ref: Localizacao.idVeiculo > Veiculo.id [delete: Cascade]
 

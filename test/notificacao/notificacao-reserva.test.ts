@@ -323,6 +323,7 @@ describe("ReservaService.update — regressão de e-mail", () => {
       {} as any, // deficienciaRepository
       {} as any, // bloqueioService
       {} as any, // servicoOpcionalRepository
+      {} as any, // condutorRepository
       notifier,
     );
     return { service, reservaRepository, confirmada };

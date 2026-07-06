@@ -35,4 +35,23 @@ reservaRouter.post(
 reservaRouter.put("/:id", authMiddleware, reservaController.update);
 reservaRouter.delete("/:id", authMiddleware, reservaController.delete);
 
+// Condutores adicionais (RF12). Acesso (dono/admin/locador) validado no service.
+reservaRouter.get(
+  "/:id/condutores",
+  authMiddleware,
+  reservaController.listarCondutores,
+);
+reservaRouter.post(
+  "/:id/condutores",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.adicionarCondutor,
+);
+reservaRouter.delete(
+  "/:id/condutores/:id_condutor",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.removerCondutor,
+);
+
 export { reservaRouter };

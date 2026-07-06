@@ -9,6 +9,7 @@ import {
   reservaQuerySchema,
   updateReservaSchema,
 } from "../schemas/reserva.schema.js";
+import { createCondutorSchema } from "../schemas/condutor.schema.js";
 import { ReservaFilters } from "../repositories/contracts/reserva.contract.js";
 import {
   getPaginationParams,
@@ -182,6 +183,74 @@ export class ReservaController {
         req.user,
       );
       return res.status(200).json({ result: reserva });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ── Condutores adicionais (RF12) ──────────────────────────────────────────
+
+  adicionarCondutor: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+
+      const result = createCondutorSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ errors: result.error.format() });
+      }
+
+      const condutor = await this.reservaService.adicionarCondutor(
+        parsedId.data,
+        result.data,
+        req.user,
+      );
+      return res.status(201).json({ result: condutor });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listarCondutores: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+
+      const condutores = await this.reservaService.listarCondutores(
+        parsedId.data,
+        req.user,
+      );
+      return res.status(200).json({ result: condutores });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  removerCondutor: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+
+      const parsedCondutor = z
+        .string()
+        .uuid()
+        .safeParse(req.params.id_condutor);
+      if (!parsedCondutor.success) {
+        throw new HttpError(400, "ID do condutor inválido");
+      }
+
+      await this.reservaService.removerCondutor(
+        parsedId.data,
+        parsedCondutor.data,
+        req.user,
+      );
+      return res.status(204).send();
     } catch (error) {
       next(error);
     }

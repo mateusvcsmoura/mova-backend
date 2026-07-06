@@ -21,6 +21,11 @@ import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
 import { IServicoOpcionalRepository } from "../repositories/servico-opcional.repository.js";
+import { ICondutorRepository } from "../repositories/condutor.repository.js";
+import {
+  CondutorResponse,
+  CreateCondutorRequest,
+} from "../repositories/contracts/condutor.contract.js";
 import { ReservaServicoInput } from "../repositories/contracts/reserva.contract.js";
 import { BloqueioService } from "./bloqueio.js";
 import { IReservaNotifier } from "./notificacao-reserva.js";
@@ -51,6 +56,7 @@ export class ReservaService {
     private readonly deficienciaRepository: IDeficienciaRepository,
     private readonly bloqueioService: BloqueioService,
     private readonly servicoOpcionalRepository: IServicoOpcionalRepository,
+    private readonly condutorRepository: ICondutorRepository,
     // Notificação (relatório por e-mail). Opcional para não acoplar a regra de
     // negócio ao envio; quando ausente, a reserva funciona normalmente.
     private readonly reservaNotifier?: IReservaNotifier,
@@ -580,5 +586,81 @@ export class ReservaService {
       );
     }
     return reservas;
+  };
+
+  // ── Condutores adicionais (RF12) ──────────────────────────────────────────
+
+  // Alterações (incluir/remover condutor) só são permitidas antes do início da
+  // reserva e enquanto ela não estiver cancelada.
+  private assertReservaAlteravel(reserva: ReservaResponse): void {
+    if (reserva.status === StatusReserva.CANCELADA) {
+      throw new HttpError(409, "Reserva cancelada.");
+    }
+    if (new Date() >= reserva.dataHoraInicio) {
+      throw new HttpError(
+        409,
+        "Não é possível alterar os condutores após o início da reserva.",
+      );
+    }
+  }
+
+  // Carrega a reserva (404) e valida o acesso do solicitante.
+  private async getReservaComAcesso(
+    idReserva: string,
+    requester: ReservaAccessContext,
+  ): Promise<ReservaResponse> {
+    const reserva = await this.reservaRepository.findById(idReserva);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+    await this.assertReservaAccess(requester, reserva);
+    return reserva;
+  }
+
+  adicionarCondutor = async (
+    idReserva: string,
+    data: Omit<CreateCondutorRequest, "idReserva">,
+    requester: ReservaAccessContext,
+  ): Promise<CondutorResponse> => {
+    const reserva = await this.getReservaComAcesso(idReserva, requester);
+    this.assertReservaAlteravel(reserva);
+
+    // Duplicidade: mesmo condutor (CNH) já cadastrado nesta reserva.
+    const existente = await this.condutorRepository.findByReservaAndCnh(
+      idReserva,
+      data.cnh,
+    );
+    if (existente) {
+      throw new HttpError(
+        409,
+        "Já existe um condutor com esta CNH nesta reserva.",
+      );
+    }
+
+    return this.condutorRepository.create({ idReserva, ...data });
+  };
+
+  listarCondutores = async (
+    idReserva: string,
+    requester: ReservaAccessContext,
+  ): Promise<CondutorResponse[]> => {
+    await this.getReservaComAcesso(idReserva, requester);
+    return this.condutorRepository.findByReservaId(idReserva);
+  };
+
+  removerCondutor = async (
+    idReserva: string,
+    idCondutor: string,
+    requester: ReservaAccessContext,
+  ): Promise<void> => {
+    const reserva = await this.getReservaComAcesso(idReserva, requester);
+    this.assertReservaAlteravel(reserva);
+
+    const condutor = await this.condutorRepository.findById(idCondutor);
+    if (!condutor || condutor.idReserva !== idReserva) {
+      throw new HttpError(404, "Condutor não encontrado nesta reserva.");
+    }
+
+    await this.condutorRepository.delete(idCondutor);
   };
 }
