@@ -22,6 +22,8 @@ export interface IVeiculoRepository {
   ): Promise<PaginatedResult<VeiculoResponse>>;
   findById(id: string): Promise<VeiculoResponse | null>;
   findByPlaca(placa: string): Promise<VeiculoResponse | null>;
+  // Modelo por id — usado para validar ownership antes de alterar o modelo.
+  findModeloById(id: string): Promise<ModeloVeiculoResponse | null>;
   search(
     filters: VeiculoFilters,
     pagination: PaginationParams,

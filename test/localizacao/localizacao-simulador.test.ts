@@ -23,11 +23,11 @@ describe("LocalizacaoSimulador", () => {
   });
 
   it("atualiza veículos DISPONIVEL/RESERVADO e ignora INATIVO/MANUTENCAO", async () => {
-    const disponivel = await createVeiculo(locador.locadorId);
-    const reservado = await createVeiculo(locador.locadorId, {
+    const disponivel = await createVeiculo(locador.token, locador.locadorId);
+    const reservado = await createVeiculo(locador.token, locador.locadorId, {
       status: "RESERVADO",
     });
-    const inativo = await createVeiculo(locador.locadorId, {
+    const inativo = await createVeiculo(locador.token, locador.locadorId, {
       status: "INATIVO",
     });
 
@@ -54,7 +54,7 @@ describe("LocalizacaoSimulador", () => {
   }, 20_000);
 
   it("gera posição dentro dos limites válidos de coordenada", async () => {
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
     await simulador.tick();
 
@@ -69,7 +69,7 @@ describe("LocalizacaoSimulador", () => {
   }, 20_000);
 
   it("acumula histórico a cada tick, sem sobrescrever (drift sobre a última)", async () => {
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
     await simulador.tick();
     await simulador.tick();

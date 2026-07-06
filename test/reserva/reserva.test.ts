@@ -40,7 +40,7 @@ describe("Reserva API", () => {
     locador = await createLocador();
     locatario = await createLocatario();
     outroLocatario = await createLocatario();
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
   });
 
@@ -287,7 +287,7 @@ describe("Reserva — código de desbloqueio", () => {
   beforeAll(async () => {
     locador = await createLocador();
     locatario = await createLocatario();
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
 
     const reserva = await createReserva(
@@ -445,7 +445,7 @@ describe("Reserva — locais de retirada e devolução", () => {
       outroLocador.locadorId,
     );
 
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
 
     // Hospeda o veículo na garagem de retirada (define veiculo.garagemId).
@@ -565,10 +565,10 @@ describe("Reserva — veículos adaptados (PCD)", () => {
     semDeficiencia = await createLocatario();
     outroSemDeficiencia = await createLocatario();
 
-    const comum = await createVeiculo(locador.locadorId, { adaptado: false });
+    const comum = await createVeiculo(locador.token, locador.locadorId, { adaptado: false });
     veiculoComumId = comum.id;
 
-    const adaptado = await createVeiculo(locador.locadorId, {
+    const adaptado = await createVeiculo(locador.token, locador.locadorId, {
       adaptado: true,
       marca: "Volkswagen",
       modelo: "Adaptado",
@@ -683,7 +683,7 @@ describe("Reserva — serviços opcionais", () => {
   beforeAll(async () => {
     locador = await createLocador();
     locatario = await createLocatario();
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
 
     seguro = await createServico({

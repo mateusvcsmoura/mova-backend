@@ -172,7 +172,7 @@ export const favoritoService = new FavoritoService(favoritoRepository, veiculoRe
 export const favoritoController = new FavoritoController(favoritoService);
 
 export const localizacaoRepository: ILocalizacaoRepository = new PrismaLocalizacaoRepository();
-export const localizacaoService = new LocalizacaoService(localizacaoRepository, veiculoRepository);
+export const localizacaoService = new LocalizacaoService(localizacaoRepository, veiculoRepository, reservaRepository);
 export const localizacaoController = new LocalizacaoController(localizacaoService);
 
 // Simulador de rastreador (não integra GPS real). Iniciado opcionalmente no

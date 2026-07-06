@@ -10,13 +10,13 @@ import { authorize } from "../../middlewares/authorization-middleware.js";
 
 const adminRouter = Router();
 
-// CONTA
-adminRouter.get("/conta/all", contaController.index);
-adminRouter.get("/conta/", contaController.findByEmail);
-adminRouter.get("/conta/:id", contaController.findById);
-adminRouter.post("/conta/create", contaController.create);
-adminRouter.put("/conta/update/:id", contaController.update);
-adminRouter.delete("/conta/delete/:id", contaController.delete);
+// CONTA (somente ADMIN) — gerenciamento administrativo global de contas.
+adminRouter.get("/conta/all", authMiddleware, authorize(Cargo.ADMIN), contaController.index);
+adminRouter.get("/conta/", authMiddleware, authorize(Cargo.ADMIN), contaController.findByEmail);
+adminRouter.get("/conta/:id", authMiddleware, authorize(Cargo.ADMIN), contaController.findById);
+adminRouter.post("/conta/create", authMiddleware, authorize(Cargo.ADMIN), contaController.create);
+adminRouter.put("/conta/update/:id", authMiddleware, authorize(Cargo.ADMIN), contaController.update);
+adminRouter.delete("/conta/delete/:id", authMiddleware, authorize(Cargo.ADMIN), contaController.delete);
 
 // BLOQUEIO DE LOCATÁRIO (somente ADMIN)
 adminRouter.post(

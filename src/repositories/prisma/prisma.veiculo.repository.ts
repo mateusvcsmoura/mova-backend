@@ -110,6 +110,23 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     return data ? VeiculoMapper.toResponse(data) : null;
   }
 
+  async findModeloById(id: string): Promise<ModeloVeiculoResponse | null> {
+    const modelo = await prisma.modeloVeiculo.findUnique({ where: { id } });
+    if (!modelo) return null;
+    return {
+      id: modelo.id,
+      idLocador: modelo.idLocador,
+      marca: modelo.marca,
+      modelo: modelo.modelo,
+      ano: modelo.ano,
+      cambio: modelo.cambio,
+      capacidade: modelo.capacidade,
+      eletrico: modelo.eletrico,
+      adaptado: modelo.adaptado,
+      criadoEm: modelo.criadoEm,
+    };
+  }
+
   async search(
     filters: VeiculoFilters,
     pagination: PaginationParams,

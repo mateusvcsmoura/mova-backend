@@ -117,7 +117,10 @@ export async function createLocatario(
   };
 }
 
+// Cria um veículo. Exige token LOCADOR (dono) ou ADMIN — a rota de criação
+// agora é protegida e o ownership é validado no service.
 export async function createVeiculo(
+  token: string,
   idLocador: string,
   overrides: Record<string, unknown> = {},
 ) {
@@ -134,7 +137,10 @@ export async function createVeiculo(
     ...overrides,
   };
 
-  const res = await request(app).post("/api/veiculo").send(payload);
+  const res = await request(app)
+    .post("/api/veiculo")
+    .set("Authorization", `Bearer ${token}`)
+    .send(payload);
   return res.body.result;
 }
 
