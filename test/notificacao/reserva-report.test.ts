@@ -87,6 +87,7 @@ function makeReserva(overrides: Partial<ReservaResponse> = {}): ReservaResponse 
     valorTotal: 350,
     status: "CONFIRMADA",
     statusPagamento: "SUCESSO",
+    metodoPagamento: "PIX",
     codigoDesbloqueio: "ABCD-2345",
     codigoGeradoEm: new Date(),
     codigoUsadoEm: null,

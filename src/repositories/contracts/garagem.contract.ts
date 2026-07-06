@@ -1,4 +1,4 @@
-import { StatusVeiculo } from "@prisma/client";
+import { StatusGaragem, StatusVeiculo } from "@prisma/client";
 
 import { LocadorResponse } from "./locador.contract.js";
 import { VeiculoResponse } from "./veiculo.contract.js";
@@ -11,6 +11,7 @@ export interface GaragemBaseResponse {
   capacidade: number;
   veiculosAlocados: number;
   acessibilidade: boolean;
+  status: StatusGaragem;
   criadaEm: Date;
   atualizadoEm: Date;
 }
@@ -26,6 +27,7 @@ export interface CreateGaragemRequest {
   endereco: string;
   capacidade: number;
   acessibilidade?: boolean;
+  status?: StatusGaragem;
 }
 
 export interface UpdateGaragemRequest {
@@ -33,6 +35,7 @@ export interface UpdateGaragemRequest {
   endereco?: string;
   capacidade?: number;
   acessibilidade?: boolean;
+  status?: StatusGaragem;
 }
 
 export interface GaragemFilters {
@@ -42,6 +45,7 @@ export interface GaragemFilters {
   capacidadeMax?: number;
   nome?: string;
   comVagasDisponiveis?: boolean;
+  status?: StatusGaragem;
 }
 
 export interface GaragemVeiculosFilters {

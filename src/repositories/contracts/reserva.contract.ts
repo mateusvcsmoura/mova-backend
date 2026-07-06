@@ -1,4 +1,9 @@
-import { Cargo, StatusPagamento, StatusReserva } from "@prisma/client";
+import {
+  Cargo,
+  MetodoPagamento,
+  StatusPagamento,
+  StatusReserva,
+} from "@prisma/client";
 import { PaginationParams } from "../../shared/pagination.js";
 
 // Serviço opcional já resolvido (id + valor snapshot), pronto para persistir.
@@ -23,6 +28,8 @@ export interface CreateReservaRequest {
   valorTotal: number;
   status?: StatusReserva;
   statusPagamento?: StatusPagamento;
+  // Forma de pagamento escolhida (RF11).
+  metodoPagamento?: MetodoPagamento;
   // IDs dos serviços opcionais selecionados pelo locatário (entrada do cliente).
   servicosIds?: string[];
   // Serviços resolvidos (id + valor snapshot) — preenchido pelo service e
@@ -37,6 +44,7 @@ export interface UpdateReservaRequest {
   valorTotal?: number;
   status?: StatusReserva;
   statusPagamento?: StatusPagamento;
+  metodoPagamento?: MetodoPagamento;
 }
 
 export interface ReservaFilters {
@@ -75,6 +83,7 @@ export interface ReservaResponse {
   valorTotal: number;
   status: StatusReserva;
   statusPagamento: StatusPagamento;
+  metodoPagamento: MetodoPagamento | null;
   codigoDesbloqueio: string | null;
   codigoGeradoEm: Date | null;
   codigoUsadoEm: Date | null;

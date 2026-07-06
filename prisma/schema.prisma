@@ -42,6 +42,23 @@ enum StatusPagamento {
   FALHA
 }
 
+// Forma de pagamento escolhida para a reserva. Suporte de modelagem (RF11);
+// a integração financeira real fica a cargo de um gateway externo.
+enum MetodoPagamento {
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  PIX
+  CARTEIRA_DIGITAL
+}
+
+// Situação operacional da garagem (RF19). Soft delete: desativar = INATIVA,
+// preservando o histórico. Garagens não-ATIVA não entram em novas reservas.
+enum StatusGaragem {
+  ATIVA
+  INATIVA
+  MANUTENCAO
+}
+
 // Status do envio de uma notificação (ex.: relatório de reserva por e-mail).
 // PENDENTE  -> registro criado antes da tentativa de envio.
 // ENVIADA   -> provedor aceitou a mensagem.
@@ -198,6 +215,10 @@ model Garagem {
 
   acessibilidade Boolean @default(true)
 
+  // Situação operacional (RF19). Soft delete = INATIVA. Garagens não-ATIVA
+  // não aparecem para novas reservas.
+  status StatusGaragem @default(ATIVA)
+
   criadaEm DateTime @default(now())
 
   veiculos          Veiculo[]
@@ -233,6 +254,10 @@ model Reserva {
 
   status          StatusReserva   @default(AGUARDANDO_PAGAMENTO)
   statusPagamento StatusPagamento @default(AGUARDANDO_PAGAMENTO)
+
+  // Forma de pagamento (RF11). Nula até o locatário escolher/confirmar; passa a
+  // ser obrigatória na confirmação do pagamento (regra no ReservaService).
+  metodoPagamento MetodoPagamento?
 
   // Código de desbloqueio do veículo (formato XXXX-XXXX), gerado quando o
   // pagamento é confirmado (statusPagamento = SUCESSO). Janela de uso:

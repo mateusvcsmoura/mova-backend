@@ -1,5 +1,11 @@
 import { randomInt } from "node:crypto";
-import { Cargo, StatusPagamento, StatusReserva, StatusVeiculo } from "@prisma/client";
+import {
+  Cargo,
+  StatusGaragem,
+  StatusPagamento,
+  StatusReserva,
+  StatusVeiculo,
+} from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
 import {
@@ -264,7 +270,17 @@ export class ReservaService {
     });
   }
 
-  // O local de devolução deve obrigatoriamente pertencer ao locador dono do veículo.
+  // Garagem inativa/em manutenção não entra em novas reservas (RF19).
+  private assertGaragemAtiva(status: StatusGaragem, contexto: string): void {
+    if (status !== StatusGaragem.ATIVA) {
+      throw new HttpError(
+        409,
+        `O local de ${contexto} não está disponível (garagem inativa ou em manutenção).`,
+      );
+    }
+  }
+
+  // O local de devolução deve pertencer ao locador dono do veículo e estar ATIVA.
   private async assertGaragemDevolucao(
     idGaragemDevolucao: string,
     idLocadorVeiculo: string,
@@ -279,6 +295,16 @@ export class ReservaService {
         "O local de devolução deve pertencer ao locador dono do veículo.",
       );
     }
+    this.assertGaragemAtiva(garagem.status, "devolução");
+  }
+
+  // Garagem atual do veículo (local de retirada) deve estar ATIVA para reservar.
+  private async assertGaragemRetiradaAtiva(idGaragem: string): Promise<void> {
+    const garagem = await this.garagemRepository.findById(idGaragem);
+    if (!garagem) {
+      throw new HttpError(404, "Garagem de retirada não encontrada.");
+    }
+    this.assertGaragemAtiva(garagem.status, "retirada");
   }
 
   list = async (
@@ -393,6 +419,11 @@ export class ReservaService {
       veiculo.garagemId,
       data.idGaragemRetirada,
     );
+
+    // Garagem de retirada (onde o veículo está alocado) precisa estar ATIVA.
+    if (idGaragemRetirada !== undefined) {
+      await this.assertGaragemRetiradaAtiva(idGaragemRetirada);
+    }
 
     if (data.idGaragemDevolucao !== undefined) {
       await this.assertGaragemDevolucao(
