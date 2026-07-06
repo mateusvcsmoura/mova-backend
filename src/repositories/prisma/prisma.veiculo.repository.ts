@@ -46,6 +46,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         capacidade: data.capacidade,
         eletrico: data.eletrico,
         adaptado: data.adaptado,
+        categoria: data.categoria ?? undefined,
       },
     });
   }
@@ -123,6 +124,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
       capacidade: modelo.capacidade,
       eletrico: modelo.eletrico,
       adaptado: modelo.adaptado,
+      categoria: modelo.categoria,
       criadoEm: modelo.criadoEm,
     };
   }
@@ -144,6 +146,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         capacidade: filters.capacidade,
         eletrico: filters.eletrico,
         adaptado: filters.adaptado,
+        categoria: filters.categoria,
       },
     };
     const [data, total] = await prisma.$transaction([
@@ -247,6 +250,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           capacidade: data.capacidade ?? undefined,
           eletrico: data.eletrico ?? undefined,
           adaptado: data.adaptado ?? undefined,
+          categoria: data.categoria ?? undefined,
           // marca, modelo, ano intencionalmente fora — mudar isso
           // quebraria o @@unique e a identidade do modelo
         },

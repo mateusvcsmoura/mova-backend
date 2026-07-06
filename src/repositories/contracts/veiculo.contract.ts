@@ -1,4 +1,4 @@
-import { Cargo, StatusVeiculo } from "@prisma/client";
+import { Cargo, CategoriaVeiculo, StatusVeiculo } from "@prisma/client";
 import { PaginationParams } from "../../shared/pagination.js";
 
 export interface ModeloVeiculoData {
@@ -10,6 +10,7 @@ export interface ModeloVeiculoData {
   capacidade: number;
   eletrico: boolean;
   adaptado: boolean;
+  categoria?: CategoriaVeiculo;
 }
 
 export interface CreateVeiculoRequest extends ModeloVeiculoData {
@@ -38,6 +39,7 @@ export interface VeiculoFilters {
   capacidade?: number;
   eletrico?: boolean;
   adaptado?: boolean;
+  categoria?: CategoriaVeiculo;
   garagemId?: string;
 }
 
@@ -59,6 +61,7 @@ export interface ModeloVeiculoResponse {
   capacidade: number;
   eletrico: boolean;
   adaptado: boolean;
+  categoria: CategoriaVeiculo | null;
   criadoEm: Date;
 }
 
@@ -78,4 +81,5 @@ export interface UpdateModeloVeiculoRequest {
   capacidade?: number;
   eletrico?: boolean;
   adaptado?: boolean;
+  categoria?: CategoriaVeiculo;
 }

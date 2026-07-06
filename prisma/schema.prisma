@@ -27,6 +27,17 @@ enum StatusVeiculo {
   INATIVO
 }
 
+// Categoria comercial do veículo (RF07/RF16). Atributo do modelo — o locador
+// classifica cada ModeloVeiculo e o locatário filtra por categoria. Taxonomia
+// fixa; categorias personalizadas por locador seriam uma tabela própria no
+// futuro, sem quebrar este enum.
+enum CategoriaVeiculo {
+  ECONOMICO
+  ESPACOSO
+  EXECUTIVO
+  PCD
+}
+
 enum StatusReserva {
   AGUARDANDO_PAGAMENTO
   CONFIRMADA
@@ -174,6 +185,8 @@ model ModeloVeiculo {
   capacidade   Int
   eletrico     Boolean
   adaptado     Boolean
+  // Categoria comercial (RF07/RF16). Nula até o locador classificar o modelo.
+  categoria    CategoriaVeiculo?
   criadoEm     DateTime  @default(now())
   veiculos     Veiculo[]
   atualizadoEm DateTime  @default(now()) @updatedAt

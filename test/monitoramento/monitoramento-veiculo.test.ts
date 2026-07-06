@@ -467,6 +467,7 @@ describe("VeiculoService — histórico de status (regressão)", () => {
         capacidade: 5,
         eletrico: false,
         adaptado: false,
+        categoria: null,
         criadoEm: new Date(),
       },
       garagemId: null,
