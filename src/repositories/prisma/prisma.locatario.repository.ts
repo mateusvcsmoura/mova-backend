@@ -49,6 +49,8 @@ export class PrismaLocatarioRepository implements ILocatarioRepository {
         id: data.id,
         cpf: data.cpf,
         cnh: data.cnh,
+        rg: data.rg,
+        dataNascimento: data.dataNascimento,
         deficienciaId: data.deficiencia_id ?? null,
       },
     });
@@ -61,6 +63,8 @@ export class PrismaLocatarioRepository implements ILocatarioRepository {
     if (
       data.cpf === undefined &&
       data.cnh === undefined &&
+      data.rg === undefined &&
+      data.dataNascimento === undefined &&
       data.deficiencia_id === undefined
     ) {
       throw new HttpError(400, "Nenhum campo enviado para atualização.");
@@ -72,6 +76,8 @@ export class PrismaLocatarioRepository implements ILocatarioRepository {
         data: {
           cpf: data.cpf ?? undefined,
           cnh: data.cnh ?? undefined,
+          rg: data.rg ?? undefined,
+          dataNascimento: data.dataNascimento ?? undefined,
           deficienciaId:
             data.deficiencia_id === undefined ? undefined : data.deficiencia_id, // pode ser null ou valor
         },

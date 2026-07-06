@@ -19,6 +19,9 @@ export const uniqueEmail = (prefix = "acc") =>
 export const uniqueCnpj = () => pad(20000000000000 + seq(), 14);
 export const uniqueCpf = () => pad(20000000000 + seq(), 11);
 export const uniqueCnh = () => pad(30000000000 + seq(), 11);
+export const uniqueRg = () => pad(100000000 + seq(), 9);
+// Data de nascimento válida (maioridade garantida) para os testes.
+export const DEFAULT_DATA_NASCIMENTO = "1990-05-15";
 export const uniquePlaca = () => `ABC${pad(1000 + seq(), 4)}`;
 
 export interface Account {
@@ -105,6 +108,8 @@ export async function createLocatario(
       id: account.conta.id,
       cpf,
       cnh,
+      rg: uniqueRg(),
+      dataNascimento: DEFAULT_DATA_NASCIMENTO,
       ...(deficienciaId ? { deficiencia_id: deficienciaId } : {}),
     });
 

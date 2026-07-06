@@ -2,6 +2,8 @@ export interface LocatarioResponse {
   id: string;
   cpf: string;
   cnh: string;
+  rg: string;
+  dataNascimento: Date;
   deficiencia_id?: string;
   // Campo real persistido pelo Prisma (Locatario.deficienciaId).
   deficienciaId?: string | null;
@@ -10,6 +12,8 @@ export interface LocatarioResponse {
 export interface CreateLocatarioRequest {
   cpf: string;
   cnh: string;
+  rg: string;
+  dataNascimento: Date;
   deficiencia_id?: string;
   id: string;
 }
@@ -17,5 +21,7 @@ export interface CreateLocatarioRequest {
 export interface UpdateLocatarioRequest {
   cpf?: string;
   cnh?: string;
+  rg?: string;
+  dataNascimento?: Date;
   deficiencia_id?: string;
 }
