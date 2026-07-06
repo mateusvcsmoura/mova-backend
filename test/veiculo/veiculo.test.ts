@@ -328,3 +328,77 @@ describe("Veiculo API", () => {
     });
   });
 });
+
+describe("Veiculo — categorias (RF07/RF16)", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  let veiculoExecutivoId: string;
+  let modeloExecutivoId: string;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+  });
+
+  it("locador cadastra veículo com categoria (RF16)", async () => {
+    const response = await request(app)
+      .post("/api/veiculo")
+      .set(auth(locador.token))
+      .send(veiculoPayload(locador.locadorId, { categoria: "EXECUTIVO" }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.result.modeloVeiculo.categoria).toBe("EXECUTIVO");
+
+    veiculoExecutivoId = response.body.result.id;
+    modeloExecutivoId = response.body.result.idModeloVeiculo;
+  });
+
+  it("recusa categoria inválida no cadastro (400)", async () => {
+    const response = await request(app)
+      .post("/api/veiculo")
+      .set(auth(locador.token))
+      .send(veiculoPayload(locador.locadorId, { categoria: "LUXO" }));
+
+    expect(response.status).toBe(400);
+  });
+
+  it("locatário filtra veículos por categoria (RF07)", async () => {
+    const response = await request(app)
+      .get("/api/veiculo")
+      .query({ categoria: "EXECUTIVO" })
+      .set(auth(locatario.token));
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.length).toBeGreaterThan(0);
+    expect(
+      response.body.result.every(
+        (v: any) => v.modeloVeiculo.categoria === "EXECUTIVO",
+      ),
+    ).toBe(true);
+    expect(
+      response.body.result.some((v: any) => v.id === veiculoExecutivoId),
+    ).toBe(true);
+  });
+
+  it("filtro por outra categoria não retorna o veículo EXECUTIVO", async () => {
+    const response = await request(app)
+      .get("/api/veiculo")
+      .query({ categoria: "ECONOMICO" })
+      .set(auth(locatario.token));
+
+    expect(response.status).toBe(200);
+    expect(
+      response.body.result.some((v: any) => v.id === veiculoExecutivoId),
+    ).toBe(false);
+  });
+
+  it("locador reclassifica a categoria do modelo (RF16)", async () => {
+    const response = await request(app)
+      .patch(`/api/veiculo/modelos/${modeloExecutivoId}`)
+      .set(auth(locador.token))
+      .send({ categoria: "ECONOMICO" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.categoria).toBe("ECONOMICO");
+  });
+});

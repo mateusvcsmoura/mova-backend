@@ -63,6 +63,7 @@ Table ModeloVeiculo {
   capacidade Int [not null]
   eletrico Boolean [not null]
   adaptado Boolean [not null]
+  categoria CategoriaVeiculo
   criadoEm DateTime [default: `now()`, not null]
   veiculos Veiculo [not null]
   atualizadoEm DateTime [default: `now()`, not null]
@@ -292,6 +293,13 @@ Enum StatusVeiculo {
   RESERVADO
   MANUTENCAO
   INATIVO
+}
+
+Enum CategoriaVeiculo {
+  ECONOMICO
+  ESPACOSO
+  EXECUTIVO
+  PCD
 }
 
 Enum StatusReserva {

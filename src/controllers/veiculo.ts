@@ -9,6 +9,7 @@ import {
   updateModeloDoVeiculoSchema,
 } from "../schemas/veiculo.schema.js";
 import { z } from "zod";
+import { CategoriaVeiculo } from "@prisma/client";
 import { VeiculoFilters } from "../repositories/contracts/veiculo.contract.js";
 import {
   getPaginationParams,
@@ -31,6 +32,10 @@ export class VeiculoController {
         query.eletrico !== undefined ? query.eletrico === "true" : undefined,
       adaptado:
         query.adaptado !== undefined ? query.adaptado === "true" : undefined,
+      // Categoria (RF07): só aceita valores válidos do enum; ignora inválidos.
+      categoria: Object.values(CategoriaVeiculo).includes(query.categoria)
+        ? (query.categoria as CategoriaVeiculo)
+        : undefined,
       garagemId: query.garagemId,
     };
   }

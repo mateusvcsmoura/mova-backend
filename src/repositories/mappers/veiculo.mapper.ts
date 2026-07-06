@@ -18,6 +18,7 @@ export class VeiculoMapper {
       capacidade: modelo.capacidade,
       eletrico: modelo.eletrico,
       adaptado: modelo.adaptado,
+      categoria: modelo.categoria,
       criadoEm: modelo.criadoEm,
     };
   }

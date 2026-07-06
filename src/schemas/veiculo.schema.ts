@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { StatusVeiculo } from "@prisma/client";
+import { CategoriaVeiculo, StatusVeiculo } from "@prisma/client";
 
 export const veiculoStatusSchema = z.nativeEnum(StatusVeiculo);
+export const categoriaVeiculoSchema = z.nativeEnum(CategoriaVeiculo);
 
 export const createVeiculoSchema = z.object({
   idLocador: z.string().uuid(),
@@ -25,6 +26,7 @@ export const createVeiculoSchema = z.object({
 
   eletrico: z.boolean(),
   adaptado: z.boolean(),
+  categoria: z.nativeEnum(CategoriaVeiculo).optional(),
 });
 
 export const updateVeiculoSchema = createVeiculoSchema
@@ -44,6 +46,7 @@ export const createVeiculoLoteSchema = z.object({
   capacidade: z.number().int().positive(),
   eletrico: z.boolean(),
   adaptado: z.boolean(),
+  categoria: z.nativeEnum(CategoriaVeiculo).optional(),
   garagemId: z.string().uuid().optional(),
   placas: z.array(z.string().min(1)).min(1, "Informe ao menos uma placa"),
 });
@@ -54,6 +57,7 @@ export const updateModeloVeiculoSchema = z
     capacidade: z.number().int().positive().optional(),
     eletrico: z.boolean().optional(),
     adaptado: z.boolean().optional(),
+    categoria: z.nativeEnum(CategoriaVeiculo).optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: "Informe ao menos um campo para atualização",
@@ -68,4 +72,5 @@ export const updateModeloDoVeiculoSchema = z.object({
   capacidade: z.number().int().positive(),
   eletrico: z.boolean(),
   adaptado: z.boolean(),
+  categoria: z.nativeEnum(CategoriaVeiculo).optional(),
 });
