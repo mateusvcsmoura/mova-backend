@@ -1,4 +1,16 @@
 import { z } from "zod";
+import { isValidCpf, isValidCnh } from "../shared/documentos.js";
+
+// CPF/CNH: comprimento (regex) + dígitos verificadores reais (checksum).
+const cpfSchema = z
+  .string()
+  .regex(/^\d{11}$/, "CPF deve conter exatamente 11 números")
+  .refine(isValidCpf, "CPF inválido");
+
+const cnhSchema = z
+  .string()
+  .regex(/^\d{11}$/, "CNH deve conter exatamente 11 números")
+  .refine(isValidCnh, "CNH inválida");
 
 const IDADE_MINIMA = 18;
 const IDADE_MAXIMA = 120;
@@ -42,8 +54,8 @@ const dataNascimentoSchema = z.coerce
 
 export const createLocatarioSchema = z.object({
   id: z.string().uuid("ID deve ser um UUID válido"),
-  cpf: z.string().regex(/^\d{11}$/, "CPF deve conter exatamente 11 números"),
-  cnh: z.string().regex(/^\d{11}$/, "CNH deve conter exatamente 11 números"),
+  cpf: cpfSchema,
+  cnh: cnhSchema,
   rg: rgSchema,
   dataNascimento: dataNascimentoSchema,
   deficiencia_id: z
@@ -53,14 +65,8 @@ export const createLocatarioSchema = z.object({
 });
 
 export const updateLocatarioSchema = z.object({
-  cpf: z
-    .string()
-    .regex(/^\d{11}$/)
-    .optional(),
-  cnh: z
-    .string()
-    .regex(/^\d{11}$/)
-    .optional(),
+  cpf: cpfSchema.optional(),
+  cnh: cnhSchema.optional(),
   rg: rgSchema.optional(),
   dataNascimento: dataNascimentoSchema.optional(),
   deficiencia_id: z.string().uuid().optional(),

@@ -147,6 +147,7 @@ export class PrismaMonitoramentoVeiculoRepository
         data: {
           status: StatusNotificacao.FALHA,
           mensagemErro,
+          tentativas: { increment: 1 },
         },
       });
       return AlertaVeiculoMapper.toResponse(alerta);

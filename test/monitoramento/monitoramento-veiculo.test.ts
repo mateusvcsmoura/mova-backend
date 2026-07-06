@@ -105,6 +105,7 @@ function makeMonitoramentoRepo(dados?: {
         canal: data.canal ?? "EMAIL",
         status: "PENDENTE",
         mensagemErro: null,
+        tentativas: 0,
         criadoEm: new Date(),
         enviadoEm: null,
         resolvidoEm: null,
@@ -124,6 +125,7 @@ function makeMonitoramentoRepo(dados?: {
       const a = alertas.find((x) => x.id === id)!;
       a.status = "FALHA";
       a.mensagemErro = mensagemErro;
+      a.tentativas += 1;
       return a;
     }),
     resolver: vi.fn(async (id, resolvidoEm) => {

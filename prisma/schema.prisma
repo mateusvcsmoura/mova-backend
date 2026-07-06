@@ -499,6 +499,9 @@ model AlertaVeiculo {
 
   status       StatusNotificacao @default(PENDENTE)
   mensagemErro String?
+  // Nº de tentativas de envio. A rotina para de retransmitir (dead-letter)
+  // ao atingir o teto, evitando reprocessar indefinidamente falhas de SMTP.
+  tentativas   Int               @default(0)
 
   criadoEm     DateTime  @default(now())
   enviadoEm    DateTime?

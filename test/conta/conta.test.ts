@@ -1,6 +1,7 @@
 import request from "supertest";
 import { app } from "../../src/app";
 import { describe, it, expect } from "vitest";
+import { createAccount, uniqueEmail } from "../helpers";
 
 describe("Conta API", () => {
   const data = {
@@ -29,6 +30,14 @@ describe("Conta API", () => {
       expect(response.body.result.conta.email).toBe("jarvan.iv@lol.com");
       expect(response.body.result.conta).toHaveProperty("criadaEm");
       expect(response.body.result.conta).not.toHaveProperty("senhaHash");
+    });
+
+    it("deve recusar senha fraca (400)", async () => {
+      const response = await request(app)
+        .post("/api/conta/auth/register")
+        .send({ ...data, email: uniqueEmail("fraca"), senha: "fraca123" });
+
+      expect(response.status).toBe(400);
     });
   });
 
@@ -93,6 +102,17 @@ describe("Conta API", () => {
       expect(response.body.result.conta.endereco).toBe(updatedData.endereco);
       expect(response.body.result.conta).toHaveProperty("criadaEm");
       expect(response.body.result.conta).not.toHaveProperty("senhaHash");
+    });
+
+    it("deve recusar troca para e-mail já em uso (409)", async () => {
+      const outra = await createAccount("LOCATARIO");
+
+      const response = await request(app)
+        .put("/api/conta/auth/update-profile")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ email: outra.email });
+
+      expect(response.status).toBe(409);
     });
   });
 
