@@ -31,9 +31,11 @@ export class LocalizacaoController {
       const result = z.string().uuid().safeParse(req.params.id_veiculo);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       const pagination = getPaginationParams(req.query);
       const r = await this.localizacaoService.findHistorico(
         result.data,
+        req.user,
         pagination,
       );
       return res
@@ -49,7 +51,11 @@ export class LocalizacaoController {
       const result = z.string().uuid().safeParse(req.params.id_veiculo);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const localizacao = await this.localizacaoService.findUltima(result.data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const localizacao = await this.localizacaoService.findUltima(
+        result.data,
+        req.user,
+      );
       return res.status(200).json({ result: localizacao });
     } catch (error) {
       next(error);

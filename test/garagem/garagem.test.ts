@@ -10,7 +10,7 @@ describe("Garagem API", () => {
 
   beforeAll(async () => {
     locador = await createLocador();
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
   });
 

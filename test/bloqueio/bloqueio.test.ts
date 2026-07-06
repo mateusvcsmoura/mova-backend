@@ -105,7 +105,7 @@ describe("Bloqueio de locatário — impacto na reserva", () => {
     locador = await createLocador();
     elegivel = await createLocatario();
     bloqueado = await createLocatario();
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
   });
 

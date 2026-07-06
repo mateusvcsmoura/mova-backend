@@ -527,9 +527,11 @@ describe("VeiculoService — disparo automático ao voltar a DISPONIVEL", () => 
     const repo = makeVeiculoRepo(makeVeiculo({ status: "MANUTENCAO" as any }));
     const service = new VeiculoService(repo, notifier);
 
-    const atualizado = await service.update(VEICULO_1, {
-      status: "DISPONIVEL" as any,
-    });
+    const atualizado = await service.update(
+      VEICULO_1,
+      { status: "DISPONIVEL" as any },
+      { id: "admin", cargo: "ADMIN" as any },
+    );
 
     expect(atualizado.status).toBe("DISPONIVEL");
     expect(notifier.notificarVeiculoDisponivel).toHaveBeenCalledTimes(1);
@@ -545,7 +547,10 @@ describe("VeiculoService — disparo automático ao voltar a DISPONIVEL", () => 
     const repo = makeVeiculoRepo(makeVeiculo({ status: "DISPONIVEL" as any }));
     const service = new VeiculoService(repo, notifier);
 
-    await service.update(VEICULO_1, { status: "MANUTENCAO" as any });
+    await service.update(VEICULO_1, { status: "MANUTENCAO" as any }, {
+      id: "admin",
+      cargo: "ADMIN" as any,
+    });
 
     expect(notifier.notificarVeiculoDisponivel).not.toHaveBeenCalled();
   });
@@ -557,7 +562,10 @@ describe("VeiculoService — disparo automático ao voltar a DISPONIVEL", () => 
     const repo = makeVeiculoRepo(makeVeiculo({ status: "DISPONIVEL" as any }));
     const service = new VeiculoService(repo, notifier);
 
-    await service.update(VEICULO_1, { placa: "XYZ9876" });
+    await service.update(VEICULO_1, { placa: "XYZ9876" }, {
+      id: "admin",
+      cargo: "ADMIN" as any,
+    });
 
     expect(notifier.notificarVeiculoDisponivel).not.toHaveBeenCalled();
   });
@@ -566,9 +574,11 @@ describe("VeiculoService — disparo automático ao voltar a DISPONIVEL", () => 
     const repo = makeVeiculoRepo(makeVeiculo({ status: "MANUTENCAO" as any }));
     const service = new VeiculoService(repo); // sem notifier (compatível)
 
-    const atualizado = await service.update(VEICULO_1, {
-      status: "DISPONIVEL" as any,
-    });
+    const atualizado = await service.update(
+      VEICULO_1,
+      { status: "DISPONIVEL" as any },
+      { id: "admin", cargo: "ADMIN" as any },
+    );
 
     expect(atualizado.status).toBe("DISPONIVEL");
     expect(repo.update).toHaveBeenCalledTimes(1);
@@ -594,9 +604,11 @@ describe("VeiculoService — disparo automático ao voltar a DISPONIVEL", () => 
     const repo = makeVeiculoRepo(makeVeiculo({ status: "RESERVADO" as any }));
     const service = new VeiculoService(repo, dispatcher);
 
-    const atualizado = await service.update(VEICULO_1, {
-      status: "DISPONIVEL" as any,
-    });
+    const atualizado = await service.update(
+      VEICULO_1,
+      { status: "DISPONIVEL" as any },
+      { id: "admin", cargo: "ADMIN" as any },
+    );
 
     // Veículo atualizado normalmente; a falha ficou registrada isoladamente.
     expect(atualizado.status).toBe("DISPONIVEL");

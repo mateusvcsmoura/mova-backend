@@ -2,10 +2,13 @@ import request from "supertest";
 import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
 import {
+  createAccount,
   createLocador,
   createLocatario,
   createVeiculo,
   createLocalizacao,
+  createReserva,
+  type Account,
   type LocadorContext,
   type LocatarioContext,
 } from "../helpers";
@@ -20,7 +23,7 @@ describe("Localizacao API", () => {
   beforeAll(async () => {
     locador = await createLocador();
     locatario = await createLocatario();
-    const veiculo = await createVeiculo(locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
     veiculoId = veiculo.id;
   });
 
@@ -91,7 +94,7 @@ describe("Localizacao API", () => {
 
   describe("GET /api/localizacao/veiculo/:id_veiculo (histórico)", () => {
     it("deve retornar o histórico ordenado do mais recente para o mais antigo", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       // Registros com data/hora controlada (ordem de envio embaralhada).
       await createLocalizacao(locador.token, veiculo.id, {
@@ -124,7 +127,7 @@ describe("Localizacao API", () => {
     }, 20_000);
 
     it("deve retornar lista vazia quando não houver localizações", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .get(`/api/localizacao/veiculo/${veiculo.id}`)
@@ -145,7 +148,7 @@ describe("Localizacao API", () => {
 
   describe("GET /api/localizacao/veiculo/:id_veiculo/ultima", () => {
     it("deve retornar o único registro existente", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createLocalizacao(locador.token, veiculo.id, {
         latitude: 10,
         longitude: 20,
@@ -162,7 +165,7 @@ describe("Localizacao API", () => {
     });
 
     it("deve retornar a mais recente entre múltiplos registros", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createLocalizacao(locador.token, veiculo.id, {
         latitude: 1,
         longitude: 1,
@@ -188,7 +191,7 @@ describe("Localizacao API", () => {
     }, 20_000);
 
     it("deve retornar 404 quando o veículo não possui localização", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .get(`/api/localizacao/veiculo/${veiculo.id}/ultima`)
@@ -212,5 +215,84 @@ describe("Localizacao API", () => {
 
       expect(response.status).toBe(401);
     });
+  });
+});
+
+describe("Localizacao — autorização de acesso (ownership)", () => {
+  let dono: LocadorContext;
+  let outroLocador: LocadorContext;
+  let locatarioComReserva: LocatarioContext;
+  let locatarioSemReserva: LocatarioContext;
+  let admin: Account;
+  let veiculoId: string;
+
+  beforeAll(async () => {
+    dono = await createLocador();
+    outroLocador = await createLocador();
+    locatarioComReserva = await createLocatario();
+    locatarioSemReserva = await createLocatario();
+    admin = await createAccount("ADMIN");
+
+    const veiculo = await createVeiculo(dono.token, dono.locadorId);
+    veiculoId = veiculo.id;
+
+    await createLocalizacao(dono.token, veiculoId, {
+      latitude: -23.55,
+      longitude: -46.63,
+    });
+
+    await createReserva(
+      locatarioComReserva.token,
+      veiculoId,
+      locatarioComReserva.locatarioId,
+    );
+  });
+
+  it("locador dono vê a localização do próprio veículo", async () => {
+    const response = await request(app)
+      .get(`/api/localizacao/veiculo/${veiculoId}/ultima`)
+      .set("Authorization", `Bearer ${dono.token}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("outro locador NÃO vê a localização (403)", async () => {
+    const response = await request(app)
+      .get(`/api/localizacao/veiculo/${veiculoId}/ultima`)
+      .set("Authorization", `Bearer ${outroLocador.token}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("locatário com reserva no veículo vê a localização", async () => {
+    const response = await request(app)
+      .get(`/api/localizacao/veiculo/${veiculoId}/ultima`)
+      .set("Authorization", `Bearer ${locatarioComReserva.token}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("locatário SEM reserva no veículo NÃO vê a localização (403)", async () => {
+    const response = await request(app)
+      .get(`/api/localizacao/veiculo/${veiculoId}/ultima`)
+      .set("Authorization", `Bearer ${locatarioSemReserva.token}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("ADMIN vê a localização de qualquer veículo", async () => {
+    const response = await request(app)
+      .get(`/api/localizacao/veiculo/${veiculoId}/ultima`)
+      .set("Authorization", `Bearer ${admin.token}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("aplica a mesma regra ao histórico (outro locador → 403)", async () => {
+    const response = await request(app)
+      .get(`/api/localizacao/veiculo/${veiculoId}`)
+      .set("Authorization", `Bearer ${outroLocador.token}`);
+
+    expect(response.status).toBe(403);
   });
 });

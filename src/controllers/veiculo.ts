@@ -100,7 +100,8 @@ export class VeiculoController {
         return res.status(400).json({ errors: result.error.format() });
       }
 
-      const veiculo = await this.veiculoService.create(result.data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const veiculo = await this.veiculoService.create(result.data, req.user);
       return res.status(201).json({ result: veiculo });
     } catch (error) {
       next(error);
@@ -114,7 +115,11 @@ export class VeiculoController {
         return res.status(400).json({ errors: result.error.format() });
       }
 
-      const veiculos = await this.veiculoService.createLote(result.data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const veiculos = await this.veiculoService.createLote(
+        result.data,
+        req.user,
+      );
       return res.status(201).json({ result: veiculos });
     } catch (error) {
       next(error);
@@ -131,9 +136,11 @@ export class VeiculoController {
         return res.status(400).json({ errors: result.error.format() });
       }
 
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       const veiculo = await this.veiculoService.update(
         parsedId.data,
         result.data,
+        req.user,
       );
       return res.status(200).json({ result: veiculo });
     } catch (error) {
@@ -146,7 +153,8 @@ export class VeiculoController {
       const result = z.string().uuid().safeParse(req.params.id);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      await this.veiculoService.delete(result.data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      await this.veiculoService.delete(result.data, req.user);
       return res.status(204).send();
     } catch (error) {
       next(error);
@@ -165,9 +173,11 @@ export class VeiculoController {
         return res.status(400).json({ errors: result.error.format() });
       }
 
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       const modelo = await this.veiculoService.updateModelo(
         parsedId.data,
         result.data,
+        req.user,
       );
 
       return res.status(200).json({ result: modelo });
@@ -189,9 +199,11 @@ export class VeiculoController {
         return res.status(400).json({ errors: result.error.format() });
       }
 
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       const veiculo = await this.veiculoService.updateModeloDoVeiculo(
         parsedId.data,
         result.data,
+        req.user,
       );
 
       return res.status(200).json({ result: veiculo });

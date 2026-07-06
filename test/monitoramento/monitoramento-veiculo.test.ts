@@ -492,7 +492,10 @@ describe("VeiculoService — histórico de status (regressão)", () => {
     const repo = makeVeiculoRepo(makeVeiculo("DISPONIVEL"));
     const service = new VeiculoService(repo, undefined, monitRepo);
 
-    await service.update(VEICULO_1, { status: "INATIVO" as any });
+    await service.update(VEICULO_1, { status: "INATIVO" as any }, {
+      id: "admin",
+      cargo: "ADMIN" as any,
+    });
 
     expect(transicoes).toEqual([{ idVeiculo: VEICULO_1, status: "INATIVO" }]);
   });
@@ -502,7 +505,10 @@ describe("VeiculoService — histórico de status (regressão)", () => {
     const repo = makeVeiculoRepo(makeVeiculo("DISPONIVEL"));
     const service = new VeiculoService(repo, undefined, monitRepo);
 
-    await service.update(VEICULO_1, { placa: "XYZ9876" });
+    await service.update(VEICULO_1, { placa: "XYZ9876" }, {
+      id: "admin",
+      cargo: "ADMIN" as any,
+    });
 
     expect(transicoes).toHaveLength(0);
   });
@@ -515,9 +521,11 @@ describe("VeiculoService — histórico de status (regressão)", () => {
     const repo = makeVeiculoRepo(makeVeiculo("DISPONIVEL"));
     const service = new VeiculoService(repo, undefined, monitRepo);
 
-    const atualizado = await service.update(VEICULO_1, {
-      status: "INATIVO" as any,
-    });
+    const atualizado = await service.update(
+      VEICULO_1,
+      { status: "INATIVO" as any },
+      { id: "admin", cargo: "ADMIN" as any },
+    );
 
     expect(atualizado.status).toBe("INATIVO");
   });
@@ -526,9 +534,11 @@ describe("VeiculoService — histórico de status (regressão)", () => {
     const repo = makeVeiculoRepo(makeVeiculo("MANUTENCAO"));
     const service = new VeiculoService(repo);
 
-    const atualizado = await service.update(VEICULO_1, {
-      status: "DISPONIVEL" as any,
-    });
+    const atualizado = await service.update(
+      VEICULO_1,
+      { status: "DISPONIVEL" as any },
+      { id: "admin", cargo: "ADMIN" as any },
+    );
 
     expect(atualizado.status).toBe("DISPONIVEL");
   });

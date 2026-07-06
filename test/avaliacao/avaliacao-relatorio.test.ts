@@ -71,15 +71,15 @@ describe("Relatório de Avaliações (dashboard do locador)", () => {
     locadorB = await createLocador();
     locatario = await createLocatario();
 
-    vA1 = await createVeiculo(locadorA.locadorId, {
+    vA1 = await createVeiculo(locadorA.token, locadorA.locadorId, {
       marca: "Fiat",
       modelo: "Argo",
     });
-    vA2 = await createVeiculo(locadorA.locadorId, {
+    vA2 = await createVeiculo(locadorA.token, locadorA.locadorId, {
       marca: "VW",
       modelo: "Gol",
     });
-    vB1 = await createVeiculo(locadorB.locadorId);
+    vB1 = await createVeiculo(locadorB.token, locadorB.locadorId);
 
     // Locador A: vA1 -> [5 (mai), 4 (jun)]; vA2 -> [3 (abr)].
     await seedAvaliacao(vA1.id, locatario.locatarioId, {

@@ -27,7 +27,7 @@ describe("Favorito API", () => {
 
   describe("POST /api/favorito", () => {
     it("deve favoritar um veículo com sucesso", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .post("/api/favorito")
@@ -52,7 +52,7 @@ describe("Favorito API", () => {
     });
 
     it("deve recusar veículo já favoritado pelo mesmo locatário", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
       const response = await request(app)
@@ -64,7 +64,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("deve permitir que locatários diferentes favoritem o mesmo veículo", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
       const response = await request(app)
@@ -85,7 +85,7 @@ describe("Favorito API", () => {
     });
 
     it("deve recusar requisição sem autenticação", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .post("/api/favorito")
@@ -95,7 +95,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("deve recusar requisição de LOCADOR (rota exclusiva de locatário)", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .post("/api/favorito")
@@ -108,7 +108,7 @@ describe("Favorito API", () => {
 
   describe("DELETE /api/favorito/veiculo/:id_veiculo", () => {
     it("deve remover um favorito com sucesso", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
       const response = await request(app)
@@ -125,7 +125,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("deve retornar 404 ao remover favorito inexistente", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .delete(`/api/favorito/veiculo/${veiculo.id}`)
@@ -135,7 +135,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("não deve remover o favorito de outro locatário (isolamento)", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
       // outroLocatario não favoritou este veículo — 404, e o favorito
@@ -153,7 +153,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("deve recusar requisição sem autenticação", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app).delete(
         `/api/favorito/veiculo/${veiculo.id}`,
@@ -168,9 +168,9 @@ describe("Favorito API", () => {
       const dono = await createLocatario();
       const intruso = await createLocatario();
 
-      const veiculoA = await createVeiculo(locador.locadorId);
-      const veiculoB = await createVeiculo(locador.locadorId);
-      const veiculoC = await createVeiculo(locador.locadorId);
+      const veiculoA = await createVeiculo(locador.token, locador.locadorId);
+      const veiculoB = await createVeiculo(locador.token, locador.locadorId);
+      const veiculoC = await createVeiculo(locador.token, locador.locadorId);
 
       await createFavorito(dono.token, veiculoA.id);
       await createFavorito(dono.token, veiculoB.id);
@@ -196,7 +196,7 @@ describe("Favorito API", () => {
     it("deve retornar os dados completos do veículo (modelo, locador, garagem, status)", async () => {
       const consultor = await createLocatario();
       const garagem = await createGaragem(locador.token, locador.locadorId);
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       // createVeiculoSchema não expõe garagemId — vincula direto via Prisma.
       await prisma.veiculo.update({
         where: { id: veiculo.id },
@@ -230,7 +230,7 @@ describe("Favorito API", () => {
       const paginador = await createLocatario();
 
       for (let i = 0; i < 3; i++) {
-        const veiculo = await createVeiculo(locador.locadorId);
+        const veiculo = await createVeiculo(locador.token, locador.locadorId);
         await createFavorito(paginador.token, veiculo.id);
       }
 
@@ -276,7 +276,7 @@ describe("Favorito API", () => {
 
   describe("GET /api/favorito/veiculo/:id_veiculo", () => {
     it("deve informar quando o veículo está favoritado", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
       const response = await request(app)
@@ -289,7 +289,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("deve informar quando o veículo não está favoritado", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
 
       const response = await request(app)
         .get(`/api/favorito/veiculo/${veiculo.id}`)
@@ -301,7 +301,7 @@ describe("Favorito API", () => {
     }, 20_000);
 
     it("deve considerar apenas os favoritos do próprio usuário (isolamento)", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
       const response = await request(app)
@@ -323,11 +323,13 @@ describe("Favorito API", () => {
 
   describe("Consistência na exclusão do veículo", () => {
     it("deve remover os favoritos quando o veículo é excluído (cascade)", async () => {
-      const veiculo = await createVeiculo(locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
       const favorito = await createFavorito(locatario.token, veiculo.id);
       expect(favorito).toHaveProperty("id");
 
-      const del = await request(app).delete(`/api/veiculo/${veiculo.id}`);
+      const del = await request(app)
+        .delete(`/api/veiculo/${veiculo.id}`)
+        .set("Authorization", `Bearer ${locador.token}`);
       expect(del.status).toBe(204);
 
       const restante = await prisma.favorito.findUnique({
