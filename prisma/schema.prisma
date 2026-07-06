@@ -112,6 +112,13 @@ model Locatario {
   id  String @id @db.Uuid
   cpf String @unique
   cnh String @unique
+  // Documento de identidade (RG). Não é @unique: números de RG podem se repetir
+  // entre unidades federativas, então a unicidade fica a cargo de CPF/CNH.
+  rg  String
+
+  // Data de nascimento do locatário. Usada para validar a maioridade (>= 18)
+  // no cadastro; armazenada como data (sem componente de fuso relevante).
+  dataNascimento DateTime @db.Date
 
   conta Conta @relation(fields: [id], references: [id], onDelete: Cascade)
 

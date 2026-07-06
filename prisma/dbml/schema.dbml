@@ -28,6 +28,8 @@ Table Locatario {
   id String [pk]
   cpf String [unique, not null]
   cnh String [unique, not null]
+  rg String [not null]
+  dataNascimento DateTime [not null]
   conta Conta [not null]
   deficienciaId String
   deficiencia Deficiencia

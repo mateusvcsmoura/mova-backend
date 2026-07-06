@@ -282,6 +282,8 @@ async function main() {
               id: conta.id,
               cpf: formatCpf(index + 1),
               cnh: formatCnh(index + 1),
+              rg: String(100000000 + index + 1),
+              dataNascimento: new Date("1990-01-01"),
               deficienciaId:
                 index < deficiencias.length
                   ? deficiencias[index].id
