@@ -280,6 +280,8 @@ model Reserva {
   codigoUsadoEm     DateTime?
 
   avaliacao    Avaliacao?
+  // Condutores adicionais autorizados a dirigir nesta reserva (RF12).
+  condutores   CondutorAdicional[]
   // Serviços opcionais contratados nesta reserva (catálogo + junção).
   servicos     ReservaServico[]
   // Histórico de notificações (relatório por e-mail etc.) desta reserva.
@@ -508,6 +510,29 @@ model AlertaVeiculo {
   @@index([idVeiculo, tipo, resolvidoEm])
   // Histórico de alertas por locador (auditoria).
   @@index([idLocador, criadoEm])
+}
+
+// Condutor adicional de uma reserva (RF12): pessoa autorizada a dirigir o
+// veículo além do locatário titular. Entidade própria (1:N com Reserva),
+// escalável — novos atributos (validade da CNH, categoria, etc.) entram aqui
+// sem alterar a Reserva. A unicidade (idReserva, cnh) impede duplicidade do
+// mesmo condutor na mesma reserva.
+model CondutorAdicional {
+  id String @id @default(uuid()) @db.Uuid
+
+  idReserva String  @db.Uuid
+  reserva   Reserva @relation(fields: [idReserva], references: [id], onDelete: Cascade)
+
+  nome String
+  cpf  String?
+  cnh  String
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  // Um mesmo condutor (CNH) não pode ser cadastrado duas vezes na reserva.
+  @@unique([idReserva, cnh])
+  @@index([idReserva])
 }
 
 model Localizacao {

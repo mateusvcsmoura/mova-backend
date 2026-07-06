@@ -31,6 +31,8 @@ import { PrismaLocalizacaoRepository } from "../repositories/prisma/prisma.local
 import { PrismaLocadorRepository } from "../repositories/prisma/prisma.locador.repository.js";
 import { PrismaLocatarioRepository } from "../repositories/prisma/prisma.locatario.repository.js";
 import { PrismaReservaRepository } from "../repositories/prisma/prisma.reserva.repository.js";
+import { ICondutorRepository } from "../repositories/condutor.repository.js";
+import { PrismaCondutorRepository } from "../repositories/prisma/prisma.condutor.repository.js";
 import { PrismaServicoOpcionalRepository } from "../repositories/prisma/prisma.servico-opcional.repository.js";
 import { PrismaVeiculoRepository } from "../repositories/prisma/prisma.veiculo.repository.js";
 import { IReservaRepository } from "../repositories/reserva.repository.js";
@@ -156,7 +158,8 @@ export const interesseService = new InteresseVeiculoService(interesseRepository,
 export const interesseController = new InteresseController(interesseService);
 
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
-export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, notificacaoReservaService);
+export const condutorRepository: ICondutorRepository = new PrismaCondutorRepository();
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, notificacaoReservaService);
 export const reservaController = new ReservaController(reservaService);
 
 export const avaliacaoRepository: IAvaliacaoRepository = new PrismaAvaliacaoRepository();
