@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { StatusGaragem } from "@prisma/client";
 
 export const createGaragemSchema = z.object({
   idLocador: z.string().uuid(),
@@ -6,6 +7,7 @@ export const createGaragemSchema = z.object({
   endereco: z.string().min(2).max(255),
   capacidade: z.number().int().positive(),
   acessibilidade: z.boolean().optional(),
+  status: z.nativeEnum(StatusGaragem).optional(),
 });
 
 export const updateGaragemSchema = createGaragemSchema

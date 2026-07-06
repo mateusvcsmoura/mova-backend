@@ -1,4 +1,4 @@
-import { Garagem, Prisma, PrismaClient } from "@prisma/client";
+import { Garagem, Prisma, PrismaClient, StatusGaragem } from "@prisma/client";
 
 import { HttpError } from "../../errors/HttpError.js";
 import { IGaragemRepository } from "../garagem.repository.js";
@@ -42,6 +42,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
       capacidade: garagem.capacidade,
       veiculosAlocados: garagem.veiculosAlocados,
       acessibilidade: garagem.acessibilidade,
+      status: garagem.status,
       criadaEm: garagem.criadaEm,
       atualizadoEm: garagem.atualizadoEm,
     };
@@ -67,6 +68,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
         ? { acessibilidade: filters.acessibilidade }
         : {}),
       ...(filters.idLocador ? { idLocador: filters.idLocador } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
       ...(filters.nome
         ? {
             nome: {
@@ -197,6 +199,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
         endereco: data.endereco,
         capacidade: data.capacidade,
         acessibilidade: data.acessibilidade ?? true,
+        status: data.status ?? undefined,
         veiculosAlocados: 0,
       },
     });
@@ -222,6 +225,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
           endereco: data.endereco ?? undefined,
           capacidade: data.capacidade ?? undefined,
           acessibilidade: data.acessibilidade ?? undefined,
+          status: data.status ?? undefined,
         },
       });
 
@@ -231,10 +235,14 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     }
   }
 
+  // Soft delete (RF19): desativa a garagem em vez de removê-la, preservando o
+  // histórico (veículos alocados, reservas passadas). Garagem INATIVA não
+  // aparece para novas reservas (regra no ReservaService).
   async delete(id: string): Promise<void> {
     try {
-      await prisma.garagem.delete({
+      await prisma.garagem.update({
         where: { id },
+        data: { status: StatusGaragem.INATIVA },
       });
     } catch {
       throw new HttpError(404, "Garagem não encontrada.");

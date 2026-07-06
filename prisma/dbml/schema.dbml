@@ -101,6 +101,7 @@ Table Garagem {
   capacidade Int [not null]
   veiculosAlocados Int [not null]
   acessibilidade Boolean [not null, default: true]
+  status StatusGaragem [not null, default: 'ATIVA']
   criadaEm DateTime [default: `now()`, not null]
   veiculos Veiculo [not null]
   reservasRetirada Reserva [not null]
@@ -124,6 +125,7 @@ Table Reserva {
   valorTotal Decimal [not null]
   status StatusReserva [not null, default: 'AGUARDANDO_PAGAMENTO']
   statusPagamento StatusPagamento [not null, default: 'AGUARDANDO_PAGAMENTO']
+  metodoPagamento MetodoPagamento
   codigoDesbloqueio String [unique]
   codigoGeradoEm DateTime
   codigoUsadoEm DateTime
@@ -305,6 +307,19 @@ Enum StatusPagamento {
   PROCESSANDO
   SUCESSO
   FALHA
+}
+
+Enum MetodoPagamento {
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  PIX
+  CARTEIRA_DIGITAL
+}
+
+Enum StatusGaragem {
+  ATIVA
+  INATIVA
+  MANUTENCAO
 }
 
 Enum StatusNotificacao {

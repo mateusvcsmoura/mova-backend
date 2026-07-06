@@ -158,6 +158,7 @@ export class PrismaReservaRepository implements IReservaRepository {
         valorTotal: data.valorTotal,
         status: data.status ?? undefined,
         statusPagamento: data.statusPagamento ?? undefined,
+        metodoPagamento: data.metodoPagamento ?? undefined,
         // Cria as associações de serviços opcionais na mesma operação,
         // gravando o valor contratado como snapshot.
         ...(data.servicos && data.servicos.length > 0
@@ -195,6 +196,7 @@ export class PrismaReservaRepository implements IReservaRepository {
           valorTotal: data.valorTotal ?? undefined,
           status: data.status ?? undefined,
           statusPagamento: data.statusPagamento ?? undefined,
+          metodoPagamento: data.metodoPagamento ?? undefined,
         },
         include: RESERVA_INCLUDE,
       });

@@ -546,6 +546,130 @@ describe("Reserva — locais de retirada e devolução", () => {
   });
 });
 
+describe("Reserva — forma de pagamento (RF11)", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  let veiculoId: string;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    veiculoId = veiculo.id;
+  });
+
+  it("deve criar reserva com forma de pagamento (PIX)", async () => {
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      { metodoPagamento: "PIX", ...futurePeriod(500, 2) },
+    );
+
+    expect(reserva.metodoPagamento).toBe("PIX");
+  });
+
+  it("deve deixar a forma de pagamento nula quando omitida", async () => {
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(510, 2),
+    );
+
+    expect(reserva.metodoPagamento).toBeNull();
+  });
+
+  it("deve atualizar a forma de pagamento (CARTAO_CREDITO)", async () => {
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(520, 2),
+    );
+
+    const response = await request(app)
+      .put(`/api/reserva/${reserva.id}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ metodoPagamento: "CARTAO_CREDITO" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.metodoPagamento).toBe("CARTAO_CREDITO");
+  });
+
+  it("deve recusar forma de pagamento inválida (400)", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 300,
+        metodoPagamento: "BOLETO",
+        ...futurePeriod(530, 2),
+      });
+
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("Reserva — garagem inativa não entra em novas reservas (RF19)", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  let garagemRetirada: any;
+  let garagemDevolucao: any;
+  let veiculoId: string;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+    garagemRetirada = await createGaragem(locador.token, locador.locadorId);
+    garagemDevolucao = await createGaragem(locador.token, locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    veiculoId = veiculo.id;
+    await alocarVeiculo(locador.token, garagemRetirada.id, veiculoId);
+  });
+
+  it("deve recusar reserva quando a garagem de devolução está INATIVA (409)", async () => {
+    await request(app)
+      .put(`/api/garagem/${garagemDevolucao.id}`)
+      .set("Authorization", `Bearer ${locador.token}`)
+      .send({ status: "INATIVA" });
+
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 400,
+        idGaragemDevolucao: garagemDevolucao.id,
+        ...futurePeriod(600, 2),
+      });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("deve recusar reserva quando a garagem de retirada está INATIVA (409)", async () => {
+    // Soft delete da garagem onde o veículo está alocado.
+    await request(app)
+      .delete(`/api/garagem/${garagemRetirada.id}`)
+      .set("Authorization", `Bearer ${locador.token}`);
+
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 400,
+        ...futurePeriod(610, 2),
+      });
+
+    expect(response.status).toBe(409);
+  });
+});
+
 describe("Reserva — veículos adaptados (PCD)", () => {
   let locador: LocadorContext;
   let comDeficiencia: LocatarioContext;

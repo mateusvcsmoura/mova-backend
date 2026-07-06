@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { StatusPagamento, StatusReserva } from "@prisma/client";
+import { MetodoPagamento, StatusPagamento, StatusReserva } from "@prisma/client";
 
 export const reservaStatusSchema = z.nativeEnum(StatusReserva);
 export const statusPagamentoSchema = z.nativeEnum(StatusPagamento);
+export const metodoPagamentoSchema = z.nativeEnum(MetodoPagamento);
 
 export const createReservaSchema = z
   .object({
@@ -28,6 +29,7 @@ export const createReservaSchema = z
 
     status: z.nativeEnum(StatusReserva).optional(),
     statusPagamento: z.nativeEnum(StatusPagamento).optional(),
+    metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => data.dataHoraFim > data.dataHoraInicio, {
     message: "A data/hora de término deve ser posterior à de início.",
@@ -42,6 +44,7 @@ export const updateReservaSchema = z
     valorTotal: z.number().positive().optional(),
     status: z.nativeEnum(StatusReserva).optional(),
     statusPagamento: z.nativeEnum(StatusPagamento).optional(),
+    metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: "Informe ao menos um campo para atualização",

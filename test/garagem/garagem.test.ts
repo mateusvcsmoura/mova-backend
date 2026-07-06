@@ -32,6 +32,7 @@ describe("Garagem API", () => {
       expect(response.body.result).toHaveProperty("id");
       expect(response.body.result.idLocador).toBe(locador.locadorId);
       expect(response.body.result.nome).toBe("Garagem Central");
+      expect(response.body.result.status).toBe("ATIVA");
 
       garagemId = response.body.result.id;
     });
@@ -127,16 +128,34 @@ describe("Garagem API", () => {
       expect(response.status).toBe(200);
       expect(response.body.result.nome).toBe("Garagem Central Atualizada");
     });
+
+    it("deve atualizar o status para MANUTENCAO", async () => {
+      const response = await request(app)
+        .put(`/api/garagem/${garagemId}`)
+        .set("Authorization", `Bearer ${locador.token}`)
+        .send({ status: "MANUTENCAO" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.result.status).toBe("MANUTENCAO");
+    });
   });
 
-  describe("DELETE /api/garagem/:id", () => {
-    it("deve remover a garagem", async () => {
-      const response = await request(app)
+  describe("DELETE /api/garagem/:id (soft delete)", () => {
+    it("deve desativar a garagem (soft delete) sem removê-la", async () => {
+      const del = await request(app)
         .delete(`/api/garagem/${garagemId}`)
         .set("Authorization", `Bearer ${locador.token}`);
 
-      expect(response.status).toBe(204);
-      expect(response.body).toEqual({});
+      expect(del.status).toBe(204);
+      expect(del.body).toEqual({});
+
+      // Soft delete: a garagem ainda existe, agora com status INATIVA.
+      const get = await request(app)
+        .get(`/api/garagem/${garagemId}`)
+        .set("Authorization", `Bearer ${locador.token}`);
+
+      expect(get.status).toBe(200);
+      expect(get.body.result.status).toBe("INATIVA");
     });
   });
 });
