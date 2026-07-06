@@ -16,6 +16,7 @@ import { localizacaoRouter } from "./routes/localizacao/localizacao.js";
 import { avaliacaoRouter } from "./routes/avaliacao/avaliacao.js";
 import { favoritoRouter } from "./routes/favorito/favorito.js";
 import { interesseRouter } from "./routes/interesse/interesse.js";
+import { dashboardRouter } from "./routes/dashboard/dashboard.js";
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/localizacao", localizacaoRouter);
 app.use("/api/avaliacao", avaliacaoRouter);
 app.use("/api/favorito", favoritoRouter);
 app.use("/api/interesse", interesseRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 app.use(errorHandler);
 

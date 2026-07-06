@@ -1,3 +1,7 @@
+import { LocadorDashboardController } from "../controllers/locador-dashboard.js";
+import { LocadorDashboardService } from "../services/locador-dashboard.js";
+import { ILocadorDashboardRepository } from "../repositories/locador-dashboard.repository.js";
+import { PrismaLocadorDashboardRepository } from "../repositories/prisma/prisma.locador-dashboard.repository.js";
 import { AvaliacaoController } from "../controllers/avaliacao.js";
 import { AvaliacaoRelatorioController } from "../controllers/avaliacao-relatorio.js";
 import { FavoritoController } from "../controllers/favorito.js";
@@ -169,6 +173,12 @@ export const avaliacaoController = new AvaliacaoController(avaliacaoService);
 export const avaliacaoRelatorioRepository: IAvaliacaoRelatorioRepository = new PrismaAvaliacaoRelatorioRepository();
 export const avaliacaoRelatorioService = new AvaliacaoRelatorioService(avaliacaoRelatorioRepository);
 export const avaliacaoRelatorioController = new AvaliacaoRelatorioController(avaliacaoRelatorioService);
+
+// Dashboard do locador (RF17/RF18): relatórios de reservas, financeiro,
+// utilização da frota e visão de status/localização/alertas.
+export const locadorDashboardRepository: ILocadorDashboardRepository = new PrismaLocadorDashboardRepository();
+export const locadorDashboardService = new LocadorDashboardService(locadorDashboardRepository);
+export const locadorDashboardController = new LocadorDashboardController(locadorDashboardService);
 
 export const favoritoRepository: IFavoritoRepository = new PrismaFavoritoRepository();
 export const favoritoService = new FavoritoService(favoritoRepository, veiculoRepository, locatarioRepository);
