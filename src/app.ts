@@ -23,6 +23,7 @@ import { favoritoRouter } from "./routes/favorito/favorito.js";
 import { interesseRouter } from "./routes/interesse/interesse.js";
 import { dashboardRouter } from "./routes/dashboard/dashboard.js";
 import { webhookRouter } from "./routes/webhook/webhook.js";
+import { lgpdRouter } from "./routes/lgpd/lgpd.js";
 
 const app = express();
 
@@ -88,6 +89,7 @@ app.use("/api/avaliacao", avaliacaoRouter);
 app.use("/api/favorito", favoritoRouter);
 app.use("/api/interesse", interesseRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/lgpd", lgpdRouter);
 
 app.use(errorHandler);
 

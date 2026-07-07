@@ -79,6 +79,10 @@ import { MonitoramentoController } from "../controllers/monitoramento.js";
 import { construirGatewaysPagamento } from "../infra/payment/gateway.js";
 import { PagamentoWebhookService } from "../services/pagamento-webhook.js";
 import { PagamentoWebhookController } from "../controllers/pagamento-webhook.js";
+import { ILgpdRepository } from "../repositories/lgpd.repository.js";
+import { PrismaLgpdRepository } from "../repositories/prisma/prisma.lgpd.repository.js";
+import { LgpdService } from "../services/lgpd.js";
+import { LgpdController } from "../controllers/lgpd.js";
 import { env } from "../config/env.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
@@ -174,6 +178,11 @@ export const reservaController = new ReservaController(reservaService);
 export const gatewaysPagamento = construirGatewaysPagamento();
 export const pagamentoWebhookService = new PagamentoWebhookService(gatewaysPagamento, reservaService);
 export const pagamentoWebhookController = new PagamentoWebhookController(pagamentoWebhookService);
+
+// LGPD: exportação, anonimização e auditoria de acesso a dados pessoais.
+export const lgpdRepository: ILgpdRepository = new PrismaLgpdRepository();
+export const lgpdService = new LgpdService(lgpdRepository);
+export const lgpdController = new LgpdController(lgpdService);
 
 export const avaliacaoRepository: IAvaliacaoRepository = new PrismaAvaliacaoRepository();
 export const avaliacaoService = new AvaliacaoService(avaliacaoRepository, reservaRepository, veiculoRepository);

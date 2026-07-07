@@ -12,9 +12,23 @@ Table Conta {
   cargo Cargo [not null, default: 'LOCATARIO']
   cep String [not null]
   endereco String [not null]
+  anonimizadoEm DateTime
   locatario Locatario
   locador Locador
+  acessosComoTitular AcessoDadoPessoal [not null]
+  acessosComoAutor AcessoDadoPessoal [not null]
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table AcessoDadoPessoal {
+  id String [pk]
+  idTitular String [not null]
+  titular Conta [not null]
+  idAutor String [not null]
+  autor Conta [not null]
+  acao AcaoLgpd [not null]
+  detalhe String
+  criadoEm DateTime [default: `now()`, not null]
 }
 
 Table Deficiencia {
@@ -372,6 +386,16 @@ Enum MotivoBloqueio {
   ADMINISTRATIVO
   OUTRO
 }
+
+Enum AcaoLgpd {
+  EXPORTAR
+  ANONIMIZAR
+  CONSULTAR
+}
+
+Ref: AcessoDadoPessoal.idTitular > Conta.id [delete: Cascade]
+
+Ref: AcessoDadoPessoal.idAutor > Conta.id [delete: Cascade]
 
 Ref: Locatario.id - Conta.id [delete: Cascade]
 

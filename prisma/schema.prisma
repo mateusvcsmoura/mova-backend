@@ -123,9 +123,40 @@ model Conta {
   cep      String
   endereco String
 
+  // LGPD: quando preenchido, os dados pessoais desta conta foram anonimizados
+  // (direito ao esquecimento). A linha é mantida para preservar o histórico
+  // de negócio (reservas etc.); só o PII é apagado.
+  anonimizadoEm DateTime?
+
   locatario    Locatario?
   locador      Locador?
+  // Auditoria LGPD: acessos onde esta conta é a titular / a autora do acesso.
+  acessosComoTitular AcessoDadoPessoal[] @relation("AcessoTitular")
+  acessosComoAutor   AcessoDadoPessoal[] @relation("AcessoAutor")
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+// Ações registradas na auditoria de acesso a dados pessoais (LGPD).
+enum AcaoLgpd {
+  EXPORTAR
+  ANONIMIZAR
+  CONSULTAR
+}
+
+// Trilha de auditoria LGPD: quem acessou os dados pessoais de quem, e quando.
+model AcessoDadoPessoal {
+  id        String   @id @default(uuid()) @db.Uuid
+  // Titular dos dados acessados.
+  idTitular String   @db.Uuid
+  titular   Conta    @relation("AcessoTitular", fields: [idTitular], references: [id], onDelete: Cascade)
+  // Autor do acesso (o próprio titular ou um ADMIN).
+  idAutor   String   @db.Uuid
+  autor     Conta    @relation("AcessoAutor", fields: [idAutor], references: [id], onDelete: Cascade)
+  acao      AcaoLgpd
+  detalhe   String?
+  criadoEm  DateTime @default(now())
+
+  @@index([idTitular])
 }
 
 model Deficiencia {
