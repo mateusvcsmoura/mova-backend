@@ -3,7 +3,9 @@ import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
 import { env } from "./config/env.js";
 import { writeMethodsLimiter } from "./middlewares/rate-limit.js";
+import { observability } from "./middlewares/observability.js";
 import { errorHandler } from "./middlewares/error-handler.js";
+import { healthRouter } from "./routes/health/health.js";
 import { basicRouter } from "./routes/basic/basic.js";
 import { contaRouter } from "./routes/conta/conta.js";
 import { locadorRouter } from "./routes/locador/locador.js";
@@ -41,6 +43,10 @@ const corsOptions: CorsOptions = {
   credentials: true,
 };
 
+// Observabilidade primeiro: garante request id + timing para toda requisição,
+// inclusive as bloqueadas por middlewares seguintes.
+app.use(observability);
+
 // Helmet: headers de segurança. crossOriginResourcePolicy relaxado para
 // "cross-origin" — a API é consumida por clientes de outra origem (mobile/web).
 app.use(
@@ -50,6 +56,10 @@ app.use(
 );
 app.use(cors(corsOptions));
 app.use(express.json({ limit: env.BODY_LIMIT }));
+
+// Health/readiness antes do apiMetadata: respostas enxutas (status/uptime/...)
+// sem o envelope de metadados, no formato esperado por orquestradores.
+app.use(healthRouter);
 
 app.use(apiMetadata("v1.0.0"));
 
