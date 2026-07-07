@@ -1,4 +1,4 @@
-import { beforeAll } from "vitest";
+import { beforeAll, afterAll } from "vitest";
 import { prisma } from "../src/database/prisma";
 
 // Limpa todas as tabelas respeitando as foreign keys do schema.prisma.
@@ -22,4 +22,12 @@ async function resetDatabase() {
 
 beforeAll(async () => {
   await resetDatabase();
+});
+
+// Fecha o pool de conexões (adapter PrismaPg/node-postgres) ao fim de cada
+// arquivo. Sem isso o vitest mata o worker com sockets ainda abertos, o que no
+// Windows + pool de forks gera "Worker exited unexpectedly" de forma
+// intermitente. ponytail: teardown por arquivo, não por teste.
+afterAll(async () => {
+  await prisma.$disconnect();
 });
