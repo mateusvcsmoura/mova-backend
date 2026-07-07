@@ -83,6 +83,10 @@ import { ILgpdRepository } from "../repositories/lgpd.repository.js";
 import { PrismaLgpdRepository } from "../repositories/prisma/prisma.lgpd.repository.js";
 import { LgpdService } from "../services/lgpd.js";
 import { LgpdController } from "../controllers/lgpd.js";
+import { IPreferenciaNotificacaoRepository } from "../repositories/preferencia-notificacao.repository.js";
+import { PrismaPreferenciaNotificacaoRepository } from "../repositories/prisma/prisma.preferencia-notificacao.repository.js";
+import { PreferenciaNotificacaoService } from "../services/preferencia-notificacao.js";
+import { PreferenciaNotificacaoController } from "../controllers/preferencia-notificacao.js";
 import { env } from "../config/env.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
@@ -141,7 +145,12 @@ export const mailProvider: IMailProvider = new NodemailerMailProvider(
 
 export const notificacaoRepository: INotificacaoRepository = new PrismaNotificacaoRepository();
 export const reservaReportService = new ReservaReportService(veiculoRepository, contaRepository, locadorRepository, garagemRepository);
-export const notificacaoReservaService = new NotificacaoReservaService(reservaReportService, mailProvider, notificacaoRepository);
+// Preferências de notificação (opt-in/opt-out). O repositório também serve de
+// checker de opt-out para os notificadores.
+export const preferenciaNotificacaoRepository: IPreferenciaNotificacaoRepository = new PrismaPreferenciaNotificacaoRepository();
+export const preferenciaNotificacaoService = new PreferenciaNotificacaoService(preferenciaNotificacaoRepository);
+export const preferenciaNotificacaoController = new PreferenciaNotificacaoController(preferenciaNotificacaoService);
+export const notificacaoReservaService = new NotificacaoReservaService(reservaReportService, mailProvider, notificacaoRepository, preferenciaNotificacaoRepository);
 
 // Watchlist de disponibilidade de veículos: inscrições de interesse + registro
 // dos envios + dispatcher que notifica quando o veículo volta a DISPONIVEL.

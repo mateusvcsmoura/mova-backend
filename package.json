@@ -11,6 +11,7 @@
     "dev": "tsx watch src/server.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
     "db:seed": "tsx prisma/scripts/seed.ts",
     "db:reset": "tsx prisma/scripts/reset.ts",
     "db:migrate:test": "cross-env DATABASE_URL=%DATABASE_URL_TEST% prisma migrate deploy"
@@ -28,6 +29,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.18.0",
     "@types/supertest": "^7.2.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "cpx": "^1.5.0",
     "cross-env": "^10.1.0",
     "dotenv": "^17.3.1",

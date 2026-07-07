@@ -17,7 +17,23 @@ Table Conta {
   locador Locador
   acessosComoTitular AcessoDadoPessoal [not null]
   acessosComoAutor AcessoDadoPessoal [not null]
+  preferenciasNotificacao PreferenciaNotificacao [not null]
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table PreferenciaNotificacao {
+  id String [pk]
+  idConta String [not null]
+  conta Conta [not null]
+  canal CanalNotificacao [not null]
+  tipo TipoNotificacao [not null]
+  habilitado Boolean [not null, default: true]
+  criadoEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+
+  indexes {
+    (idConta, canal, tipo) [unique]
+  }
 }
 
 Table AcessoDadoPessoal {
@@ -387,11 +403,25 @@ Enum MotivoBloqueio {
   OUTRO
 }
 
+Enum CanalNotificacao {
+  EMAIL
+  PUSH
+  SMS
+}
+
+Enum TipoNotificacao {
+  RESERVA
+  ALERTA_VEICULO
+  VEICULO_DISPONIVEL
+}
+
 Enum AcaoLgpd {
   EXPORTAR
   ANONIMIZAR
   CONSULTAR
 }
+
+Ref: PreferenciaNotificacao.idConta > Conta.id [delete: Cascade]
 
 Ref: AcessoDadoPessoal.idTitular > Conta.id [delete: Cascade]
 

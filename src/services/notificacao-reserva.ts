@@ -1,8 +1,10 @@
-import { StatusPagamento } from "@prisma/client";
+import { CanalNotificacao, StatusPagamento, TipoNotificacao } from "@prisma/client";
 
 import { ReservaResponse } from "../repositories/contracts/reserva.contract.js";
 import { INotificacaoRepository } from "../repositories/notificacao.repository.js";
+import { IPreferenciaChecker } from "../repositories/preferencia-notificacao.repository.js";
 import { IMailProvider } from "../infra/email/mail-provider.js";
+import { retryComBackoff } from "../shared/retry.js";
 import { ReservaReportService } from "./reserva-report.js";
 
 // Contrato mínimo do qual a regra de negócio da reserva depende. Mantém o
@@ -24,11 +26,29 @@ export class NotificacaoReservaService implements IReservaNotifier {
     private readonly reportService: ReservaReportService,
     private readonly mailProvider: IMailProvider,
     private readonly notificacaoRepository: INotificacaoRepository,
+    // Opcional: quando presente, respeita o opt-out do locatário. Ausente
+    // (ex.: testes antigos) mantém o comportamento de sempre enviar.
+    private readonly preferenciaChecker?: IPreferenciaChecker,
   ) {}
 
   async notificarReservaConfirmada(reserva: ReservaResponse): Promise<void> {
     // Só notifica quando o pagamento está confirmado.
     if (reserva.statusPagamento !== StatusPagamento.SUCESSO) {
+      return;
+    }
+
+    // Respeita a preferência do locatário (opt-out de e-mail de reserva).
+    if (
+      this.preferenciaChecker &&
+      !(await this.preferenciaChecker.estaHabilitada(
+        reserva.idLocatario,
+        CanalNotificacao.EMAIL,
+        TipoNotificacao.RESERVA,
+      ))
+    ) {
+      console.info(
+        `[notificacao] locatário optou por não receber e-mail de reserva — reserva ${reserva.id}`,
+      );
       return;
     }
 
@@ -54,12 +74,16 @@ export class NotificacaoReservaService implements IReservaNotifier {
       });
 
       try {
-        await this.mailProvider.send({
-          to: payload.locatario.email,
-          subject: content.subject,
-          html: content.html,
-          text: content.text,
-        });
+        // Retry com backoff: falhas transitórias de SMTP não derrubam o envio
+        // na primeira tentativa. Só marca FALHA se todas as tentativas falharem.
+        await retryComBackoff(() =>
+          this.mailProvider.send({
+            to: payload.locatario.email,
+            subject: content.subject,
+            html: content.html,
+            text: content.text,
+          }),
+        );
         await this.notificacaoRepository.marcarEnviada(registro.id, new Date());
         console.info(
           `[notificacao] relatório enviado — reserva ${reserva.id} -> ${payload.locatario.email}`,

@@ -133,7 +133,40 @@ model Conta {
   // Auditoria LGPD: acessos onde esta conta é a titular / a autora do acesso.
   acessosComoTitular AcessoDadoPessoal[] @relation("AcessoTitular")
   acessosComoAutor   AcessoDadoPessoal[] @relation("AcessoAutor")
+  // Preferências de notificação (canal x tipo, opt-in/opt-out).
+  preferenciasNotificacao PreferenciaNotificacao[]
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+// Canais de entrega de notificação. Preparado para múltiplos meios; hoje só
+// EMAIL tem provedor real — PUSH/SMS são modelagem (como MetodoPagamento).
+enum CanalNotificacao {
+  EMAIL
+  PUSH
+  SMS
+}
+
+// Tipos de notificação que o usuário pode habilitar/desabilitar.
+enum TipoNotificacao {
+  RESERVA
+  ALERTA_VEICULO
+  VEICULO_DISPONIVEL
+}
+
+// Preferência de notificação por conta: opt-in/opt-out de um (canal, tipo).
+// Ausência de linha = habilitado por padrão (opt-in). Opt-out = linha com
+// habilitado=false.
+model PreferenciaNotificacao {
+  id           String           @id @default(uuid()) @db.Uuid
+  idConta      String           @db.Uuid
+  conta        Conta            @relation(fields: [idConta], references: [id], onDelete: Cascade)
+  canal        CanalNotificacao
+  tipo         TipoNotificacao
+  habilitado   Boolean          @default(true)
+  criadoEm     DateTime         @default(now())
+  atualizadoEm DateTime         @default(now()) @updatedAt
+
+  @@unique([idConta, canal, tipo])
 }
 
 // Ações registradas na auditoria de acesso a dados pessoais (LGPD).

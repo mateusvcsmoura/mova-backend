@@ -6,3 +6,5 @@ build/
 /src/generated/prisma
 /generated/prisma
 /auditoria
+# Relatórios de cobertura (gerados)
+coverage/
