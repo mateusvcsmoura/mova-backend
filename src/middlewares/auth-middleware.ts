@@ -1,6 +1,7 @@
 import { Cargo } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { env } from "../config/env.js";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -25,7 +26,7 @@ export function authMiddleware(
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    const decoded = jwt.verify(token, env.JWT_SECRET);
 
     if (
       typeof decoded !== "object" ||

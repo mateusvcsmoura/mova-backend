@@ -13,6 +13,21 @@ const envSchema = z.object({
 
   JWT_EXPIRES_IN: z.string().min(1),
 
+  // Segurança HTTP (hardening RNF05).
+  // Origens permitidas pelo CORS, separadas por vírgula (ex.:
+  // "https://app.mova.com,https://admin.mova.com"). Quando ausente, cai no
+  // whitelist de desenvolvimento definido em app.ts. NUNCA usar "*".
+  CORS_ORIGINS: z.string().optional(),
+  // Tamanho máximo do corpo JSON aceito (protege contra payloads abusivos).
+  BODY_LIMIT: z.string().min(1).default("100kb"),
+  // Janela e limites do rate limiting. Flexíveis por ambiente sem tocar no
+  // código; o padrão é janela de 15 min.
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  // Máx. de tentativas de autenticação (login/register) por IP na janela.
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
+  // Máx. de requisições de escrita (POST/PUT/PATCH/DELETE) por IP na janela.
+  RATE_LIMIT_WRITE_MAX: z.coerce.number().int().positive().default(100),
+
   // Configuração SMTP (Nodemailer). Opcional: quando ausente, o envio de
   // e-mails fica desabilitado (útil em testes/dev) sem quebrar o boot.
   SMTP_HOST: z.string().min(1).optional(),

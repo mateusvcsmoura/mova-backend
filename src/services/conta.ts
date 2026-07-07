@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import { ILocadorRepository } from "../repositories/locador.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { PaginationParams } from "../shared/pagination.js";
+import { env } from "../config/env.js";
 
 export class ContaService {
   constructor(
@@ -16,6 +17,15 @@ export class ContaService {
     private locadorRepository: ILocadorRepository,
     private locatarioRepository: ILocatarioRepository,
   ) {}
+
+  // Gera o token JWT usando o segredo/expiração já validados em config/env.ts.
+  // Payload único (id + cargo) compartilhado por register e login, para que o
+  // authMiddleware — que exige `cargo` — aceite ambos os tokens.
+  private gerarToken(payload: { id: string; cargo: string }): string {
+    return jwt.sign(payload, env.JWT_SECRET as jwt.Secret, {
+      expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+    });
+  }
 
   findAll = async (pagination: PaginationParams) => {
     return await this.contaRepository.findAll(pagination);
@@ -73,13 +83,9 @@ export class ContaService {
       senha: senhaHash,
     });
 
-    const secret = process.env.JWT_SECRET as jwt.Secret;
-    const expiresIn =
-      (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
-
-    const token = jwt.sign({ id: conta.id }, secret, {
-      expiresIn,
-    });
+    // Mesmo payload do login (id + cargo) para que o authMiddleware aceite o
+    // token emitido no cadastro.
+    const token = this.gerarToken({ id: conta.id, cargo: conta.cargo });
 
     return { conta, token };
   }
@@ -97,13 +103,7 @@ export class ContaService {
       throw new HttpError(401, "Credenciais inválidas");
     }
 
-    const secret = process.env.JWT_SECRET as jwt.Secret;
-    const expiresIn =
-      (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h";
-
-    const token = jwt.sign({ id: conta.id, cargo: conta.cargo }, secret, {
-      expiresIn,
-    });
+    const token = this.gerarToken({ id: conta.id, cargo: conta.cargo });
 
     return { token };
   }
