@@ -23,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: test
 
-    # Variáveis vindas exclusivamente dos GitHub Secrets.
-    # env.ts valida TODAS no boot, então todas precisam estar presentes.
     env:
       SERVER_PORT: ${{ secrets.SERVER_PORT }}
       NODE_ENV: test
@@ -34,6 +32,24 @@ jobs:
       DIRECT_URL: ${{ secrets.DIRECT_URL }}
       DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
       DIRECT_URL_TEST: ${{ secrets.DIRECT_URL_TEST }}
+      LOCALIZACAO_SIMULADOR: ${{ secrets.LOCALIZACAO_SIMULADOR }}
+      LOCALIZACAO_SIMULADOR_INTERVALO_MS: ${{ secrets.LOCALIZACAO_SIMULADOR_INTERVALO_MS }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SMTP_FROM: ${{ secrets.SMTP_FROM }}
+      SEND_REAL_EMAIL: ${{ secrets.SEND_REAL_EMAIL }}
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+      BODY_LIMIT: ${{ secrets.BODY_LIMIT }}
+      RATE_LIMIT_WINDOW_MS: ${{ secrets.RATE_LIMIT_WINDOW_MS }}
+      RATE_LIMIT_AUTH_MAX: ${{ secrets.RATE_LIMIT_AUTH_MAX }}
+      RATE_LIMIT_WRITE_MAX: ${{ secrets.RATE_LIMIT_WRITE_MAX }}
+      MONITORAMENTO_VEICULOS: ${{ secrets.MONITORAMENTO_VEICULOS }}
+      MONITORAMENTO_INTERVALO_MS: ${{ secrets.MONITORAMENTO_INTERVALO_MS }}
+      MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      ASAAS_WEBHOOK_SECRET: ${{ secrets.ASAAS_WEBHOOK_SECRET }}
 
     steps:
       - name: Checkout
