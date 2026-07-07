@@ -1,5 +1,17 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
+// O scheduler agora roda o tick sob advisory lock (runExclusive). Aqui, os
+// testes de mecânica do timer usam fake timers e um service fake — o lock real
+// (que fala com o banco) não pode entrar no caminho do timer, então stubamos
+// runExclusive para apenas invocar a função. A execução única sob lock real é
+// coberta em test/concurrency/scheduler-exclusivo.test.ts.
+vi.mock("../../src/shared/advisory-lock", () => ({
+  LOCK_MONITORAMENTO: 4101,
+  LOCK_LOCALIZACAO_SIMULADOR: 4102,
+  runExclusive: (_key: number, fn: () => Promise<unknown>) =>
+    fn().then(() => true),
+}));
+
 import {
   MonitoramentoVeiculoService,
   ResultadoMonitoramento,

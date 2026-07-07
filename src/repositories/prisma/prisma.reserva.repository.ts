@@ -24,6 +24,25 @@ const RESERVA_INCLUDE = {
 } satisfies Prisma.ReservaInclude;
 
 export class PrismaReservaRepository implements IReservaRepository {
+  // Colisão clássica de intervalos para um veículo: inicio_existente < fim_novo
+  // e fim_existente > inicio_novo. Reservas canceladas não bloqueiam. Extraído
+  // para que a checagem otimista (hasOverlapForVeiculo) e a recheca sob lock
+  // (create) usem exatamente a mesma regra.
+  private overlapWhere(
+    idVeiculo: string,
+    dataHoraInicio: Date,
+    dataHoraFim: Date,
+    excludeReservaId?: string,
+  ): Prisma.ReservaWhereInput {
+    return {
+      idVeiculo,
+      ...(excludeReservaId ? { id: { not: excludeReservaId } } : {}),
+      status: { not: StatusReserva.CANCELADA },
+      dataHoraInicio: { lt: dataHoraFim },
+      dataHoraFim: { gt: dataHoraInicio },
+    };
+  }
+
   private buildWhere(filters: ReservaFilters): Prisma.ReservaWhereInput {
     return {
       ...(filters.idVeiculo ? { idVeiculo: filters.idVeiculo } : {}),
@@ -147,34 +166,57 @@ export class PrismaReservaRepository implements IReservaRepository {
   }
 
   async create(data: CreateReservaRequest): Promise<ReservaResponse> {
-    const reserva = await prisma.reserva.create({
-      data: {
-        idVeiculo: data.idVeiculo,
-        idLocatario: data.idLocatario,
-        idGaragemRetirada: data.idGaragemRetirada ?? undefined,
-        idGaragemDevolucao: data.idGaragemDevolucao ?? undefined,
-        dataHoraInicio: data.dataHoraInicio,
-        dataHoraFim: data.dataHoraFim,
-        valorTotal: data.valorTotal,
-        status: data.status ?? undefined,
-        statusPagamento: data.statusPagamento ?? undefined,
-        metodoPagamento: data.metodoPagamento ?? undefined,
-        // Cria as associações de serviços opcionais na mesma operação,
-        // gravando o valor contratado como snapshot.
-        ...(data.servicos && data.servicos.length > 0
-          ? {
-              servicos: {
-                create: data.servicos.map((s) => ({
-                  idServico: s.idServico,
-                  valor: s.valor,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: RESERVA_INCLUDE,
+    // Transação + advisory lock por veículo elimina a race de double-booking:
+    // a checagem otimista no service roda antes das validações, mas duas
+    // requisições concorrentes para o mesmo veículo/período poderiam ambas
+    // passar e inserir. Aqui serializamos por veículo (lock liberado no fim da
+    // transação) e recheсamos o overlap antes do insert — a última palavra.
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${data.idVeiculo}, 0))`;
+
+      const conflitos = await tx.reserva.count({
+        where: this.overlapWhere(
+          data.idVeiculo,
+          data.dataHoraInicio,
+          data.dataHoraFim,
+        ),
+      });
+      if (conflitos > 0) {
+        throw new HttpError(
+          409,
+          "O veículo já possui uma reserva nesse período.",
+        );
+      }
+
+      const reserva = await tx.reserva.create({
+        data: {
+          idVeiculo: data.idVeiculo,
+          idLocatario: data.idLocatario,
+          idGaragemRetirada: data.idGaragemRetirada ?? undefined,
+          idGaragemDevolucao: data.idGaragemDevolucao ?? undefined,
+          dataHoraInicio: data.dataHoraInicio,
+          dataHoraFim: data.dataHoraFim,
+          valorTotal: data.valorTotal,
+          status: data.status ?? undefined,
+          statusPagamento: data.statusPagamento ?? undefined,
+          metodoPagamento: data.metodoPagamento ?? undefined,
+          // Cria as associações de serviços opcionais na mesma operação,
+          // gravando o valor contratado como snapshot.
+          ...(data.servicos && data.servicos.length > 0
+            ? {
+                servicos: {
+                  create: data.servicos.map((s) => ({
+                    idServico: s.idServico,
+                    valor: s.valor,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: RESERVA_INCLUDE,
+      });
+      return ReservaMapper.toResponse(reserva);
     });
-    return ReservaMapper.toResponse(reserva);
   }
 
   async update(
@@ -254,15 +296,12 @@ export class PrismaReservaRepository implements IReservaRepository {
     excludeReservaId?: string,
   ): Promise<boolean> {
     const count = await prisma.reserva.count({
-      where: {
+      where: this.overlapWhere(
         idVeiculo,
-        ...(excludeReservaId ? { id: { not: excludeReservaId } } : {}),
-        // reservas canceladas não bloqueiam o período
-        status: { not: StatusReserva.CANCELADA },
-        // colisão clássica de intervalos: inicio_existente < fim_novo e fim_existente > inicio_novo
-        dataHoraInicio: { lt: dataHoraFim },
-        dataHoraFim: { gt: dataHoraInicio },
-      },
+        dataHoraInicio,
+        dataHoraFim,
+        excludeReservaId,
+      ),
     });
     return count > 0;
   }

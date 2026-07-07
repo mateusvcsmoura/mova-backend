@@ -1,4 +1,8 @@
 import { MonitoramentoVeiculoService } from "./monitoramento-veiculo.js";
+import {
+  LOCK_MONITORAMENTO,
+  runExclusive,
+} from "../shared/advisory-lock.js";
 
 export interface MonitoramentoSchedulerConfig {
   // Período entre execuções da rotina (ms). Alterável via env
@@ -35,8 +39,13 @@ export class MonitoramentoScheduler {
 
   // Executa uma rodada. Público para ser testável e acionável sem timer
   // (endpoint administrativo usa o service diretamente).
-  async tick(): Promise<void> {
-    await this.monitoramentoService.executar();
+  //
+  // Sob advisory lock: com múltiplas instâncias, só uma roda o tick por vez —
+  // as demais pulam (evita alertas/e-mails duplicados). Retorna se executou.
+  async tick(): Promise<boolean> {
+    return runExclusive(LOCK_MONITORAMENTO, async () => {
+      await this.monitoramentoService.executar();
+    });
   }
 
   // Inicia o loop periódico. `unref` evita que o timer segure o processo vivo.

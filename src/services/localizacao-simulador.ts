@@ -4,6 +4,10 @@ import { ILocalizacaoRepository } from "../repositories/localizacao.repository.j
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import { VeiculoResponse } from "../repositories/contracts/veiculo.contract.js";
 import { LocalizacaoService } from "./localizacao.js";
+import {
+  LOCK_LOCALIZACAO_SIMULADOR,
+  runExclusive,
+} from "../shared/advisory-lock.js";
 
 // Status de veículos que o simulador mantém em movimento.
 const STATUS_ATIVOS: StatusVeiculo[] = [
@@ -94,7 +98,18 @@ export class LocalizacaoSimulador {
     return todos;
   }
 
+  // Sob advisory lock: com múltiplas instâncias, só uma roda o tick por vez —
+  // as demais pulam (evita posições duplicadas). Retorna quantos veículos foram
+  // atualizados, ou 0 se o tick foi pulado por outra instância estar rodando.
   async tick(): Promise<number> {
+    let atualizados = 0;
+    await runExclusive(LOCK_LOCALIZACAO_SIMULADOR, async () => {
+      atualizados = await this.executarRodada();
+    });
+    return atualizados;
+  }
+
+  private async executarRodada(): Promise<number> {
     const veiculos = await this.listarTodosVeiculos();
     const ativos = veiculos.filter((v) => STATUS_ATIVOS.includes(v.status));
 
