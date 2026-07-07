@@ -1,16 +1,14 @@
 import { defineConfig } from "vitest/config";
-import { allureVitest } from "allure-vitest";
 
 export default defineConfig({
-  plugins: [allureVitest()],
   test: {
     globals: true,
     environment: "node",
-    setupFiles: "./test/setup.ts",
+    setupFiles: ["allure-vitest/setup", "./test/setup.ts"],
     reporters: [
       "default",
       "junit",
-      "allure-vitest"
+      ["allure-vitest/reporter", { resultsDir: "allure-results" }],
     ],
     exclude: ["dist/**", "node_modules"],
     fileParallelism: false,
