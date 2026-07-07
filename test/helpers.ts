@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import request from "supertest";
 import { app } from "../src/app";
 import { prisma } from "../src/database/prisma";
+import { env } from "../src/config/env";
 
 type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
 
@@ -303,6 +305,51 @@ export async function createReserva(
     .send(payload);
 
   return res.body.result;
+}
+
+// Confirma o pagamento de uma reserva via webhook ASSINADO do gateway — o
+// único caminho que altera statusPagamento agora (o cliente não pode mais setar
+// via PUT). Assina o corpo cru com o mesmo HMAC-SHA256 que o gateway valida.
+const WEBHOOK_HEADER: Record<string, string> = {
+  mercadopago: "x-mp-signature",
+  stripe: "stripe-signature",
+  asaas: "asaas-signature",
+};
+const WEBHOOK_SECRET: Record<string, string | undefined> = {
+  mercadopago: env.MERCADOPAGO_WEBHOOK_SECRET,
+  stripe: env.STRIPE_WEBHOOK_SECRET,
+  asaas: env.ASAAS_WEBHOOK_SECRET,
+};
+
+export function assinarWebhook(provider: string, corpo: string): string {
+  return crypto
+    .createHmac("sha256", WEBHOOK_SECRET[provider] ?? "")
+    .update(corpo)
+    .digest("hex");
+}
+
+export async function confirmarPagamentoWebhook(
+  idReserva: string,
+  opts: {
+    provider?: string;
+    evento?: string;
+    metodo?: string;
+    assinatura?: string; // permite forçar assinatura inválida nos testes
+  } = {},
+) {
+  const provider = opts.provider ?? "stripe";
+  const corpo = JSON.stringify({
+    idReserva,
+    evento: opts.evento ?? "pagamento.sucesso",
+    ...(opts.metodo ? { metodo: opts.metodo } : {}),
+  });
+  const assinatura = opts.assinatura ?? assinarWebhook(provider, corpo);
+
+  return request(app)
+    .post(`/api/webhooks/pagamento/${provider}`)
+    .set(WEBHOOK_HEADER[provider] ?? "x-signature", assinatura)
+    .set("Content-Type", "application/json")
+    .send(corpo);
 }
 
 // Cria um bloqueio de locatário via endpoint administrativo. Exige token ADMIN.

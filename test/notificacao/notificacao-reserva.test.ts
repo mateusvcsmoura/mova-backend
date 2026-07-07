@@ -299,7 +299,7 @@ describe("NotificacaoReservaService", () => {
 // Regressão: a reserva continua funcionando quando o e-mail falha
 // ---------------------------------------------------------------------------
 
-describe("ReservaService.update — regressão de e-mail", () => {
+describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
   function buildReservaService(notifier: NotificacaoReservaService) {
     const base = makeReserva({
       status: "AGUARDANDO_PAGAMENTO",
@@ -346,11 +346,10 @@ describe("ReservaService.update — regressão de e-mail", () => {
 
     const { service, confirmada } = buildReservaService(notifier);
 
-    const result = await service.update(
-      confirmada.id,
-      { statusPagamento: "SUCESSO" },
-      { id: "admin-1", cargo: "ADMIN" as any },
-    );
+    // statusPagamento só muda pelo fluxo interno do gateway (webhook assinado).
+    const result = await service.confirmarPagamento(confirmada.id, {
+      status: "SUCESSO" as any,
+    });
 
     // Reserva confirmada normalmente, com código gerado.
     expect(result.statusPagamento).toBe("SUCESSO");

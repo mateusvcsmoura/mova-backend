@@ -22,6 +22,7 @@ import { avaliacaoRouter } from "./routes/avaliacao/avaliacao.js";
 import { favoritoRouter } from "./routes/favorito/favorito.js";
 import { interesseRouter } from "./routes/interesse/interesse.js";
 import { dashboardRouter } from "./routes/dashboard/dashboard.js";
+import { webhookRouter } from "./routes/webhook/webhook.js";
 
 const app = express();
 
@@ -55,6 +56,11 @@ app.use(
   }),
 );
 app.use(cors(corsOptions));
+
+// Webhooks de pagamento ANTES do express.json: precisam do corpo cru (bytes
+// exatos) para validar a assinatura HMAC. O próprio router aplica express.raw.
+app.use("/api/webhooks", webhookRouter);
+
 app.use(express.json({ limit: env.BODY_LIMIT }));
 
 // Health/readiness antes do apiMetadata: respostas enxutas (status/uptime/...)

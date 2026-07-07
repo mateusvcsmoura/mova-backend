@@ -11,6 +11,7 @@ import {
   createReserva,
   createServico,
   createVeiculo,
+  confirmarPagamentoWebhook,
   futurePeriod,
   type LocadorContext,
   type LocatarioContext,
@@ -248,11 +249,21 @@ describe("Reserva API", () => {
       const response = await request(app)
         .put(`/api/reserva/${reservaId}`)
         .set("Authorization", `Bearer ${locatario.token}`)
-        .send({ status: "CONFIRMADA", statusPagamento: "SUCESSO" });
+        .send({ status: "CONFIRMADA" });
 
       expect(response.status).toBe(200);
       expect(response.body.result.status).toBe("CONFIRMADA");
-      expect(response.body.result.statusPagamento).toBe("SUCESSO");
+    });
+
+    it("ignora statusPagamento enviado pelo cliente (só muda via webhook)", async () => {
+      const response = await request(app)
+        .put(`/api/reserva/${reservaId}`)
+        .set("Authorization", `Bearer ${locatario.token}`)
+        .send({ status: "CONFIRMADA", statusPagamento: "SUCESSO" });
+
+      expect(response.status).toBe(200);
+      // Campo é retirado do schema: o pagamento permanece aguardando.
+      expect(response.body.result.statusPagamento).toBe("AGUARDANDO_PAGAMENTO");
     });
 
     it("deve recusar atualização sem nenhum campo", async () => {
@@ -318,10 +329,12 @@ describe("Reserva — código de desbloqueio", () => {
   });
 
   it("deve gerar código no formato XXXX-XXXX ao confirmar pagamento", async () => {
+    const webhook = await confirmarPagamentoWebhook(reservaId);
+    expect(webhook.status).toBe(200);
+
     const response = await request(app)
-      .put(`/api/reserva/${reservaId}`)
-      .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ statusPagamento: "SUCESSO" });
+      .get(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.result.statusPagamento).toBe("SUCESSO");
@@ -333,10 +346,12 @@ describe("Reserva — código de desbloqueio", () => {
   });
 
   it("não deve regerar o código se o pagamento já estava confirmado", async () => {
+    const webhook = await confirmarPagamentoWebhook(reservaId);
+    expect(webhook.status).toBe(200);
+
     const response = await request(app)
-      .put(`/api/reserva/${reservaId}`)
-      .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ statusPagamento: "SUCESSO" });
+      .get(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.result.codigoDesbloqueio).toBe(codigo);
@@ -397,10 +412,7 @@ describe("Reserva — código de desbloqueio", () => {
       futurePeriod(80, 2),
     );
 
-    await request(app)
-      .put(`/api/reserva/${reserva.id}`)
-      .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ statusPagamento: "SUCESSO" });
+    await confirmarPagamentoWebhook(reserva.id);
 
     const detalhe = await prisma.reserva.findUnique({
       where: { id: reserva.id },

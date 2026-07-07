@@ -28,7 +28,10 @@ export const createReservaSchema = z
     servicosIds: z.array(z.string().uuid()).optional(),
 
     status: z.nativeEnum(StatusReserva).optional(),
-    statusPagamento: z.nativeEnum(StatusPagamento).optional(),
+    // statusPagamento NÃO é aceito do cliente: o resultado do pagamento só
+    // muda pelo webhook assinado do gateway (POST /api/webhooks/pagamento/*).
+    // metodoPagamento é uma escolha do cliente (meio pretendido), não o
+    // resultado, então permanece aceito.
     metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => data.dataHoraFim > data.dataHoraInicio, {
@@ -43,7 +46,8 @@ export const updateReservaSchema = z
     dataHoraFim: z.coerce.date().optional(),
     valorTotal: z.number().positive().optional(),
     status: z.nativeEnum(StatusReserva).optional(),
-    statusPagamento: z.nativeEnum(StatusPagamento).optional(),
+    // statusPagamento removido do fluxo do cliente (só muda via webhook do
+    // gateway). Ver createReservaSchema.
     metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {

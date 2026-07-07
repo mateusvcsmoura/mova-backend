@@ -76,6 +76,9 @@ import { NotificacaoAlertaVeiculoService } from "../services/notificacao-alerta-
 import { MonitoramentoVeiculoService } from "../services/monitoramento-veiculo.js";
 import { MonitoramentoScheduler } from "../services/monitoramento-scheduler.js";
 import { MonitoramentoController } from "../controllers/monitoramento.js";
+import { construirGatewaysPagamento } from "../infra/payment/gateway.js";
+import { PagamentoWebhookService } from "../services/pagamento-webhook.js";
+import { PagamentoWebhookController } from "../controllers/pagamento-webhook.js";
 import { env } from "../config/env.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
@@ -165,6 +168,12 @@ export const reservaRepository: IReservaRepository = new PrismaReservaRepository
 export const condutorRepository: ICondutorRepository = new PrismaCondutorRepository();
 export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, notificacaoReservaService);
 export const reservaController = new ReservaController(reservaService);
+
+// Webhook de pagamento: registro de gateways (Mercado Pago/Stripe/Asaas) +
+// service que valida assinatura e delega a confirmação ao domínio.
+export const gatewaysPagamento = construirGatewaysPagamento();
+export const pagamentoWebhookService = new PagamentoWebhookService(gatewaysPagamento, reservaService);
+export const pagamentoWebhookController = new PagamentoWebhookController(pagamentoWebhookService);
 
 export const avaliacaoRepository: IAvaliacaoRepository = new PrismaAvaliacaoRepository();
 export const avaliacaoService = new AvaliacaoService(avaliacaoRepository, reservaRepository, veiculoRepository);

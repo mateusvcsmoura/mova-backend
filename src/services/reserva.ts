@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import {
   Cargo,
+  MetodoPagamento,
   StatusGaragem,
   StatusPagamento,
   StatusReserva,
@@ -505,25 +506,44 @@ export class ReservaService {
       );
     }
 
-    const atualizada = await this.reservaRepository.update(id, data);
+    // statusPagamento não vem mais do cliente (removido do schema): o resultado
+    // do pagamento só muda por confirmarPagamento, acionado pelo webhook
+    // assinado do gateway. O PUT trata apenas datas/status/devolução.
+    return this.reservaRepository.update(id, data);
+  };
 
-    // Pagamento confirmado agora e ainda sem código -> gera o código de desbloqueio.
+  // Fluxo INTERNO do gateway de pagamento. Só o webhook (após validar a
+  // assinatura) chega aqui — por isso não passa pela autorização de requester:
+  // a confiança vem da assinatura, não de um JWT de usuário. Centraliza a
+  // mudança de status de pagamento e a geração do código de desbloqueio.
+  confirmarPagamento = async (
+    idReserva: string,
+    evento: { status: StatusPagamento; metodo?: MetodoPagamento },
+  ): Promise<ReservaResponse> => {
+    const reserva = await this.reservaRepository.findById(idReserva);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+
+    const atualizada = await this.reservaRepository.update(idReserva, {
+      statusPagamento: evento.status,
+      ...(evento.metodo ? { metodoPagamento: evento.metodo } : {}),
+    });
+
+    // Pagamento confirmado agora e ainda sem código -> gera o código de
+    // desbloqueio e envia o relatório por e-mail (best-effort: o notifier nunca
+    // lança). Idempotente: reserva já confirmada mantém o mesmo código.
     if (
-      data.statusPagamento === StatusPagamento.SUCESSO &&
+      evento.status === StatusPagamento.SUCESSO &&
       !reserva.codigoDesbloqueio
     ) {
       const codigo = await this.gerarCodigoUnico();
       const confirmada = await this.reservaRepository.gerarCodigoDesbloqueio(
-        id,
+        idReserva,
         codigo,
         new Date(),
       );
-
-      // Pagamento confirmado agora -> envia o relatório por e-mail. O envio é
-      // best-effort (o notifier nunca lança): se o SMTP falhar, a reserva já
-      // confirmada não é afetada.
       await this.reservaNotifier?.notificarReservaConfirmada(confirmada);
-
       return confirmada;
     }
 

@@ -35,6 +35,13 @@ const envSchema = z.object({
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASS: z.string().min(1).optional(),
   SMTP_FROM: z.string().min(1).optional(),
+
+  // Segredos de assinatura dos webhooks de pagamento. Um por gateway. Quando
+  // ausente, o gateway correspondente rejeita todo webhook (não há como validar
+  // a assinatura). NUNCA versionar valores reais — só o .env.example documenta.
+  MERCADOPAGO_WEBHOOK_SECRET: z.string().min(1).optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  ASAAS_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
