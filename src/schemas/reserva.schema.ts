@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { MetodoPagamento, StatusPagamento, StatusReserva } from "@prisma/client";
 
-export const reservaStatusSchema = z.nativeEnum(StatusReserva);
-export const statusPagamentoSchema = z.nativeEnum(StatusPagamento);
-export const metodoPagamentoSchema = z.nativeEnum(MetodoPagamento);
-
 export const createReservaSchema = z
   .object({
     idVeiculo: z.string().uuid(),
