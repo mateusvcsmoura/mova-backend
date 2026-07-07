@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
+import { allureVitest } from "allure-vitest";
 
 export default defineConfig({
+  plugins: [allureVitest()],
   test: {
     globals: true,
     environment: "node",
@@ -15,7 +17,7 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.d.ts", "src/server.ts", "src/routes/container.ts"],
     },
-    reporters: ["default", "junit"],
+    reporters: ["default", "junit", "allure-vitest"],
     outputFile: {
       junit: "./reports/vitest.xml",
     }

@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # A cada 12 horas (00:00 e 12:00 UTC)
     - cron: "0 */12 * * *"
 
 # Cancela execuções antigas do mesmo ref quando uma nova é disparada.
@@ -70,23 +69,65 @@ jobs:
 
       - name: Run tests
         run: npm run test
-
-      - name: List report files
-        if: always()
-        run: ls -R reports || true
-        
-      - name: Upload test results
+      
+      - name: Upload JUnit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vitest-report
+          name: junit-report
           path: reports/vitest.xml
           if-no-files-found: warn
 
-      - name: Publish Test Report
-        uses: dorny/test-reporter@v3
+      - name: Upload Allure Results
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+          if-no-files-found: warn
+
+      - name: Publish Test Report
+        if: always()
+        uses: dorny/test-reporter@v3
         with:
           name: Vitest Tests
           path: reports/vitest.xml
           reporter: java-junit
+  allure:
+    name: Generate Allure Report
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Allure Results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Generate Allure Report
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+
+      - name: Upload Allure HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html
+          path: allure-report
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: allure-report
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
