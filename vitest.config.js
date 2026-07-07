@@ -7,6 +7,11 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: "./test/setup.ts",
+    reporters: [
+      "default",
+      "junit",
+      "allure-vitest"
+    ],
     exclude: ["dist/**", "node_modules"],
     fileParallelism: false,
     testTimeout: 20_000,
@@ -17,7 +22,6 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.d.ts", "src/server.ts", "src/routes/container.ts"],
     },
-    reporters: ["default", "junit", "allure-vitest"],
     outputFile: {
       junit: "./reports/vitest.xml",
     }

@@ -69,6 +69,12 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Debug generated files
+        if: always()
+        run: |
+          pwd
+          find . -type f | sort
       
       - name: Upload JUnit
         if: always()
