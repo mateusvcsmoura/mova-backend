@@ -2,6 +2,7 @@ import { Cargo } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import { ErrorCode } from "../i18n/index.js";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -22,7 +23,9 @@ export function authMiddleware(
   const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
-    return res.status(401).json({ error: "Não autenticado" });
+    return res
+      .status(401)
+      .json({ error: "Não autenticado", code: ErrorCode.UNAUTHENTICATED });
   }
 
   try {
@@ -36,7 +39,9 @@ export function authMiddleware(
       typeof (decoded as any).id !== "string" ||
       !isCargo((decoded as any).cargo)
     ) {
-      return res.status(401).json({ error: "Token inválido" });
+      return res
+        .status(401)
+        .json({ error: "Token inválido", code: ErrorCode.INVALID_TOKEN });
     }
 
     req.user = {

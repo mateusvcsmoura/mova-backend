@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { env } from "./config/env.js";
 import { writeMethodsLimiter } from "./middlewares/rate-limit.js";
 import { observability } from "./middlewares/observability.js";
+import { localeMiddleware } from "./middlewares/locale.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { healthRouter } from "./routes/health/health.js";
 import { basicRouter } from "./routes/basic/basic.js";
@@ -48,6 +49,10 @@ const corsOptions: CorsOptions = {
 // Observabilidade primeiro: garante request id + timing para toda requisição,
 // inclusive as bloqueadas por middlewares seguintes.
 app.use(observability);
+
+// i18n: resolve o idioma (Accept-Language) cedo, para error-handler e demais
+// fluxos disporem de req.locale.
+app.use(localeMiddleware);
 
 // Helmet: headers de segurança. crossOriginResourcePolicy relaxado para
 // "cross-origin" — a API é consumida por clientes de outra origem (mobile/web).

@@ -48,7 +48,10 @@ describe("errorHandler", () => {
     errorHandler(new Error(segredo), {} as any, res, noop);
 
     expect(res.statusCode).toBe(500);
-    expect(res.body).toEqual({ message: "Internal Server Error" });
+    expect(res.body).toEqual({
+      code: "INTERNAL_ERROR",
+      message: "Internal Server Error",
+    });
     expect(JSON.stringify(res.body)).not.toContain(segredo);
     // Detalhes devem ir apenas para o log interno.
     expect(spy).toHaveBeenCalled();
@@ -62,7 +65,10 @@ describe("errorHandler", () => {
     errorHandler("boom" as any, {} as any, res, noop);
 
     expect(res.statusCode).toBe(500);
-    expect(res.body).toEqual({ message: "Internal Server Error" });
+    expect(res.body).toEqual({
+      code: "INTERNAL_ERROR",
+      message: "Internal Server Error",
+    });
     spy.mockRestore();
   });
 });

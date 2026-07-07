@@ -9,6 +9,7 @@ import {
   ReservaReportPayload,
 } from "./contracts/reserva-report.js";
 import { renderReservaReport } from "../templates/reserva-report.template.js";
+import { Locale, LOCALE_PADRAO } from "../i18n/index.js";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -102,12 +103,16 @@ export class ReservaReportService {
     };
   }
 
-  // Monta o payload e já devolve o conteúdo pronto (assunto/HTML/texto).
-  async buildReport(reserva: ReservaResponse): Promise<{
+  // Monta o payload e já devolve o conteúdo pronto (assunto/HTML/texto) no
+  // idioma pedido (padrão pt). O idioma afeta só o texto ao usuário, não os dados.
+  async buildReport(
+    reserva: ReservaResponse,
+    locale: Locale = LOCALE_PADRAO,
+  ): Promise<{
     payload: ReservaReportPayload;
     content: ReservaReportContent;
   }> {
     const payload = await this.buildPayload(reserva);
-    return { payload, content: renderReservaReport(payload) };
+    return { payload, content: renderReservaReport(payload, locale) };
   }
 }
