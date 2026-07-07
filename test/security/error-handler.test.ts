@@ -33,8 +33,7 @@ describe("errorHandler", () => {
   it("retorna 400 com issues para ZodError", () => {
     const res = mockRes();
     const zodErr = z.string().safeParse(123);
-    // @ts-expect-error acesso ao erro do safeParse
-    errorHandler(zodErr.error, {} as any, res, noop);
+    errorHandler(zodErr.error as any, {} as any, res, noop);
 
     expect(res.statusCode).toBe(400);
     expect(res.body.message).toBe("Invalid Data Format");
