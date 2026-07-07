@@ -1,5 +1,8 @@
 import express from "express";
-import cors from "cors";
+import cors, { CorsOptions } from "cors";
+import helmet from "helmet";
+import { env } from "./config/env.js";
+import { writeMethodsLimiter } from "./middlewares/rate-limit.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { basicRouter } from "./routes/basic/basic.js";
 import { contaRouter } from "./routes/conta/conta.js";
@@ -20,10 +23,39 @@ import { dashboardRouter } from "./routes/dashboard/dashboard.js";
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// Origens permitidas: da env (CORS_ORIGINS, separadas por vírgula) ou, na
+// ausência, um whitelist de desenvolvimento. NUNCA "*".
+const DEV_ORIGINS = ["http://localhost:3000", "http://localhost:5173"];
+const allowedOrigins = env.CORS_ORIGINS
+  ? env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : DEV_ORIGINS;
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Sem header Origin (apps móveis, curl, server-to-server): permitido.
+    if (!origin) return callback(null, true);
+    // Origem na whitelist: libera; caso contrário, não envia os headers CORS
+    // (o navegador bloqueia). Não lança erro para não virar 500.
+    return callback(null, allowedOrigins.includes(origin));
+  },
+  credentials: true,
+};
+
+// Helmet: headers de segurança. crossOriginResourcePolicy relaxado para
+// "cross-origin" — a API é consumida por clientes de outra origem (mobile/web).
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: env.BODY_LIMIT }));
 
 app.use(apiMetadata("v1.0.0"));
+
+// Rate limiting das rotas de escrita (POST/PUT/PATCH/DELETE). Autenticação tem
+// limitador próprio, mais estrito, aplicado na rota de conta.
+app.use(writeMethodsLimiter);
 
 app.use("/api/basic", basicRouter);
 app.use("/api/admin", adminRouter);
