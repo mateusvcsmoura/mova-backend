@@ -72,12 +72,18 @@ export class ReservaReportService {
         valorServicos,
         valorTotal: reserva.valorTotal,
         codigoDesbloqueio: reserva.codigoDesbloqueio,
+        metodoPagamento: reserva.metodoPagamento,
       },
       veiculo: {
         marca: veiculo.modeloVeiculo.marca,
         modelo: veiculo.modeloVeiculo.modelo,
         ano: veiculo.modeloVeiculo.ano,
         placa: veiculo.placa,
+        categoria: veiculo.modeloVeiculo.categoria,
+        cambio: veiculo.modeloVeiculo.cambio,
+        capacidade: veiculo.modeloVeiculo.capacidade,
+        eletrico: veiculo.modeloVeiculo.eletrico,
+        adaptado: veiculo.modeloVeiculo.adaptado,
       },
       locador: {
         empresa: locador?.empresa ?? "Não informado",

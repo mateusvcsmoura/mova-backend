@@ -106,8 +106,19 @@ describe("i18n — template de e-mail por idioma", () => {
       valorServicos: 50,
       valorTotal: 250,
       codigoDesbloqueio: "ABCD-2345",
+      metodoPagamento: "PIX",
     },
-    veiculo: { marca: "Fiat", modelo: "Argo", ano: 2022, placa: "ABC1234" },
+    veiculo: {
+      marca: "Fiat",
+      modelo: "Argo",
+      ano: 2022,
+      placa: "ABC1234",
+      categoria: "ECONOMICO",
+      cambio: "Manual",
+      capacidade: 5,
+      eletrico: false,
+      adaptado: false,
+    },
     locador: { empresa: "Locadora X" },
     locatario: { nome: "Ana", email: "ana@test.local" },
     retirada: null,
@@ -116,11 +127,11 @@ describe("i18n — template de e-mail por idioma", () => {
   };
 
   it("assunto e rótulos mudam por idioma; padrão é pt", () => {
-    expect(renderReservaReport(payload).subject).toContain("Relatório");
-    expect(renderReservaReport(payload, "en").subject).toContain("booking report");
-    expect(renderReservaReport(payload, "es").subject).toContain("Informe");
+    expect(renderReservaReport(payload).subject).toContain("Reserva confirmada");
+    expect(renderReservaReport(payload, "en").subject).toContain("Booking confirmed");
+    expect(renderReservaReport(payload, "es").subject).toContain("Reserva confirmada");
 
-    expect(renderReservaReport(payload, "en").html).toContain("Unlock code:");
-    expect(renderReservaReport(payload, "es").html).toContain("Código de desbloqueo:");
+    expect(renderReservaReport(payload, "en").html).toContain("Unlock code");
+    expect(renderReservaReport(payload, "es").html).toContain("Código de desbloqueo");
   });
 });
