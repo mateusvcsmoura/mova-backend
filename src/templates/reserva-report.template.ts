@@ -1,3 +1,5 @@
+import { CategoriaVeiculo, MetodoPagamento } from "@prisma/client";
+
 import {
   ReservaReportContent,
   ReservaReportPayload,
@@ -10,120 +12,172 @@ import { Locale, LOCALE_PADRAO } from "../i18n/index.js";
 // PDF no futuro, basta um novo módulo que consuma o mesmo payload.
 //
 // i18n: só o texto voltado ao usuário é traduzido (pt/en/es). Os DADOS (marca,
-// status, nomes) não são traduzidos — regra de negócio permanece.
+// status, nomes, categoria) não são traduzidos — regra de negócio permanece.
+//
+// HTML de e-mail: layout 100% baseado em tabelas + CSS inline, largura fixa de
+// 600px, sem flexbox/grid/JS/webfonts/CDN. Assim renderiza de forma consistente
+// em Gmail (web/mobile), Outlook (Word engine) e Apple Mail; quando um cliente
+// ignora uma propriedade CSS, o conteúdo continua legível na ordem natural.
 
-// Rótulos por idioma. Moeda fica em BRL (negócio); locale afeta a formatação.
 interface Strings {
   subject: (id: string) => string;
-  titulo: string;
+  headerSubtitulo: string;
+  tituloConfirmada: string;
   saudacao: (nome: string) => string;
-  hDados: string;
-  hVeiculo: string;
-  hLocador: string;
-  hLocatario: string;
-  hRetiradaDevolucao: string;
-  hServicos: string;
-  lReserva: string;
-  lCriadaEm: string;
-  lStatus: string;
-  lPeriodo: string;
-  lDias: string;
-  lValorBase: string;
-  lServicos: string;
-  lValorTotal: string;
-  codigo: string;
-  semServicos: string;
-  naoInformado: string;
+  reservaLabel: string;
+  hResumoViagem: string;
   retirada: string;
   devolucao: string;
-  placa: string;
-  rodape: string;
+  diasReserva: (dias: number) => string;
+  hVeiculo: string;
+  lPlaca: string;
+  lCambio: string;
+  lLugares: string;
+  lCategoria: string;
+  badgeEletrico: string;
+  badgeAdaptado: string;
+  hLocais: string;
+  hCodigo: string;
+  codigoExplicacao: string;
+  codigoIndisponivel: string;
+  hServicos: string;
+  semServicos: string;
+  hFinanceiro: string;
+  lReservaValor: string;
+  lServicosValor: string;
+  lTotal: string;
+  lMetodo: string;
+  hLocador: string;
+  hDetalhes: string;
+  lId: string;
+  lCriadaEm: string;
+  lStatus: string;
+  naoInformado: string;
+  rodapeLinha1: string;
+  rodapeLinha2: string;
+  // Texto puro
   textoTitulo: string;
 }
 
 const STRINGS: Record<Locale, Strings> = {
   pt: {
-    subject: (id) => `Relatório da sua reserva #${id}`,
-    titulo: "Reserva confirmada 🎉",
-    saudacao: (nome) => `Olá, ${nome}! Aqui está o relatório da sua reserva.`,
-    hDados: "Dados da reserva",
-    hVeiculo: "Veículo",
-    hLocador: "Locador",
-    hLocatario: "Locatário",
-    hRetiradaDevolucao: "Retirada e devolução",
+    subject: (id) => `Reserva confirmada • Mova #${id}`,
+    headerSubtitulo: "Mobilidade que acompanha você",
+    tituloConfirmada: "Reserva confirmada",
+    saudacao: (nome) => `Olá, ${nome}. Sua reserva foi confirmada com sucesso.`,
+    reservaLabel: "Reserva",
+    hResumoViagem: "Resumo da viagem",
+    retirada: "Retirada",
+    devolucao: "Devolução",
+    diasReserva: (dias) =>
+      `${dias} ${dias === 1 ? "dia" : "dias"} de reserva`,
+    hVeiculo: "Seu veículo",
+    lPlaca: "Placa",
+    lCambio: "Câmbio",
+    lLugares: "Lugares",
+    lCategoria: "Categoria",
+    badgeEletrico: "Elétrico",
+    badgeAdaptado: "Adaptado",
+    hLocais: "Onde retirar e devolver",
+    hCodigo: "Código de desbloqueio",
+    codigoExplicacao:
+      "Use este código para desbloquear o veículo. Ele fica disponível a partir do horário de retirada da reserva.",
+    codigoIndisponivel:
+      "O código de desbloqueio será disponibilizado em breve.",
     hServicos: "Serviços adicionais",
-    lReserva: "Reserva",
+    semServicos: "Nenhum serviço adicional foi contratado nesta reserva.",
+    hFinanceiro: "Resumo do pagamento",
+    lReservaValor: "Reserva",
+    lServicosValor: "Serviços adicionais",
+    lTotal: "Total",
+    lMetodo: "Forma de pagamento",
+    hLocador: "Responsável pelo veículo",
+    hDetalhes: "Detalhes da reserva",
+    lId: "Identificador",
     lCriadaEm: "Criada em",
     lStatus: "Status",
-    lPeriodo: "Período",
-    lDias: "Dias",
-    lValorBase: "Valor base",
-    lServicos: "Serviços adicionais",
-    lValorTotal: "Valor total",
-    codigo: "Código de desbloqueio:",
-    semServicos: "Nenhum serviço adicional contratado.",
     naoInformado: "Não informado",
-    retirada: "Retirada:",
-    devolucao: "Devolução:",
-    placa: "placa",
-    rodape:
-      "Este é um e-mail automático da Mova. Em caso de dúvidas, responda a esta mensagem.",
+    rodapeLinha1: "Este é um e-mail automático relacionado à sua reserva.",
+    rodapeLinha2:
+      "Guarde este e-mail para consultar os detalhes da sua viagem.",
     textoTitulo: "RESERVA CONFIRMADA",
   },
   en: {
-    subject: (id) => `Your booking report #${id}`,
-    titulo: "Booking confirmed 🎉",
-    saudacao: (nome) => `Hi, ${nome}! Here is your booking report.`,
-    hDados: "Booking details",
-    hVeiculo: "Vehicle",
-    hLocador: "Lessor",
-    hLocatario: "Renter",
-    hRetiradaDevolucao: "Pickup and return",
+    subject: (id) => `Booking confirmed • Mova #${id}`,
+    headerSubtitulo: "Mobility that moves with you",
+    tituloConfirmada: "Booking confirmed",
+    saudacao: (nome) => `Hi, ${nome}. Your booking has been confirmed.`,
+    reservaLabel: "Booking",
+    hResumoViagem: "Trip summary",
+    retirada: "Pickup",
+    devolucao: "Return",
+    diasReserva: (dias) => `${dias} ${dias === 1 ? "day" : "days"} booked`,
+    hVeiculo: "Your vehicle",
+    lPlaca: "Plate",
+    lCambio: "Transmission",
+    lLugares: "Seats",
+    lCategoria: "Category",
+    badgeEletrico: "Electric",
+    badgeAdaptado: "Accessible",
+    hLocais: "Where to pick up and return",
+    hCodigo: "Unlock code",
+    codigoExplicacao:
+      "Use this code to unlock the vehicle. It becomes available from the booking pickup time.",
+    codigoIndisponivel: "Your unlock code will be available soon.",
     hServicos: "Add-on services",
-    lReserva: "Booking",
+    semServicos: "No add-on services were selected for this booking.",
+    hFinanceiro: "Payment summary",
+    lReservaValor: "Booking",
+    lServicosValor: "Add-on services",
+    lTotal: "Total",
+    lMetodo: "Payment method",
+    hLocador: "Vehicle provider",
+    hDetalhes: "Booking details",
+    lId: "Identifier",
     lCriadaEm: "Created at",
     lStatus: "Status",
-    lPeriodo: "Period",
-    lDias: "Days",
-    lValorBase: "Base price",
-    lServicos: "Add-on services",
-    lValorTotal: "Total",
-    codigo: "Unlock code:",
-    semServicos: "No add-on services selected.",
     naoInformado: "Not provided",
-    retirada: "Pickup:",
-    devolucao: "Return:",
-    placa: "plate",
-    rodape:
-      "This is an automated Mova e-mail. If you have questions, reply to this message.",
+    rodapeLinha1: "This is an automated e-mail about your booking.",
+    rodapeLinha2: "Keep this e-mail to review your trip details.",
     textoTitulo: "BOOKING CONFIRMED",
   },
   es: {
-    subject: (id) => `Informe de tu reserva #${id}`,
-    titulo: "Reserva confirmada 🎉",
-    saudacao: (nome) => `¡Hola, ${nome}! Aquí está el informe de tu reserva.`,
-    hDados: "Datos de la reserva",
-    hVeiculo: "Vehículo",
-    hLocador: "Arrendador",
-    hLocatario: "Arrendatario",
-    hRetiradaDevolucao: "Retiro y devolución",
+    subject: (id) => `Reserva confirmada • Mova #${id}`,
+    headerSubtitulo: "Movilidad que te acompaña",
+    tituloConfirmada: "Reserva confirmada",
+    saudacao: (nome) => `Hola, ${nome}. Tu reserva ha sido confirmada.`,
+    reservaLabel: "Reserva",
+    hResumoViagem: "Resumen del viaje",
+    retirada: "Retiro",
+    devolucao: "Devolución",
+    diasReserva: (dias) => `${dias} ${dias === 1 ? "día" : "días"} de reserva`,
+    hVeiculo: "Tu vehículo",
+    lPlaca: "Matrícula",
+    lCambio: "Cambio",
+    lLugares: "Plazas",
+    lCategoria: "Categoría",
+    badgeEletrico: "Eléctrico",
+    badgeAdaptado: "Adaptado",
+    hLocais: "Dónde retirar y devolver",
+    hCodigo: "Código de desbloqueo",
+    codigoExplicacao:
+      "Usa este código para desbloquear el vehículo. Estará disponible a partir de la hora de retiro de la reserva.",
+    codigoIndisponivel: "Tu código de desbloqueo estará disponible pronto.",
     hServicos: "Servicios adicionales",
-    lReserva: "Reserva",
+    semServicos: "No se contrató ningún servicio adicional en esta reserva.",
+    hFinanceiro: "Resumen del pago",
+    lReservaValor: "Reserva",
+    lServicosValor: "Servicios adicionales",
+    lTotal: "Total",
+    lMetodo: "Forma de pago",
+    hLocador: "Responsable del vehículo",
+    hDetalhes: "Detalles de la reserva",
+    lId: "Identificador",
     lCriadaEm: "Creada el",
     lStatus: "Estado",
-    lPeriodo: "Período",
-    lDias: "Días",
-    lValorBase: "Valor base",
-    lServicos: "Servicios adicionales",
-    lValorTotal: "Total",
-    codigo: "Código de desbloqueo:",
-    semServicos: "Ningún servicio adicional contratado.",
     naoInformado: "No informado",
-    retirada: "Retiro:",
-    devolucao: "Devolución:",
-    placa: "placa",
-    rodape:
-      "Este es un correo automático de Mova. Si tienes dudas, responde a este mensaje.",
+    rodapeLinha1: "Este es un correo automático sobre tu reserva.",
+    rodapeLinha2: "Guarda este correo para consultar los detalles de tu viaje.",
     textoTitulo: "RESERVA CONFIRMADA",
   },
 };
@@ -132,6 +186,22 @@ const LOCALE_INTL: Record<Locale, string> = {
   pt: "pt-BR",
   en: "en-US",
   es: "es-ES",
+};
+
+// Rótulos de exibição de DADOS (não traduzidos — regra de negócio). Mapa único
+// por enum; a UI ao redor é que muda de idioma.
+const CATEGORIA_LABEL: Record<CategoriaVeiculo, string> = {
+  ECONOMICO: "Econômico",
+  ESPACOSO: "Espaçoso",
+  EXECUTIVO: "Executivo",
+  PCD: "PCD",
+};
+
+const METODO_LABEL: Record<MetodoPagamento, string> = {
+  CARTAO_CREDITO: "Cartão de crédito",
+  CARTAO_DEBITO: "Cartão de débito",
+  PIX: "PIX",
+  CARTEIRA_DIGITAL: "Carteira digital",
 };
 
 // Escapa texto para uso seguro dentro do HTML (dados vêm do banco/usuário).
@@ -145,6 +215,22 @@ const escapeHtml = (value: string): string =>
 
 // Id curto para o assunto/título (primeiro bloco do UUID).
 const shortId = (id: string): string => id.split("-")[0].toUpperCase();
+
+// Paleta (mobilidade/tecnologia): fundo neutro, container branco, azul primário
+// e verde de sucesso. Cores em hex para máxima compatibilidade.
+const C = {
+  bg: "#eef1f6",
+  card: "#ffffff",
+  primary: "#0b2e6b",
+  primaryText: "#ffffff",
+  accent: "#1d4ed8",
+  success: "#16a34a",
+  successBg: "#e7f6ec",
+  text: "#1f2937",
+  muted: "#6b7280",
+  border: "#e5e7eb",
+  soft: "#f5f7fb",
+};
 
 export function renderReservaReport(
   payload: ReservaReportPayload,
@@ -161,158 +247,432 @@ export function renderReservaReport(
     dateStyle: "short",
     timeStyle: "short",
   });
+  const dayFmt = new Intl.DateTimeFormat(intlTag, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const timeFmt = new Intl.DateTimeFormat(intlTag, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const formatMoney = (v: number) => money.format(v);
   const formatDate = (d: Date) => dateTime.format(d);
+  // "01 AGO 2026" — via formatToParts para evitar separadores de locale
+  // (pt-BR insere "de": "01 de ago. de 2026"). Junta dia/mês/ano manualmente.
+  const formatDia = (d: Date) => {
+    const parts = dayFmt.formatToParts(d);
+    const get = (type: string) =>
+      parts.find((p) => p.type === type)?.value ?? "";
+    return `${get("day")} ${get("month").replace(/\./g, "").toUpperCase()} ${get(
+      "year",
+    )}`;
+  };
+  const formatHora = (d: Date) => timeFmt.format(d);
 
   const { reserva, veiculo, locador, locatario, retirada, devolucao, servicos } =
     payload;
 
   const subject = t.subject(shortId(reserva.id));
 
-  const servicosLinhasHtml =
+  // ---------------------------------------------------------------- HTML -----
+
+  const sectionTitle = (title: string) =>
+    `<tr><td style="padding:26px 28px 0 28px;">
+      <div style="font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:${C.accent};">${escapeHtml(
+        title,
+      )}</div>
+    </td></tr>`;
+
+  // Cabeçalho de retirada/devolução (duas colunas visualmente distintas).
+  const stop = (rotulo: string, cor: string, d: Date) => `
+    <td width="50%" valign="top" style="padding:14px 16px;background:${C.soft};border-radius:10px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${cor};">${escapeHtml(
+        rotulo,
+      )}</div>
+      <div style="font-size:20px;font-weight:700;color:${C.text};padding-top:6px;">${formatDia(
+        d,
+      )}</div>
+      <div style="font-size:14px;color:${C.muted};padding-top:2px;">${formatHora(
+        d,
+      )}</div>
+    </td>`;
+
+  const resumoViagemHtml = `
+  ${sectionTitle(t.hResumoViagem)}
+  <tr><td style="padding:12px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
+      <tr>
+        ${stop(t.retirada, C.success, reserva.dataHoraInicio)}
+        <td width="12"></td>
+        ${stop(t.devolucao, C.accent, reserva.dataHoraFim)}
+      </tr>
+    </table>
+    <div style="text-align:center;padding:14px 0 2px 0;">
+      <span style="display:inline-block;background:${C.primary};color:${C.primaryText};font-size:13px;font-weight:700;padding:6px 16px;border-radius:999px;">${escapeHtml(
+        t.diasReserva(reserva.dias),
+      )}</span>
+    </div>
+  </td></tr>`;
+
+  // Badges de atributo do veículo (só aparecem quando true; texto + emoji).
+  const veiculoBadges = [
+    veiculo.eletrico ? `⚡ ${t.badgeEletrico}` : null,
+    veiculo.adaptado ? `♿ ${t.badgeAdaptado}` : null,
+  ].filter((b): b is string => b !== null);
+
+  const veiculoBadgesHtml = veiculoBadges.length
+    ? `<div style="padding-top:10px;">${veiculoBadges
+        .map(
+          (b) =>
+            `<span style="display:inline-block;background:${C.successBg};color:${C.success};font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;margin-right:6px;">${escapeHtml(
+              b,
+            )}</span>`,
+        )
+        .join("")}</div>`
+    : "";
+
+  const attrRow = (label: string, value: string) => `
+    <tr>
+      <td style="padding:5px 0;font-size:13px;color:${C.muted};">${escapeHtml(
+        label,
+      )}</td>
+      <td style="padding:5px 0;font-size:13px;color:${C.text};font-weight:600;text-align:right;">${escapeHtml(
+        value,
+      )}</td>
+    </tr>`;
+
+  const veiculoAttrs = [
+    attrRow(t.lPlaca, veiculo.placa),
+    veiculo.categoria
+      ? attrRow(t.lCategoria, CATEGORIA_LABEL[veiculo.categoria])
+      : "",
+    veiculo.cambio ? attrRow(t.lCambio, veiculo.cambio) : "",
+    veiculo.capacidade
+      ? attrRow(t.lLugares, String(veiculo.capacidade))
+      : "",
+  ].join("");
+
+  const veiculoHtml = `
+  ${sectionTitle(t.hVeiculo)}
+  <tr><td style="padding:12px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${C.border};border-radius:12px;">
+      <tr><td style="padding:18px 20px;">
+        <div style="font-size:18px;font-weight:700;color:${C.text};">${escapeHtml(
+          `${veiculo.marca} ${veiculo.modelo}`,
+        )} <span style="color:${C.muted};font-weight:600;">${veiculo.ano}</span></div>
+        ${veiculoBadgesHtml}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;border-top:1px solid ${C.border};">
+          ${veiculoAttrs}
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>`;
+
+  // Retirada/devolução (garagem + endereço). Colunas empilham no mobile porque
+  // são <td> em uma tabela de 600px — em telas estreitas o cliente reflui.
+  const local = (rotulo: string, cor: string, garagem: string | null, endereco: string | null) => `
+    <td width="50%" valign="top" style="padding:0 8px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${cor};padding-bottom:6px;">${escapeHtml(
+        rotulo,
+      )}</div>
+      <div style="font-size:15px;font-weight:700;color:${C.text};">${escapeHtml(
+        garagem ?? t.naoInformado,
+      )}</div>
+      ${
+        endereco
+          ? `<div style="font-size:13px;color:${C.muted};padding-top:3px;">${escapeHtml(
+              endereco,
+            )}</div>`
+          : ""
+      }
+    </td>`;
+
+  const locaisHtml = `
+  ${sectionTitle(t.hLocais)}
+  <tr><td style="padding:12px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        ${local(
+          t.retirada,
+          C.success,
+          retirada?.garagem ?? null,
+          retirada?.endereco ?? null,
+        )}
+        ${local(
+          t.devolucao,
+          C.accent,
+          devolucao?.garagem ?? null,
+          devolucao?.endereco ?? null,
+        )}
+      </tr>
+    </table>
+  </td></tr>`;
+
+  const codigoHtml = reserva.codigoDesbloqueio
+    ? `
+  ${sectionTitle(t.hCodigo)}
+  <tr><td style="padding:12px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.primary};border-radius:12px;">
+      <tr><td style="padding:20px 24px;text-align:center;">
+        <div style="font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;letter-spacing:4px;color:${C.primaryText};">${escapeHtml(
+          reserva.codigoDesbloqueio,
+        )}</div>
+        <div style="font-size:13px;color:#c9d6f0;padding-top:10px;line-height:1.5;">${escapeHtml(
+          t.codigoExplicacao,
+        )}</div>
+      </td></tr>
+    </table>
+  </td></tr>`
+    : `
+  ${sectionTitle(t.hCodigo)}
+  <tr><td style="padding:8px 28px 0 28px;">
+    <div style="font-size:14px;color:${C.muted};">${escapeHtml(
+      t.codigoIndisponivel,
+    )}</div>
+  </td></tr>`;
+
+  const servicosHtml =
+    servicos.length > 0
+      ? `
+  ${sectionTitle(t.hServicos)}
+  <tr><td style="padding:12px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${C.border};border-radius:12px;">
+      ${servicos
+        .map(
+          (s, i) => `
+      <tr>
+        <td style="padding:12px 16px;${
+          i > 0 ? `border-top:1px solid ${C.border};` : ""
+        }">
+          <div style="font-size:14px;font-weight:600;color:${C.text};">${escapeHtml(
+            s.nome,
+          )}</div>
+          ${
+            s.descricao
+              ? `<div style="font-size:12px;color:${C.muted};padding-top:2px;">${escapeHtml(
+                  s.descricao,
+                )}</div>`
+              : ""
+          }
+        </td>
+        <td valign="top" style="padding:12px 16px;text-align:right;font-size:14px;font-weight:700;color:${C.text};${
+          i > 0 ? `border-top:1px solid ${C.border};` : ""
+        }">${formatMoney(s.valor)}</td>
+      </tr>`,
+        )
+        .join("")}
+    </table>
+  </td></tr>`
+      : "";
+
+  const financeiroLinha = (label: string, valor: string, forte = false) => `
+    <tr>
+      <td style="padding:6px 0;font-size:14px;color:${
+        forte ? C.text : C.muted
+      };${forte ? "font-weight:700;" : ""}">${escapeHtml(label)}</td>
+      <td style="padding:6px 0;text-align:right;font-size:14px;color:${
+        C.text
+      };${forte ? "font-weight:700;" : "font-weight:600;"}">${escapeHtml(
+    valor,
+  )}</td>
+    </tr>`;
+
+  const metodoLinha = reserva.metodoPagamento
+    ? financeiroLinha(t.lMetodo, METODO_LABEL[reserva.metodoPagamento])
+    : "";
+
+  const financeiroHtml = `
+  ${sectionTitle(t.hFinanceiro)}
+  <tr><td style="padding:12px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.soft};border-radius:12px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${financeiroLinha(t.lReservaValor, formatMoney(reserva.valorBase))}
+          ${financeiroLinha(
+            t.lServicosValor,
+            formatMoney(reserva.valorServicos),
+          )}
+          ${metodoLinha}
+        </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;border-top:2px solid ${C.border};">
+          <tr>
+            <td style="padding:12px 0 0 0;font-size:16px;font-weight:700;color:${C.text};">${escapeHtml(
+              t.lTotal,
+            )}</td>
+            <td style="padding:12px 0 0 0;text-align:right;font-size:22px;font-weight:800;color:${C.success};">${formatMoney(
+              reserva.valorTotal,
+            )}</td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>`;
+
+  const locadorHtml = `
+  ${sectionTitle(t.hLocador)}
+  <tr><td style="padding:8px 28px 0 28px;">
+    <div style="font-size:15px;font-weight:600;color:${C.text};">${escapeHtml(
+      locador.empresa,
+    )}</div>
+  </td></tr>`;
+
+  const detalheRow = (label: string, value: string) => `
+    <tr>
+      <td style="padding:4px 0;font-size:12px;color:${C.muted};">${escapeHtml(
+        label,
+      )}</td>
+      <td style="padding:4px 0;text-align:right;font-size:12px;color:${C.muted};word-break:break-all;">${escapeHtml(
+        value,
+      )}</td>
+    </tr>`;
+
+  const detalhesHtml = `
+  ${sectionTitle(t.hDetalhes)}
+  <tr><td style="padding:8px 28px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${detalheRow(t.lId, reserva.id)}
+      ${detalheRow(t.lCriadaEm, formatDate(reserva.criadaEm))}
+      ${detalheRow(t.lStatus, reserva.status)}
+    </table>
+  </td></tr>`;
+
+  const html = `<!-- Relatório de reserva Mova -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};margin:0;padding:0;">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${C.card};border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:${C.text};">
+
+      <!-- Cabeçalho -->
+      <tr><td style="background:${C.primary};padding:26px 28px;">
+        <div style="font-size:26px;font-weight:800;letter-spacing:3px;color:${C.primaryText};">MOVA</div>
+        <div style="font-size:13px;color:#c9d6f0;padding-top:2px;">${escapeHtml(
+          t.headerSubtitulo,
+        )}</div>
+      </td></tr>
+
+      <!-- Confirmação -->
+      <tr><td style="padding:24px 28px 0 28px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.successBg};border-radius:12px;">
+          <tr><td style="padding:16px 20px;">
+            <div style="font-size:18px;font-weight:800;color:${C.success};">&#10003; ${escapeHtml(
+              t.tituloConfirmada,
+            )}</div>
+            <div style="font-size:14px;color:${C.text};padding-top:6px;line-height:1.5;">${escapeHtml(
+              t.saudacao(locatario.nome),
+            )}</div>
+            <div style="font-size:13px;color:${C.muted};padding-top:8px;">${escapeHtml(
+              t.reservaLabel,
+            )} <strong style="color:${C.accent};">#${escapeHtml(
+    shortId(reserva.id),
+  )}</strong></div>
+          </td></tr>
+        </table>
+      </td></tr>
+
+      ${resumoViagemHtml}
+      ${veiculoHtml}
+      ${locaisHtml}
+      ${codigoHtml}
+      ${servicosHtml}
+      ${financeiroHtml}
+      ${locadorHtml}
+      ${detalhesHtml}
+
+      <!-- Rodapé -->
+      <tr><td style="padding:28px;">
+        <div style="border-top:1px solid ${C.border};padding-top:18px;">
+          <div style="font-size:16px;font-weight:800;letter-spacing:2px;color:${C.primary};">MOVA</div>
+          <div style="font-size:12px;color:${C.muted};padding-top:6px;line-height:1.6;">${escapeHtml(
+            t.rodapeLinha1,
+          )}<br>${escapeHtml(t.rodapeLinha2)}</div>
+        </div>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>`;
+
+  // ---------------------------------------------------------------- Texto ----
+
+  const linha = (label: string, value: string) => `${label}: ${value}`;
+
+  const veiculoAttrsText = [
+    linha(t.lPlaca, veiculo.placa),
+    veiculo.categoria
+      ? linha(t.lCategoria, CATEGORIA_LABEL[veiculo.categoria])
+      : null,
+    veiculo.cambio ? linha(t.lCambio, veiculo.cambio) : null,
+    veiculo.capacidade ? linha(t.lLugares, String(veiculo.capacidade)) : null,
+    veiculoBadges.length ? veiculoBadges.join(" • ") : null,
+  ]
+    .filter((l): l is string => l !== null)
+    .map((l) => `  ${l}`)
+    .join("\n");
+
+  const localText = (garagem: string | null, endereco: string | null) => {
+    if (!garagem) return `  ${t.naoInformado}`;
+    return endereco ? `  ${garagem}\n  ${endereco}` : `  ${garagem}`;
+  };
+
+  const servicosText =
     servicos.length > 0
       ? servicos
           .map(
-            (s) => `
-          <tr>
-            <td style="padding:4px 8px;border-bottom:1px solid #eee;">${escapeHtml(
-              s.nome,
-            )}</td>
-            <td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${escapeHtml(
-              s.descricao,
-            )}</td>
-            <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;">${formatMoney(
-              s.valor,
-            )}</td>
-          </tr>`,
+            (s) =>
+              `  - ${s.nome}${s.descricao ? ` (${s.descricao})` : ""}: ${formatMoney(
+                s.valor,
+              )}`,
           )
-          .join("")
-      : `<tr><td colspan="3" style="padding:4px 8px;color:#666;">${t.semServicos}</td></tr>`;
-
-  const retiradaHtml = retirada
-    ? `${escapeHtml(retirada.garagem)} — ${escapeHtml(retirada.endereco)}`
-    : t.naoInformado;
-  const devolucaoHtml = devolucao
-    ? `${escapeHtml(devolucao.garagem)} — ${escapeHtml(devolucao.endereco)}`
-    : t.naoInformado;
-
-  const codigoHtml = reserva.codigoDesbloqueio
-    ? `<p style="font-size:16px;"><strong>${t.codigo}</strong>
-        <span style="font-family:monospace;letter-spacing:1px;">${escapeHtml(
-          reserva.codigoDesbloqueio,
-        )}</span></p>`
-    : "";
-
-  const html = `<!-- Relatório de reserva Mova -->
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#222;">
-  <h1 style="font-size:20px;">${t.titulo}</h1>
-  <p>${escapeHtml(t.saudacao(locatario.nome))}</p>
-
-  <h2 style="font-size:16px;border-bottom:2px solid #222;padding-bottom:4px;">${t.hDados}</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    <tr><td style="padding:4px 8px;">${t.lReserva}</td><td style="padding:4px 8px;text-align:right;">#${escapeHtml(
-      reserva.id,
-    )}</td></tr>
-    <tr><td style="padding:4px 8px;">${t.lCriadaEm}</td><td style="padding:4px 8px;text-align:right;">${formatDate(
-      reserva.criadaEm,
-    )}</td></tr>
-    <tr><td style="padding:4px 8px;">${t.lStatus}</td><td style="padding:4px 8px;text-align:right;">${escapeHtml(
-      reserva.status,
-    )}</td></tr>
-    <tr><td style="padding:4px 8px;">${t.lPeriodo}</td><td style="padding:4px 8px;text-align:right;">${formatDate(
-      reserva.dataHoraInicio,
-    )} — ${formatDate(reserva.dataHoraFim)}</td></tr>
-    <tr><td style="padding:4px 8px;">${t.lDias}</td><td style="padding:4px 8px;text-align:right;">${
-      reserva.dias
-    }</td></tr>
-    <tr><td style="padding:4px 8px;">${t.lValorBase}</td><td style="padding:4px 8px;text-align:right;">${formatMoney(
-      reserva.valorBase,
-    )}</td></tr>
-    <tr><td style="padding:4px 8px;">${t.lServicos}</td><td style="padding:4px 8px;text-align:right;">${formatMoney(
-      reserva.valorServicos,
-    )}</td></tr>
-    <tr><td style="padding:4px 8px;font-weight:bold;">${t.lValorTotal}</td><td style="padding:4px 8px;text-align:right;font-weight:bold;">${formatMoney(
-      reserva.valorTotal,
-    )}</td></tr>
-  </table>
-  ${codigoHtml}
-
-  <h2 style="font-size:16px;border-bottom:2px solid #222;padding-bottom:4px;">${t.hVeiculo}</h2>
-  <p>${escapeHtml(veiculo.marca)} ${escapeHtml(veiculo.modelo)} (${
-    veiculo.ano
-  }) — ${t.placa} ${escapeHtml(veiculo.placa)}</p>
-
-  <h2 style="font-size:16px;border-bottom:2px solid #222;padding-bottom:4px;">${t.hLocador}</h2>
-  <p>${escapeHtml(locador.empresa)}</p>
-
-  <h2 style="font-size:16px;border-bottom:2px solid #222;padding-bottom:4px;">${t.hLocatario}</h2>
-  <p>${escapeHtml(locatario.nome)} — ${escapeHtml(locatario.email)}</p>
-
-  <h2 style="font-size:16px;border-bottom:2px solid #222;padding-bottom:4px;">${t.hRetiradaDevolucao}</h2>
-  <p><strong>${t.retirada}</strong> ${retiradaHtml}</p>
-  <p><strong>${t.devolucao}</strong> ${devolucaoHtml}</p>
-
-  <h2 style="font-size:16px;border-bottom:2px solid #222;padding-bottom:4px;">${t.hServicos}</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    ${servicosLinhasHtml}
-  </table>
-
-  <p style="margin-top:24px;color:#888;font-size:12px;">${t.rodape}</p>
-</div>`;
-
-  const servicosLinhasText =
-    servicos.length > 0
-      ? servicos
-          .map((s) => `  - ${s.nome} (${s.descricao}): ${formatMoney(s.valor)}`)
           .join("\n")
-      : `  - ${t.semServicos}`;
-
-  const retiradaText = retirada
-    ? `${retirada.garagem} — ${retirada.endereco}`
-    : t.naoInformado;
-  const devolucaoText = devolucao
-    ? `${devolucao.garagem} — ${devolucao.endereco}`
-    : t.naoInformado;
+      : `  ${t.semServicos}`;
 
   const codigoText = reserva.codigoDesbloqueio
-    ? `${t.codigo} ${reserva.codigoDesbloqueio}\n`
+    ? `${t.hCodigo.toUpperCase()}\n  ${reserva.codigoDesbloqueio}\n  ${t.codigoExplicacao}\n\n`
+    : `${t.hCodigo.toUpperCase()}\n  ${t.codigoIndisponivel}\n\n`;
+
+  const metodoText = reserva.metodoPagamento
+    ? `\n  ${t.lMetodo}: ${METODO_LABEL[reserva.metodoPagamento]}`
     : "";
 
   const text = `${t.textoTitulo}
 
 ${t.saudacao(locatario.nome)}
+${t.reservaLabel} #${shortId(reserva.id)}
 
-${t.hDados.toUpperCase()}
-  ${t.lReserva}: #${reserva.id}
-  ${t.lCriadaEm}: ${formatDate(reserva.criadaEm)}
-  ${t.lStatus}: ${reserva.status}
-  ${t.lPeriodo}: ${formatDate(reserva.dataHoraInicio)} — ${formatDate(
+${t.hResumoViagem.toUpperCase()}
+  ${t.retirada}: ${formatDia(reserva.dataHoraInicio)} ${formatHora(
+    reserva.dataHoraInicio,
+  )}
+${localText(retirada?.garagem ?? null, retirada?.endereco ?? null)}
+  ${t.devolucao}: ${formatDia(reserva.dataHoraFim)} ${formatHora(
     reserva.dataHoraFim,
   )}
-  ${t.lDias}: ${reserva.dias}
-  ${t.lValorBase}: ${formatMoney(reserva.valorBase)}
-  ${t.lServicos}: ${formatMoney(reserva.valorServicos)}
-  ${t.lValorTotal}: ${formatMoney(reserva.valorTotal)}
-${codigoText}
+${localText(devolucao?.garagem ?? null, devolucao?.endereco ?? null)}
+  ${t.diasReserva(reserva.dias)}
+
 ${t.hVeiculo.toUpperCase()}
-  ${veiculo.marca} ${veiculo.modelo} (${veiculo.ano}) — ${t.placa} ${
-    veiculo.placa
-  }
+  ${veiculo.marca} ${veiculo.modelo} (${veiculo.ano})
+${veiculoAttrsText}
+
+${codigoText}${t.hServicos.toUpperCase()}
+${servicosText}
+
+${t.hFinanceiro.toUpperCase()}
+  ${t.lReservaValor}: ${formatMoney(reserva.valorBase)}
+  ${t.lServicosValor}: ${formatMoney(reserva.valorServicos)}${metodoText}
+  ${t.lTotal}: ${formatMoney(reserva.valorTotal)}
 
 ${t.hLocador.toUpperCase()}
   ${locador.empresa}
 
-${t.hLocatario.toUpperCase()}
-  ${locatario.nome} — ${locatario.email}
+${t.hDetalhes.toUpperCase()}
+  ${t.lId}: ${reserva.id}
+  ${t.lCriadaEm}: ${formatDate(reserva.criadaEm)}
+  ${t.lStatus}: ${reserva.status}
 
-${t.hRetiradaDevolucao.toUpperCase()}
-  ${t.retirada} ${retiradaText}
-  ${t.devolucao} ${devolucaoText}
-
-${t.hServicos.toUpperCase()}
-${servicosLinhasText}
-
-${t.rodape}`;
+MOVA — ${t.headerSubtitulo}
+${t.rodapeLinha1}
+${t.rodapeLinha2}`;
 
   return { subject, html, text };
 }

@@ -25,6 +25,7 @@ const veiculoRepo = {
       capacidade: 5,
       eletrico: false,
       adaptado: false,
+      categoria: "ECONOMICO",
       criadoEm: new Date(),
     },
     garagemId: "gar-1",
@@ -121,14 +122,24 @@ describe("ReservaReportService.buildPayload", () => {
     expect(payload.reserva.codigoDesbloqueio).toBe("ABCD-2345");
   });
 
-  it("inclui os dados do veículo", async () => {
+  it("inclui os dados do veículo (com atributos do modelo)", async () => {
     const payload = await service.buildPayload(makeReserva());
     expect(payload.veiculo).toEqual({
       marca: "Fiat",
       modelo: "Argo",
       ano: 2022,
       placa: "ABC1234",
+      categoria: "ECONOMICO",
+      cambio: "Manual",
+      capacidade: 5,
+      eletrico: false,
+      adaptado: false,
     });
+  });
+
+  it("inclui o método de pagamento no payload", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    expect(payload.reserva.metodoPagamento).toBe("PIX");
   });
 
   it("inclui os dados do locador (empresa)", async () => {
@@ -181,40 +192,162 @@ describe("ReservaReportService.buildPayload", () => {
 });
 
 describe("renderReservaReport (template)", () => {
-  it("gera HTML e texto contendo as principais informações", async () => {
+  it("gera assunto de confirmação com id curto", async () => {
     const payload = await service.buildPayload(makeReserva());
-    const { subject, html, text } = renderReservaReport(payload);
-
-    expect(subject).toContain("Relatório da sua reserva");
-
-    // Veículo
-    expect(html).toContain("Fiat");
-    expect(html).toContain("Argo");
-    expect(html).toContain("ABC1234");
-    // Locador
-    expect(html).toContain("Locadora Mova Ltda");
-    // Locatário
-    expect(html).toContain("João Locatário");
-    expect(html).toContain("joao@test.local");
-    // Serviços adicionais
-    expect(html).toContain("Seguro adicional");
-    expect(html).toContain("Tanque cheio");
-    // Retirada e devolução
-    expect(html).toContain("Garagem Centro");
-    expect(html).toContain("Garagem Aeroporto");
-    // Código de desbloqueio
-    expect(html).toContain("ABCD-2345");
-
-    // Versão texto também presente
-    expect(text).toContain("VEÍCULO");
-    expect(text).toContain("Fiat Argo");
-    expect(text).toContain("Seguro adicional");
+    const { subject } = renderReservaReport(payload);
+    expect(subject).toContain("Reserva confirmada");
+    expect(subject).toContain("Mova");
+    // Id curto (primeiro bloco do UUID), não o UUID completo.
+    expect(subject).toContain("11111111");
+    expect(subject).not.toContain("11111111-2222");
   });
 
-  it("mostra mensagem quando não há serviços adicionais", async () => {
-    const payload = await service.buildPayload(makeReserva({ servicos: [] }));
+  it("HTML contém identidade visual e confirmação", async () => {
+    const payload = await service.buildPayload(makeReserva());
     const { html } = renderReservaReport(payload);
-    expect(html).toContain("Nenhum serviço adicional contratado");
+    expect(html).toContain("MOVA");
+    expect(html).toContain("Mobilidade que acompanha você");
+    expect(html).toContain("Reserva confirmada");
+    // Saudação personalizada com o nome.
+    expect(html).toContain("Olá, João Locatário");
+  });
+
+  it("HTML contém as datas de retirada e devolução", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { html } = renderReservaReport(payload);
+    // 01 AGO 2026 / 04 AGO 2026 (mês abreviado em caixa alta).
+    expect(html).toContain("01 AGO 2026");
+    expect(html).toContain("04 AGO 2026");
+    expect(html).toContain("3 dias de reserva");
+  });
+
+  it("HTML contém o veículo e seus atributos", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { html } = renderReservaReport(payload);
+    expect(html).toContain("Fiat Argo");
+    expect(html).toContain("2022");
+    expect(html).toContain("ABC1234");
+    expect(html).toContain("Manual");
+    expect(html).toContain("Econômico");
+  });
+
+  it("HTML mostra badges de elétrico/adaptado apenas quando aplicável", async () => {
+    const base = await service.buildPayload(makeReserva());
+    expect(renderReservaReport(base).html).not.toContain("Elétrico");
+
+    const payload = await service.buildPayload(makeReserva());
+    payload.veiculo.eletrico = true;
+    payload.veiculo.adaptado = true;
+    const { html } = renderReservaReport(payload);
+    expect(html).toContain("Elétrico");
+    expect(html).toContain("Adaptado");
+  });
+
+  it("HTML contém as garagens de retirada e devolução com endereço", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { html } = renderReservaReport(payload);
+    expect(html).toContain("Garagem Centro");
+    expect(html).toContain("Av. Central, 100");
+    expect(html).toContain("Garagem Aeroporto");
+    expect(html).toContain("Rod. do Aeroporto, 5000");
+  });
+
+  it("HTML destaca o código de desbloqueio e explica o uso", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { html } = renderReservaReport(payload);
+    expect(html).toContain("ABCD-2345");
+    expect(html).toContain("Código de desbloqueio");
+    expect(html).toContain("desbloquear o veículo");
+  });
+
+  it("HTML mostra mensagem quando não há código de desbloqueio", async () => {
+    const payload = await service.buildPayload(
+      makeReserva({ codigoDesbloqueio: null }),
+    );
+    const { html, text } = renderReservaReport(payload);
+    expect(html).toContain("disponibilizado em breve");
+    expect(text).toContain("disponibilizado em breve");
+  });
+
+  it("HTML contém o resumo financeiro com total e método", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { html } = renderReservaReport(payload);
+    expect(html).toContain("Resumo do pagamento");
+    expect(html).toContain("R$");
+    expect(html).toContain("Total");
+    // Método de pagamento formatado.
+    expect(html).toContain("PIX");
+  });
+
+  it("HTML mantém o UUID completo na área de detalhes", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { html } = renderReservaReport(payload);
+    expect(html).toContain("11111111-2222-3333-4444-555555555555");
+  });
+
+  it("versão texto contém as mesmas informações-chave", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const { text } = renderReservaReport(payload);
+    expect(text).toContain("RESERVA CONFIRMADA");
+    expect(text).toContain("Olá, João Locatário");
+    expect(text).toContain("Fiat Argo");
+    expect(text).toContain("ABC1234");
+    expect(text).toContain("Garagem Centro");
+    expect(text).toContain("Garagem Aeroporto");
+    expect(text).toContain("ABCD-2345");
+    expect(text).toContain("Seguro adicional");
+    expect(text).toContain("01 AGO 2026");
+    expect(text).toContain("PIX");
+    expect(text).toContain("Total");
+  });
+
+  it("oculta a seção de serviços quando não há adicionais (sem tabela vazia)", async () => {
+    const semServicos = await service.buildPayload(
+      makeReserva({ servicos: [] }),
+    );
+    const comServicos = await service.buildPayload(makeReserva());
+
+    const count = (s: string, sub: string) => s.split(sub).length - 1;
+
+    // "Serviços adicionais" aparece no resumo financeiro sempre; a SEÇÃO de
+    // serviços (mesmo rótulo) só quando há itens -> 1 ocorrência a menos.
+    expect(count(renderReservaReport(comServicos).html, "Serviços adicionais")).toBe(
+      count(renderReservaReport(semServicos).html, "Serviços adicionais") + 1,
+    );
+    // Sem itens, nenhuma linha de serviço vaza.
+    expect(renderReservaReport(semServicos).html).not.toContain("Seguro adicional");
+    // No texto há uma mensagem curta em vez de lista vazia.
+    expect(renderReservaReport(semServicos).text).toContain(
+      "Nenhum serviço adicional",
+    );
+  });
+
+  it("não vaza 'undefined' nem 'null' para o usuário", async () => {
+    const payload = await service.buildPayload(
+      makeReserva({
+        idGaragemRetirada: null,
+        idGaragemDevolucao: null,
+        metodoPagamento: null,
+      }),
+    );
+    const { html, text } = renderReservaReport(payload);
+    expect(html).not.toContain("undefined");
+    expect(html.toLowerCase()).not.toContain(">null<");
+    expect(text).not.toContain("undefined");
+    // Sem garagem -> "Não informado", nunca null cru.
+    expect(html).toContain("Não informado");
+  });
+
+  it("preserva acentuação e caracteres especiais", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    payload.locatario.nome = "Ção Açaí São Paulo";
+    payload.locador.empresa = "Móvel & Cia";
+    const { html, text } = renderReservaReport(payload);
+    expect(text).toContain("Ção Açaí São Paulo");
+    expect(text).toContain("Móvel & Cia");
+    // No HTML o & vira entidade, mas os acentos permanecem legíveis.
+    expect(html).toContain("Ção Açaí São Paulo");
+    expect(html).toContain("Móvel &amp; Cia");
   });
 
   it("escapa HTML de campos de texto (evita injeção)", async () => {
@@ -223,5 +356,14 @@ describe("renderReservaReport (template)", () => {
     const { html } = renderReservaReport(payload);
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("suporta locale en/es sem quebrar (i18n do texto ao usuário)", async () => {
+    const payload = await service.buildPayload(makeReserva());
+    const en = renderReservaReport(payload, "en");
+    expect(en.subject).toContain("Booking confirmed");
+    expect(en.html).toContain("Your vehicle");
+    const es = renderReservaReport(payload, "es");
+    expect(es.html).toContain("Resumen del viaje");
   });
 });
