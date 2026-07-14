@@ -151,6 +151,23 @@ export class ReservaController {
     }
   };
 
+  cancelar: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+
+      const reserva = await this.reservaService.cancelarReserva(
+        parsedId.data,
+        req.user,
+      );
+      return res.status(200).json({ result: reserva });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   delete: Handler = async (req, res, next) => {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");

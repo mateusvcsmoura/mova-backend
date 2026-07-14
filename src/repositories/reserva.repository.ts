@@ -38,6 +38,9 @@ export interface IReservaRepository {
   ): Promise<ReservaResponse>;
   // Marca o código como usado (desbloqueio efetivado).
   marcarCodigoComoUsado(id: string, usadoEm: Date): Promise<ReservaResponse>;
+  // RN04: cancela a reserva de forma atômica — registra a cobrança de multa
+  // (valor 0 quando dentro do prazo) e transiciona status para CANCELADA.
+  cancelar(id: string, multa: number): Promise<ReservaResponse>;
   // Existe reserva ativa do veículo que colide com o período informado?
   hasOverlapForVeiculo(
     idVeiculo: string,

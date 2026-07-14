@@ -164,7 +164,17 @@ Table Reserva {
   condutores CondutorAdicional [not null]
   servicos ReservaServico [not null]
   notificacoes NotificacaoReserva [not null]
+  cobrancas CobrancaReserva [not null]
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table CobrancaReserva {
+  id String [pk]
+  idReserva String [not null]
+  reserva Reserva [not null]
+  tipo TipoCobranca [not null]
+  valor Decimal [not null]
+  criadoEm DateTime [default: `now()`, not null]
 }
 
 Table NotificacaoReserva {
@@ -371,6 +381,10 @@ Enum MetodoPagamento {
   CARTEIRA_DIGITAL
 }
 
+Enum TipoCobranca {
+  CANCELAMENTO
+}
+
 Enum StatusGaragem {
   ATIVA
   INATIVA
@@ -450,6 +464,8 @@ Ref: Reserva.idLocatario > Locatario.id
 Ref: Reserva.idGaragemRetirada > Garagem.id
 
 Ref: Reserva.idGaragemDevolucao > Garagem.id
+
+Ref: CobrancaReserva.idReserva > Reserva.id [delete: Cascade]
 
 Ref: NotificacaoReserva.idReserva > Reserva.id [delete: Cascade]
 

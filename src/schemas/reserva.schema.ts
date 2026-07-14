@@ -55,10 +55,10 @@ export const updateReservaSchema = z
     idGaragemDevolucao: z.string().uuid().optional(),
     dataHoraInicio: z.coerce.date().optional(),
     dataHoraFim: z.coerce.date().optional(),
-    valorTotal: z.number().positive().optional(),
-    status: z.nativeEnum(StatusReserva).optional(),
-    // statusPagamento removido do fluxo do cliente (só muda via webhook do
-    // gateway). Ver createReservaSchema.
+    // RN04: status e valorTotal NÃO são mais aceitos via PUT. Mutação livre de
+    // status/valor era vulnerabilidade transversal (cancelar de graça, reescrever
+    // preço). Cancelamento agora é ação de domínio: POST /:id/cancelar.
+    // statusPagamento continua fora do cliente (só muda via webhook do gateway).
     metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {

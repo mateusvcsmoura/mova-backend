@@ -1,4 +1,4 @@
-import { Prisma, StatusReserva } from "@prisma/client";
+import { Prisma, StatusReserva, TipoCobranca } from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
 import { HttpError } from "../../errors/HttpError.js";
@@ -241,6 +241,26 @@ export class PrismaReservaRepository implements IReservaRepository {
           metodoPagamento: data.metodoPagamento ?? undefined,
         },
         include: RESERVA_INCLUDE,
+      });
+      return ReservaMapper.toResponse(reserva);
+    } catch {
+      throw new HttpError(404, "Reserva não encontrada.");
+    }
+  }
+
+  async cancelar(id: string, multa: number): Promise<ReservaResponse> {
+    // Cobrança + transição em uma transação: ou registra a multa E cancela, ou
+    // nada. Grava a cobrança mesmo com valor 0 (trilha completa — RN04).
+    try {
+      const reserva = await prisma.$transaction(async (tx) => {
+        await tx.cobrancaReserva.create({
+          data: { idReserva: id, tipo: TipoCobranca.CANCELAMENTO, valor: multa },
+        });
+        return tx.reserva.update({
+          where: { id },
+          data: { status: StatusReserva.CANCELADA },
+          include: RESERVA_INCLUDE,
+        });
       });
       return ReservaMapper.toResponse(reserva);
     } catch {

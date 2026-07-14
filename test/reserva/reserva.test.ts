@@ -245,25 +245,28 @@ describe("Reserva API", () => {
   });
 
   describe("PUT /api/reserva/:id", () => {
-    it("deve atualizar o status da reserva", async () => {
+    // RN04: status e valorTotal saíram do schema do PUT. Enviar só esses
+    // campos = nenhum campo válido -> 400.
+    it("recusa PUT que só tenta alterar status (campo removido — RN04)", async () => {
       const response = await request(app)
         .put(`/api/reserva/${reservaId}`)
         .set("Authorization", `Bearer ${locatario.token}`)
-        .send({ status: "CONFIRMADA" });
+        .send({ status: "CANCELADA" });
 
-      expect(response.status).toBe(200);
-      expect(response.body.result.status).toBe("CONFIRMADA");
+      expect(response.status).toBe(400);
     });
 
-    it("ignora statusPagamento enviado pelo cliente (só muda via webhook)", async () => {
+    it("PUT ignora status/valorTotal e aplica só os campos válidos (RN04)", async () => {
       const response = await request(app)
         .put(`/api/reserva/${reservaId}`)
         .set("Authorization", `Bearer ${locatario.token}`)
-        .send({ status: "CONFIRMADA", statusPagamento: "SUCESSO" });
+        .send({ metodoPagamento: "PIX", status: "CONFIRMADA", valorTotal: 9999 });
 
       expect(response.status).toBe(200);
-      // Campo é retirado do schema: o pagamento permanece aguardando.
-      expect(response.body.result.statusPagamento).toBe("AGUARDANDO_PAGAMENTO");
+      // Campo válido aplicado; status/valorTotal inalterados (stripados).
+      expect(response.body.result.metodoPagamento).toBe("PIX");
+      expect(response.body.result.status).toBe("AGUARDANDO_PAGAMENTO");
+      expect(response.body.result.valorTotal).not.toBe(9999);
     });
 
     it("deve recusar atualização sem nenhum campo", async () => {
