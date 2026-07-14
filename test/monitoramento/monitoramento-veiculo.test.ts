@@ -174,11 +174,24 @@ function makeProvider(sendImpl?: () => Promise<unknown>) {
   return { provider, send };
 }
 
+// Checker de preferência: idConta em `desabilitados` está opt-out (false).
+function makePrefChecker(desabilitados: string[] = []) {
+  const set = new Set(desabilitados);
+  return {
+    estaHabilitada: vi.fn(async (idConta: string) => !set.has(idConta)),
+  };
+}
+
 function makeService(
   repo: IMonitoramentoVeiculoRepository,
   provider: IMailProvider,
+  preferenciaChecker?: { estaHabilitada: (...a: any[]) => Promise<boolean> },
 ) {
-  const dispatcher = new NotificacaoAlertaVeiculoService(repo, provider);
+  const dispatcher = new NotificacaoAlertaVeiculoService(
+    repo,
+    provider,
+    preferenciaChecker as any,
+  );
   return new MonitoramentoVeiculoService(repo, dispatcher);
 }
 
@@ -231,6 +244,35 @@ describe("MonitoramentoVeiculoService — inatividade", () => {
     expect(mensagem.html).toContain("Argo");
     expect(mensagem.html).toContain("ABC1234");
     expect(mensagem.html).toContain("Revise o cadastro");
+  });
+
+  it("RN10: locador sem preferência recebe o alerta (opt-in padrão)", async () => {
+    const { repo } = makeMonitoramentoRepo({
+      inativos: [makeInativoRow({ inativoDesde: diasAtras(9) })],
+    });
+    const { provider, send } = makeProvider();
+
+    await makeService(repo, provider, makePrefChecker([])).executar();
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("RN10: locador com opt-out de ALERTA_VEICULO não recebe (pulado, não é falha)", async () => {
+    const { repo, alertas } = makeMonitoramentoRepo({
+      inativos: [makeInativoRow({ inativoDesde: diasAtras(9) })],
+    });
+    const { provider, send } = makeProvider();
+
+    const resultado = await makeService(
+      repo,
+      provider,
+      makePrefChecker([LOCADOR_1]),
+    ).executar();
+
+    // Não envia e-mail; opt-out é resolvido (terminal), não conta como falha.
+    expect(send).not.toHaveBeenCalled();
+    expect(resultado.inatividade.falhasEnvio).toBe(0);
+    expect(alertas[0].status).toBe("ENVIADA"); // marcado terminal -> sem reenvio
   });
 });
 

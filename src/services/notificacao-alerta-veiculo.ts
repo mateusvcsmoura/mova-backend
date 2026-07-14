@@ -1,6 +1,9 @@
+import { CanalNotificacao, TipoNotificacao } from "@prisma/client";
+
 import { IMailProvider } from "../infra/email/mail-provider.js";
 import { AlertaVeiculoResponse } from "../repositories/contracts/monitoramento.contract.js";
 import { IMonitoramentoVeiculoRepository } from "../repositories/monitoramento.repository.js";
+import { IPreferenciaChecker } from "../repositories/preferencia-notificacao.repository.js";
 import { AlertaVeiculoContent } from "./contracts/alerta-veiculo.js";
 
 // Contrato mínimo do qual o serviço de monitoramento depende para despachar
@@ -23,12 +26,33 @@ export class NotificacaoAlertaVeiculoService implements IAlertaVeiculoDispatcher
   constructor(
     private readonly monitoramentoRepository: IMonitoramentoVeiculoRepository,
     private readonly mailProvider: IMailProvider,
+    // RN10: opcional. Quando presente, respeita o opt-out do locador para
+    // ALERTA_VEICULO. Ausente (testes antigos) mantém o envio de sempre.
+    private readonly preferenciaChecker?: IPreferenciaChecker,
   ) {}
 
   async enviar(
     alerta: AlertaVeiculoResponse,
     content: AlertaVeiculoContent,
   ): Promise<boolean> {
+    // RN10: respeita o opt-out do locador (destinatário do alerta). Opt-out é
+    // tratado como RESOLVIDO (marcado como enviado -> não reenvia), não como
+    // falha: retorna true para não contar como falhaEnvio nem disparar retry.
+    if (
+      this.preferenciaChecker &&
+      !(await this.preferenciaChecker.estaHabilitada(
+        alerta.idLocador,
+        CanalNotificacao.EMAIL,
+        TipoNotificacao.ALERTA_VEICULO,
+      ))
+    ) {
+      await this.monitoramentoRepository.marcarEnviado(alerta.id, new Date());
+      console.info(
+        `[monitoramento] locador optou por não receber alerta — alerta ${alerta.id} (pulado, sem envio)`,
+      );
+      return true;
+    }
+
     // Sem provedor configurado (dev/testes): o alerta permanece PENDENTE e
     // será reencaminhado na próxima execução da rotina.
     if (!this.mailProvider.isEnabled()) {

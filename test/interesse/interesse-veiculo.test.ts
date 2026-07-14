@@ -205,10 +205,20 @@ const garagemRepo = {
   }),
 } as any;
 
+// Checker de preferência: qualquer idConta em `desabilitados` está opt-out
+// (retorna false); os demais habilitados (opt-in padrão).
+function makePrefChecker(desabilitados: string[] = []) {
+  const set = new Set(desabilitados);
+  return {
+    estaHabilitada: vi.fn(async (idConta: string) => !set.has(idConta)),
+  };
+}
+
 function makeDispatcher(
   interesseRepo: IInteresseVeiculoRepository,
   notificacaoRepo: INotificacaoInteresseRepository,
   provider: IMailProvider,
+  preferenciaChecker?: { estaHabilitada: (...a: any[]) => Promise<boolean> },
 ) {
   return new NotificacaoVeiculoDisponivelService(
     interesseRepo,
@@ -216,6 +226,7 @@ function makeDispatcher(
     locadorRepo,
     garagemRepo,
     provider,
+    preferenciaChecker as any,
   );
 }
 
@@ -472,6 +483,40 @@ describe("NotificacaoVeiculoDisponivelService", () => {
 
     expect(send).not.toHaveBeenCalled();
     expect(notifRepo.registrar).not.toHaveBeenCalled();
+  });
+
+  it("RN11: sem preferência definida, o interessado recebe (opt-in padrão)", async () => {
+    const send = vi.fn(async () => ({ messageId: "ok" }));
+    const provider: IMailProvider = { isEnabled: () => true, send };
+    const { repo: interesseRepo } = makeInteresseRepo();
+    const { repo: notifRepo } = makeNotificacaoInteresseRepo();
+    await interesseRepo.create({ idLocatario: LOCATARIO_A, idVeiculo: VEICULO_1 });
+
+    const checker = makePrefChecker([]); // ninguém opt-out
+    const dispatcher = makeDispatcher(interesseRepo, notifRepo, provider, checker);
+    await dispatcher.notificarVeiculoDisponivel(makeVeiculo());
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("RN11: interessado com opt-out não recebe; os demais recebem", async () => {
+    const send = vi.fn(async () => ({ messageId: "ok" }));
+    const provider: IMailProvider = { isEnabled: () => true, send };
+    const { repo: interesseRepo } = makeInteresseRepo();
+    const { repo: notifRepo, records: envios } = makeNotificacaoInteresseRepo();
+    await interesseRepo.create({ idLocatario: LOCATARIO_A, idVeiculo: VEICULO_1 });
+    await interesseRepo.create({ idLocatario: LOCATARIO_B, idVeiculo: VEICULO_1 });
+
+    // A optou por não receber; B continua recebendo.
+    const checker = makePrefChecker([LOCATARIO_A]);
+    const dispatcher = makeDispatcher(interesseRepo, notifRepo, provider, checker);
+    await dispatcher.notificarVeiculoDisponivel(makeVeiculo());
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((send as any).mock.calls[0][0].to).toBe("beto@test.local");
+    // Só o registro de B foi criado (A pulado antes de registrar).
+    expect(envios).toHaveLength(1);
+    expect(envios[0].destinatario).toBe("beto@test.local");
   });
 
   it("envia através do Nodemailer (transport mockado)", async () => {

@@ -1,8 +1,11 @@
+import { CanalNotificacao, TipoNotificacao } from "@prisma/client";
+
 import { VeiculoResponse } from "../repositories/contracts/veiculo.contract.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
 import { IInteresseVeiculoRepository } from "../repositories/interesse.repository.js";
 import { ILocadorRepository } from "../repositories/locador.repository.js";
 import { INotificacaoInteresseRepository } from "../repositories/notificacao-interesse.repository.js";
+import { IPreferenciaChecker } from "../repositories/preferencia-notificacao.repository.js";
 import { IMailProvider } from "../infra/email/mail-provider.js";
 import { VeiculoDisponivelPayload } from "./contracts/veiculo-disponivel.js";
 import { renderVeiculoDisponivel } from "../templates/veiculo-disponivel.template.js";
@@ -33,6 +36,9 @@ export class NotificacaoVeiculoDisponivelService
     private readonly locadorRepository: ILocadorRepository,
     private readonly garagemRepository: IGaragemRepository,
     private readonly mailProvider: IMailProvider,
+    // RN11: opcional. Quando presente, respeita o opt-out de cada locatário
+    // para VEICULO_DISPONIVEL. Ausente (testes antigos) mantém o envio.
+    private readonly preferenciaChecker?: IPreferenciaChecker,
   ) {}
 
   async notificarVeiculoDisponivel(veiculo: VeiculoResponse): Promise<void> {
@@ -75,6 +81,22 @@ export class NotificacaoVeiculoDisponivelService
       };
 
       for (const interessado of interessados) {
+        // RN11: opt-out de um locatário pula apenas aquele destinatário; os
+        // demais continuam recebendo. A inscrição permanece ATIVA.
+        if (
+          this.preferenciaChecker &&
+          !(await this.preferenciaChecker.estaHabilitada(
+            interessado.idLocatario,
+            CanalNotificacao.EMAIL,
+            TipoNotificacao.VEICULO_DISPONIVEL,
+          ))
+        ) {
+          console.info(
+            `[interesse] locatário optou por não receber disponibilidade — inscrição ${interessado.id} (pulado)`,
+          );
+          continue;
+        }
+
         await this.notificarInteressado(base, interessado.id, {
           nome: interessado.locatario.nome,
           email: interessado.locatario.email,
