@@ -4,10 +4,12 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { app } from "../../src/app";
 import { prisma } from "../../src/database/prisma";
 import {
+  confirmarPagamentoWebhook,
   createAccount,
   createBloqueio,
   createLocador,
   createLocatario,
+  createReserva,
   createVeiculo,
   futurePeriod,
   type Account,
@@ -279,6 +281,93 @@ describe("Bloqueio de locatário — impacto na reserva", () => {
       .send({ status: "CONFIRMADA" });
 
     expect(response.status).toBe(403);
+  });
+});
+
+// RN07: o webhook de pagamento é a única trilha que gera o código de
+// desbloqueio no SUCESSO. Bloqueio ativo detectado depois da criação não pode
+// ser contornado por essa trilha.
+describe("Bloqueio de locatário — RN07 no webhook de pagamento", () => {
+  let admin: Account;
+  let locador: LocadorContext;
+  let veiculoId: string;
+
+  beforeAll(async () => {
+    admin = await createAccount("ADMIN");
+    locador = await createLocador();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    veiculoId = veiculo.id;
+  });
+
+  it("locatário bloqueado após criar: webhook SUCESSO NÃO gera código (403)", async () => {
+    const locatario = await createLocatario();
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(110, 1),
+    );
+
+    // Bloqueia depois de criar a reserva (liberado na criação).
+    await createBloqueio(admin.token, locatario.locatarioId, {
+      motivo: "INADIMPLENCIA",
+    });
+
+    const res = await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" });
+    expect(res.status).toBe(403);
+
+    const persistida = await prisma.reserva.findUnique({
+      where: { id: reserva.id },
+    });
+    expect(persistida!.codigoDesbloqueio).toBeNull();
+  });
+
+  it("locatário liberado: webhook SUCESSO gera código normalmente", async () => {
+    const locatario = await createLocatario();
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(120, 1),
+    );
+
+    const res = await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" });
+    expect(res.status).toBe(200);
+
+    const persistida = await prisma.reserva.findUnique({
+      where: { id: reserva.id },
+    });
+    expect(persistida!.codigoDesbloqueio).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  });
+
+  it("idempotência: reprocessar webhook em reserva já com código não dá 403", async () => {
+    const locatario = await createLocatario();
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      futurePeriod(130, 1),
+    );
+
+    // Primeiro webhook (liberado) -> gera o código.
+    const primeiro = await confirmarPagamentoWebhook(reserva.id);
+    expect(primeiro.status).toBe(200);
+    const apos = await prisma.reserva.findUnique({ where: { id: reserva.id } });
+    const codigo = apos!.codigoDesbloqueio;
+    expect(codigo).not.toBeNull();
+
+    // Bloqueia depois; reprocessamento do webhook não deve reavaliar bloqueio.
+    await createBloqueio(admin.token, locatario.locatarioId, {
+      motivo: "ADMINISTRATIVO",
+    });
+
+    const reprocesso = await confirmarPagamentoWebhook(reserva.id);
+    expect(reprocesso.status).toBe(200);
+
+    const final = await prisma.reserva.findUnique({
+      where: { id: reserva.id },
+    });
+    expect(final!.codigoDesbloqueio).toBe(codigo);
   });
 });
 

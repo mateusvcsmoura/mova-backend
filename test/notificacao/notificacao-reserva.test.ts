@@ -321,7 +321,7 @@ describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
       {} as any, // locatarioRepository
       {} as any, // garagemRepository
       {} as any, // deficienciaRepository
-      {} as any, // bloqueioService
+      { assertLocatarioLiberado: vi.fn(async () => {}) } as any, // bloqueioService
       {} as any, // servicoOpcionalRepository
       {} as any, // condutorRepository
       notifier,

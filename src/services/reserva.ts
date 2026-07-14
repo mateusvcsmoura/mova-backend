@@ -553,6 +553,11 @@ export class ReservaService {
       evento.status === StatusPagamento.SUCESSO &&
       !reserva.codigoDesbloqueio
     ) {
+      // RN07: revalida bloqueio financeiro na trilha do pagamento. Locatário
+      // bloqueado após criar a reserva não pode ser confirmado nem receber o
+      // código pelo webhook. Idempotente: reserva que já tem código não entra
+      // aqui (guard acima), então reprocessamento não dispara 403 espúrio.
+      await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
       const codigo = await this.gerarCodigoUnico();
       const confirmada = await this.reservaRepository.gerarCodigoDesbloqueio(
         idReserva,
