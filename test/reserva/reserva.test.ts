@@ -808,6 +808,103 @@ describe("Reserva — veículos adaptados (PCD)", () => {
     );
     expect(locatario.body.result.deficienciaId).toBe(deficienciaId);
   });
+
+  // RN01: o marcador categoria=PCD também exige deficiência, mesmo com
+  // adaptado=false (fechava a brecha de under-enforcement).
+  it("bloqueia veículo categoria=PCD (adaptado=false) para locatário sem deficiência", async () => {
+    const pcd = await createVeiculo(locador.token, locador.locadorId, {
+      adaptado: false,
+      categoria: "PCD",
+      marca: "Renault",
+      modelo: "PcdSemAdaptado",
+      ano: 2023,
+    });
+    const semDef = await createLocatario();
+
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${semDef.token}`)
+      .send({
+        idVeiculo: pcd.id,
+        idLocatario: semDef.locatarioId,
+        valorTotal: 200,
+        ...futurePeriod(560, 1),
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toMatch(/necessidade especial/i);
+  });
+
+  it("veículo categoria=PCD permite com deficiência informada e associa ao perfil", async () => {
+    const pcd = await createVeiculo(locador.token, locador.locadorId, {
+      adaptado: false,
+      categoria: "PCD",
+      marca: "Renault",
+      modelo: "PcdComDef",
+      ano: 2023,
+    });
+    const locatario = await createLocatario();
+
+    const response = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: pcd.id,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 200,
+        deficienciaId,
+        ...futurePeriod(570, 1),
+      });
+
+    expect(response.status).toBe(201);
+
+    const perfil = await request(app).get(
+      `/api/locatario/${locatario.locatarioId}`,
+    );
+    expect(perfil.body.result.deficienciaId).toBe(deficienciaId);
+  });
+
+  it("falha na criação (overlap) não altera o perfil do locatário (transação)", async () => {
+    const adaptado = await createVeiculo(locador.token, locador.locadorId, {
+      adaptado: true,
+      marca: "Volkswagen",
+      modelo: "AdaptadoTxn",
+      ano: 2023,
+    });
+    const periodo = futurePeriod(580, 1);
+
+    // Ocupa o veículo no período (locatário com deficiência -> 201).
+    const ocupa = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${comDeficiencia.token}`)
+      .send({
+        idVeiculo: adaptado.id,
+        idLocatario: comDeficiencia.locatarioId,
+        valorTotal: 200,
+        ...periodo,
+      });
+    expect(ocupa.status).toBe(201);
+
+    // Locatário sem deficiência informa uma válida, mas o período colide -> 409.
+    const semDef = await createLocatario();
+    const conflito = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${semDef.token}`)
+      .send({
+        idVeiculo: adaptado.id,
+        idLocatario: semDef.locatarioId,
+        valorTotal: 200,
+        deficienciaId,
+        ...periodo,
+      });
+    expect(conflito.status).toBe(409);
+
+    // Reserva não criada -> perfil do locatário permanece sem deficiência.
+    const perfil = await request(app).get(
+      `/api/locatario/${semDef.locatarioId}`,
+    );
+    expect(perfil.body.result.deficienciaId).toBeNull();
+  });
 });
 
 describe("Reserva — serviços opcionais", () => {

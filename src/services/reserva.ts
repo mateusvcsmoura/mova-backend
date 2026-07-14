@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import jwt from "jsonwebtoken";
 import {
   Cargo,
+  CategoriaVeiculo,
   MetodoPagamento,
   StatusGaragem,
   StatusPagamento,
@@ -335,13 +336,17 @@ export class ReservaService {
   // Veículo adaptado (PCD) só pode ser reservado por locatário com deficiência.
   // Se o locatário ainda não possuir uma, aceita a deficiência informada no
   // fluxo da reserva, valida-a e a associa ao cadastro.
-  private async assertLocatarioElegivelParaVeiculoAdaptado(
+  // Valida a elegibilidade PCD e retorna a deficiência a associar ao locatário
+  // (ou undefined quando nada precisa mudar). NÃO grava aqui: a associação é
+  // feita junto da criação da reserva, numa única transação (RN01), para não
+  // deixar o perfil alterado se a criação falhar depois.
+  private async resolverDeficienciaParaVeiculoAdaptado(
     locatario: LocatarioResponse,
     deficienciaIdInformada?: string,
-  ): Promise<void> {
-    // Já possui deficiência cadastrada -> elegível.
+  ): Promise<string | undefined> {
+    // Já possui deficiência cadastrada -> elegível, nada a associar.
     if (locatario.deficienciaId) {
-      return;
+      return undefined;
     }
 
     // Sem cadastro e sem deficiência informada -> bloqueia a reserva.
@@ -358,10 +363,7 @@ export class ReservaService {
       throw new HttpError(404, "Deficiência não encontrada.");
     }
 
-    // Associa a deficiência informada ao locatário (reutiliza o update existente).
-    await this.locatarioRepository.update(locatario.id, {
-      deficiencia_id: deficienciaIdInformada,
-    });
+    return deficienciaIdInformada;
   }
 
   // Garagem inativa/em manutenção não entra em novas reservas (RF19).
@@ -526,12 +528,21 @@ export class ReservaService {
       );
     }
 
-    // Regra PCD: veículos adaptados exigem locatário com deficiência.
-    if (veiculo.modeloVeiculo.adaptado) {
-      await this.assertLocatarioElegivelParaVeiculoAdaptado(
-        locatario,
-        data.deficienciaId,
-      );
+    // RN01: "veículo PCD" tem dois marcadores redundantes (adaptado e
+    // categoria=PCD). Exigir só um deixava o outro como brecha (um modelo
+    // categoria=PCD, adaptado=false seria reservável por qualquer um). Trata
+    // como adaptado quando QUALQUER marcador indica PCD.
+    const exigeDeficiencia =
+      veiculo.modeloVeiculo.adaptado ||
+      veiculo.modeloVeiculo.categoria === CategoriaVeiculo.PCD;
+
+    let deficienciaParaAssociar: string | undefined;
+    if (exigeDeficiencia) {
+      deficienciaParaAssociar =
+        await this.resolverDeficienciaParaVeiculoAdaptado(
+          locatario,
+          data.deficienciaId,
+        );
     }
 
     // Serviços opcionais: valida os IDs e calcula a soma dos valores. O valor
@@ -541,11 +552,14 @@ export class ReservaService {
     );
     const valorTotal = data.valorTotal + valorServicos;
 
+    // A associação da deficiência ao perfil e a criação da reserva ocorrem na
+    // mesma transação (repo) — se a criação falhar, o perfil não é alterado.
     return this.reservaRepository.create({
       ...data,
       idGaragemRetirada,
       valorTotal,
       servicos,
+      deficienciaIdParaAssociar: deficienciaParaAssociar,
     });
   };
 
