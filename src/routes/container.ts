@@ -156,12 +156,12 @@ export const notificacaoReservaService = new NotificacaoReservaService(reservaRe
 // dos envios + dispatcher que notifica quando o veículo volta a DISPONIVEL.
 export const interesseRepository: IInteresseVeiculoRepository = new PrismaInteresseVeiculoRepository();
 export const notificacaoInteresseRepository: INotificacaoInteresseRepository = new PrismaNotificacaoInteresseRepository();
-export const notificacaoVeiculoDisponivelService = new NotificacaoVeiculoDisponivelService(interesseRepository, notificacaoInteresseRepository, locadorRepository, garagemRepository, mailProvider);
+export const notificacaoVeiculoDisponivelService = new NotificacaoVeiculoDisponivelService(interesseRepository, notificacaoInteresseRepository, locadorRepository, garagemRepository, mailProvider, preferenciaNotificacaoRepository);
 
 // Monitoramento da frota: histórico de status + alertas (inatividade e baixa
 // avaliação), com dispatcher de e-mail e rotina periódica opcional no boot.
 export const monitoramentoRepository: IMonitoramentoVeiculoRepository = new PrismaMonitoramentoVeiculoRepository();
-export const notificacaoAlertaVeiculoService = new NotificacaoAlertaVeiculoService(monitoramentoRepository, mailProvider);
+export const notificacaoAlertaVeiculoService = new NotificacaoAlertaVeiculoService(monitoramentoRepository, mailProvider, preferenciaNotificacaoRepository);
 export const monitoramentoVeiculoService = new MonitoramentoVeiculoService(monitoramentoRepository, notificacaoAlertaVeiculoService);
 export const monitoramentoController = new MonitoramentoController(monitoramentoVeiculoService);
 export const monitoramentoScheduler = new MonitoramentoScheduler(
