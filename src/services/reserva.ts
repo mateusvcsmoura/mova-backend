@@ -63,6 +63,16 @@ const MAX_CONDUTORES_ADICIONAIS = 3;
 const PRAZO_CANCELAMENTO_MS = 2 * 60 * 60 * 1000;
 const MULTA_CANCELAMENTO_TARDIO = 0.2;
 
+// RN06: atraso na devolução. Cobra a diária proporcional aos dias de atraso
+// mais multa de 10%. DECISÃO (base do 10%): a multa incide sobre a TAXA de
+// atraso (diasAtraso × valorDiária), não sobre o valorTotal da reserva —
+// cobrança final = taxa × 1,10. valorDiária é derivada da própria reserva:
+// valorTotal ÷ duração (em dias), evitando novo campo/entrada do cliente.
+// diasAtraso = teto((devolvidoEm − dataHoraFim) / 1 dia): qualquer atraso,
+// mesmo de minutos, conta como 1 diária.
+const MULTA_ATRASO = 0.1;
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
 export class ReservaService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
@@ -624,6 +634,53 @@ export class ReservaService {
       : 0;
 
     return this.reservaRepository.cancelar(id, multa);
+  };
+
+  // RN06: devolução da reserva. Registra devolvidoEm, transiciona para REALIZADA
+  // e, se houver atraso, cobra diária(s) proporcional(is) + 10% (CobrancaReserva
+  // tipo ATRASO_DEVOLUCAO). Só reservas desbloqueadas (código usado) e ainda não
+  // canceladas/concluídas podem ser devolvidas.
+  devolverReserva = async (
+    id: string,
+    requester: ReservaAccessContext,
+  ): Promise<ReservaResponse> => {
+    const reserva = await this.reservaRepository.findById(id);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+
+    await this.assertReservaAccess(requester, reserva);
+
+    if (reserva.status === StatusReserva.CANCELADA) {
+      throw new HttpError(409, "Reserva cancelada.");
+    }
+    if (reserva.status === StatusReserva.REALIZADA || reserva.devolvidoEm) {
+      throw new HttpError(409, "Reserva já devolvida.");
+    }
+    if (!reserva.codigoUsadoEm) {
+      throw new HttpError(
+        409,
+        "Veículo ainda não foi desbloqueado; não há devolução a registrar.",
+      );
+    }
+
+    const devolvidoEm = new Date();
+    let cobranca = 0;
+    if (devolvidoEm > reserva.dataHoraFim) {
+      const diasAtraso = Math.ceil(
+        (devolvidoEm.getTime() - reserva.dataHoraFim.getTime()) / UM_DIA_MS,
+      );
+      const duracaoDias =
+        (reserva.dataHoraFim.getTime() - reserva.dataHoraInicio.getTime()) /
+        UM_DIA_MS;
+      const valorDiaria =
+        duracaoDias > 0 ? reserva.valorTotal / duracaoDias : reserva.valorTotal;
+      const taxaAtraso = diasAtraso * valorDiaria;
+      // Arredonda para 2 casas (coluna Decimal(10,2)).
+      cobranca = Math.round(taxaAtraso * (1 + MULTA_ATRASO) * 100) / 100;
+    }
+
+    return this.reservaRepository.devolver(id, devolvidoEm, cobranca);
   };
 
   // Fluxo INTERNO do gateway de pagamento. Só o webhook (após validar a

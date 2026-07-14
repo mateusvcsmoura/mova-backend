@@ -87,6 +87,8 @@ export interface ReservaResponse {
   codigoDesbloqueio: string | null;
   codigoGeradoEm: Date | null;
   codigoUsadoEm: Date | null;
+  // RN06: instante da devolução real (nulo até devolver).
+  devolvidoEm: Date | null;
   // Serviços opcionais vinculados a esta reserva.
   servicos: ReservaServicoResponse[];
   atualizadoEm: Date;

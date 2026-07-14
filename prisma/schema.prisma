@@ -62,11 +62,12 @@ enum MetodoPagamento {
   CARTEIRA_DIGITAL
 }
 
-// Tipo de cobrança avulsa lançada sobre uma reserva (RN04). Hoje só multa de
-// cancelamento tardio; extensível (atraso na devolução — RN06) sem quebrar o
-// enum. O tratamento financeiro real (estorno/cobrança) é externo.
+// Tipo de cobrança avulsa lançada sobre uma reserva. Multa de cancelamento
+// tardio (RN04) e multa por atraso na devolução (RN06). O tratamento financeiro
+// real (estorno/cobrança) é externo.
 enum TipoCobranca {
   CANCELAMENTO
+  ATRASO_DEVOLUCAO
 }
 
 // Situação operacional da garagem (RF19). Soft delete: desativar = INATIVA,
@@ -349,6 +350,10 @@ model Reserva {
   codigoDesbloqueio String?   @unique
   codigoGeradoEm    DateTime?
   codigoUsadoEm     DateTime?
+
+  // RN06: instante da devolução real do veículo. Nulo até a devolução; a partir
+  // daí a reserva fica REALIZADA. Se > dataHoraFim, gera multa de atraso.
+  devolvidoEm DateTime?
 
   avaliacao    Avaliacao?
   // Condutores adicionais autorizados a dirigir nesta reserva (RF12).

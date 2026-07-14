@@ -25,6 +25,7 @@ export class ReservaMapper {
       codigoDesbloqueio: reserva.codigoDesbloqueio,
       codigoGeradoEm: reserva.codigoGeradoEm,
       codigoUsadoEm: reserva.codigoUsadoEm,
+      devolvidoEm: reserva.devolvidoEm,
       servicos: (reserva.servicos ?? []).map((rs) => ({
         idServico: rs.idServico,
         nome: rs.servico.nome,

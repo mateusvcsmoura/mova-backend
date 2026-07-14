@@ -92,6 +92,7 @@ function makeReserva(overrides: Partial<ReservaResponse> = {}): ReservaResponse 
     codigoDesbloqueio: "ABCD-2345",
     codigoGeradoEm: new Date(),
     codigoUsadoEm: null,
+    devolvidoEm: null,
     servicos: [
       { idServico: "s1", nome: "Seguro adicional", descricao: "Cobertura total", valor: 80 },
       { idServico: "s2", nome: "Tanque cheio", descricao: "Combustível", valor: 20 },
