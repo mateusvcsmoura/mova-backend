@@ -324,6 +324,7 @@ describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
       { assertLocatarioLiberado: vi.fn(async () => {}) } as any, // bloqueioService
       {} as any, // servicoOpcionalRepository
       {} as any, // condutorRepository
+      {} as any, // localizacaoRepository
       notifier,
     );
     return { service, reservaRepository, confirmada };

@@ -179,7 +179,10 @@ export const interesseController = new InteresseController(interesseService);
 
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
 export const condutorRepository: ICondutorRepository = new PrismaCondutorRepository();
-export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, notificacaoReservaService);
+// Localização (RN03): referência do geofence de desbloqueio; instanciada aqui
+// para ser injetada no ReservaService (o LocalizacaoService a reusa mais abaixo).
+export const localizacaoRepository: ILocalizacaoRepository = new PrismaLocalizacaoRepository();
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, localizacaoRepository, notificacaoReservaService);
 export const reservaController = new ReservaController(reservaService);
 
 // Webhook de pagamento: registro de gateways (Mercado Pago/Stripe/Asaas) +
@@ -211,7 +214,6 @@ export const favoritoRepository: IFavoritoRepository = new PrismaFavoritoReposit
 export const favoritoService = new FavoritoService(favoritoRepository, veiculoRepository, locatarioRepository);
 export const favoritoController = new FavoritoController(favoritoService);
 
-export const localizacaoRepository: ILocalizacaoRepository = new PrismaLocalizacaoRepository();
 export const localizacaoService = new LocalizacaoService(localizacaoRepository, veiculoRepository, reservaRepository);
 export const localizacaoController = new LocalizacaoController(localizacaoService);
 

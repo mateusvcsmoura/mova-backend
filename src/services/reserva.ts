@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import jwt from "jsonwebtoken";
 import {
   Cargo,
   MetodoPagamento,
@@ -28,8 +29,10 @@ import {
   CreateCondutorRequest,
 } from "../repositories/contracts/condutor.contract.js";
 import { ReservaServicoInput } from "../repositories/contracts/reserva.contract.js";
+import { ILocalizacaoRepository } from "../repositories/localizacao.repository.js";
 import { BloqueioService } from "./bloqueio.js";
 import { IReservaNotifier } from "./notificacao-reserva.js";
+import { env } from "../config/env.js";
 import { LocatarioResponse } from "../repositories/contracts/locatario.contract.js";
 import {
   PaginatedResult,
@@ -70,10 +73,63 @@ export class ReservaService {
     private readonly bloqueioService: BloqueioService,
     private readonly servicoOpcionalRepository: IServicoOpcionalRepository,
     private readonly condutorRepository: ICondutorRepository,
+    // RN03: última localização do veículo, referência do geofence de desbloqueio.
+    private readonly localizacaoRepository: ILocalizacaoRepository,
     // Notificação (relatório por e-mail). Opcional para não acoplar a regra de
     // negócio ao envio; quando ausente, a reserva funciona normalmente.
     private readonly reservaNotifier?: IReservaNotifier,
   ) {}
+
+  // RN03: distância em metros entre dois pontos (fórmula de Haversine).
+  private distanciaMetros(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6_371_000; // raio médio da Terra, em metros
+    const toRad = (graus: number) => (graus * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  // RN03: exige que o desbloqueio ocorra dentro do raio da última localização
+  // conhecida do veículo. Sem localização de referência -> geofence ignorado
+  // (permite, com aviso) para não travar operação legítima. Com referência, a
+  // coordenada do dispositivo é obrigatória. Borda: distância == raio é válida.
+  private async assertLocalDesbloqueio(
+    idVeiculo: string,
+    coord?: { latitude: number; longitude: number },
+  ): Promise<void> {
+    const ref = await this.localizacaoRepository.findLatestByVeiculoId(idVeiculo);
+    if (!ref) {
+      console.warn(
+        `[desbloqueio] veículo ${idVeiculo} sem localização de referência — geofence ignorado.`,
+      );
+      return;
+    }
+
+    if (!coord) {
+      throw new HttpError(
+        400,
+        "Coordenada do dispositivo obrigatória para desbloqueio.",
+      );
+    }
+
+    const distancia = this.distanciaMetros(
+      coord.latitude,
+      coord.longitude,
+      ref.latitude,
+      ref.longitude,
+    );
+    if (distancia > env.DESBLOQUEIO_RAIO_METROS) {
+      throw new HttpError(403, "Fora do local permitido para desbloqueio.");
+    }
+  }
 
   // Valida os serviços opcionais selecionados contra o catálogo e resolve o
   // valor de cada um (snapshot). Todos os IDs informados devem existir e estar
@@ -614,10 +670,12 @@ export class ReservaService {
   };
 
   // Usa o código de desbloqueio do veículo dentro da janela permitida.
+  // Ordem de validação (RN03): código -> horário/uso-único -> local (geofence).
   usarCodigoDesbloqueio = async (
     id: string,
     codigo: string,
     requester: ReservaAccessContext,
+    coord?: { latitude: number; longitude: number },
   ): Promise<ReservaResponse> => {
     const reserva = await this.reservaRepository.findById(id);
     if (!reserva) {
@@ -639,8 +697,62 @@ export class ReservaService {
     }
 
     this.assertCodigoUsavel(reserva);
+    await this.assertLocalDesbloqueio(reserva.idVeiculo, coord);
 
     return this.reservaRepository.marcarCodigoComoUsado(id, new Date());
+  };
+
+  // RN03: gera o token assinado embutido no QR Code de desbloqueio. Carrega
+  // idReserva + código; a assinatura (JWT_SECRET) impede adulteração. O QR é
+  // equivalente ao código textual — não dispensa horário/uso-único/local.
+  gerarQrDesbloqueio = async (
+    id: string,
+    requester: ReservaAccessContext,
+  ): Promise<{ qr: string }> => {
+    const reserva = await this.reservaRepository.findById(id);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+
+    await this.assertReservaAccess(requester, reserva);
+
+    if (!reserva.codigoDesbloqueio) {
+      throw new HttpError(
+        409,
+        "Código de desbloqueio ainda não gerado. Confirme o pagamento primeiro.",
+      );
+    }
+
+    const qr = jwt.sign(
+      { idReserva: id, codigo: reserva.codigoDesbloqueio },
+      env.JWT_SECRET,
+    );
+    return { qr };
+  };
+
+  // RN03: desbloqueio via QR. Verifica a assinatura, confere que o token é desta
+  // reserva e reusa toda a validação do código textual (não duplica regras).
+  usarQrDesbloqueio = async (
+    id: string,
+    qr: string,
+    requester: ReservaAccessContext,
+    coord?: { latitude: number; longitude: number },
+  ): Promise<ReservaResponse> => {
+    let payload: { idReserva?: string; codigo?: string };
+    try {
+      payload = jwt.verify(qr, env.JWT_SECRET) as {
+        idReserva?: string;
+        codigo?: string;
+      };
+    } catch {
+      throw new HttpError(400, "QR Code inválido ou adulterado.");
+    }
+
+    if (payload.idReserva !== id || !payload.codigo) {
+      throw new HttpError(400, "QR Code inválido para esta reserva.");
+    }
+
+    return this.usarCodigoDesbloqueio(id, payload.codigo, requester, coord);
   };
 
   delete = async (

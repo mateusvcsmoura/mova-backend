@@ -6,6 +6,7 @@ import { HttpError } from "../errors/HttpError.js";
 import {
   createReservaSchema,
   desbloquearReservaSchema,
+  desbloquearQrSchema,
   reservaQuerySchema,
   updateReservaSchema,
 } from "../schemas/reserva.schema.js";
@@ -194,10 +195,62 @@ export class ReservaController {
         return res.status(400).json({ errors: result.error.format() });
       }
 
+      const { codigo, latitude, longitude } = result.data;
+      const coord =
+        latitude !== undefined && longitude !== undefined
+          ? { latitude, longitude }
+          : undefined;
       const reserva = await this.reservaService.usarCodigoDesbloqueio(
         parsedId.data,
-        result.data.codigo,
+        codigo,
         req.user,
+        coord,
+      );
+      return res.status(200).json({ result: reserva });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  gerarQrDesbloqueio: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+
+      const result = await this.reservaService.gerarQrDesbloqueio(
+        parsedId.data,
+        req.user,
+      );
+      return res.status(200).json({ result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  desbloquearQr: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+
+      const result = desbloquearQrSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ errors: result.error.format() });
+      }
+
+      const { qr, latitude, longitude } = result.data;
+      const coord =
+        latitude !== undefined && longitude !== undefined
+          ? { latitude, longitude }
+          : undefined;
+      const reserva = await this.reservaService.usarQrDesbloqueio(
+        parsedId.data,
+        qr,
+        req.user,
+        coord,
       );
       return res.status(200).json({ result: reserva });
     } catch (error) {

@@ -32,6 +32,20 @@ reservaRouter.post(
   authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.desbloquear,
 );
+// QR Code de desbloqueio (RN03): GET obtém o token assinado; POST desbloqueia
+// resolvendo o QR para o mesmo código textual.
+reservaRouter.get(
+  "/:id/desbloqueio/qr",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.gerarQrDesbloqueio,
+);
+reservaRouter.post(
+  "/:id/desbloqueio/qr",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.desbloquearQr,
+);
 // Cancelamento (RN04). Acesso (dono/admin/locador) validado no service.
 reservaRouter.post("/:id/cancelar", authMiddleware, reservaController.cancelar);
 reservaRouter.put("/:id", authMiddleware, reservaController.update);

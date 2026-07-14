@@ -28,6 +28,11 @@ const envSchema = z.object({
   // Máx. de requisições de escrita (POST/PUT/PATCH/DELETE) por IP na janela.
   RATE_LIMIT_WRITE_MAX: z.coerce.number().int().positive().default(100),
 
+  // RN03: raio (em metros) do geofence de desbloqueio. O desbloqueio precisa
+  // ocorrer dentro desse raio da última localização conhecida do veículo.
+  // Quando não há localização de referência, o geofence é ignorado (permite).
+  DESBLOQUEIO_RAIO_METROS: z.coerce.number().positive().default(100),
+
   // Configuração SMTP (Nodemailer). Opcional: quando ausente, o envio de
   // e-mails fica desabilitado (útil em testes/dev) sem quebrar o boot.
   SMTP_HOST: z.string().min(1).optional(),
