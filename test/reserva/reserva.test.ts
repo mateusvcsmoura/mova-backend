@@ -1184,3 +1184,134 @@ describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
     expect(res.status).toBe(400);
   });
 });
+
+// RN06: devolução da reserva + multa de atraso (diária proporcional + 10%).
+describe("Reserva — devolução e atraso (RN06)", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+  });
+
+  async function cobrancasAtraso(idReserva: string) {
+    return prisma.cobrancaReserva.findMany({
+      where: { idReserva, tipo: "ATRASO_DEVOLUCAO" },
+    });
+  }
+
+  // Reserva confirmada e desbloqueada (código usado). Janela aberta no desbloqueio;
+  // depois os testes ajustam dataHoraFim/Inicio para simular prazo/atraso.
+  async function reservaDevolvivel(valorTotal = 300, desbloquear = true) {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      { ...futurePeriod(1, 3), valorTotal },
+    );
+    await confirmarPagamentoWebhook(reserva.id);
+
+    if (desbloquear) {
+      const det = await prisma.reserva.findUnique({ where: { id: reserva.id } });
+      await prisma.reserva.update({
+        where: { id: reserva.id },
+        data: {
+          dataHoraInicio: new Date(Date.now() - 60 * 60 * 1000),
+          dataHoraFim: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      const res = await request(app)
+        .post(`/api/reserva/${reserva.id}/desbloqueio`)
+        .set("Authorization", `Bearer ${locatario.token}`)
+        .send({ codigo: det!.codigoDesbloqueio });
+      expect(res.status).toBe(200);
+    }
+
+    return reserva.id as string;
+  }
+
+  function devolver(reservaId: string, token: string) {
+    return request(app)
+      .post(`/api/reserva/${reservaId}/devolucao`)
+      .set("Authorization", `Bearer ${token}`);
+  }
+
+  it("devolução no prazo: REALIZADA, sem cobrança", async () => {
+    const id = await reservaDevolvivel(); // fim = agora + 1h (no prazo)
+
+    const res = await devolver(id, locatario.token);
+    expect(res.status).toBe(200);
+    expect(res.body.result.status).toBe("REALIZADA");
+    expect(res.body.result.devolvidoEm).not.toBeNull();
+
+    expect(await cobrancasAtraso(id)).toHaveLength(0);
+  });
+
+  it("devolução com atraso: cobrança = diária proporcional + 10%, REALIZADA", async () => {
+    const id = await reservaDevolvivel(300);
+
+    // fim há 1h (atraso < 1 dia -> 1 diária); duração exata de 1 dia (diária =
+    // 300). 1 diária + 10% = 330. inicio ancorado em fim p/ evitar drift de ms.
+    const fim = new Date(Date.now() - 60 * 60 * 1000);
+    const inicio = new Date(fim.getTime() - 24 * 60 * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id },
+      data: { dataHoraInicio: inicio, dataHoraFim: fim },
+    });
+
+    const res = await devolver(id, locatario.token);
+    expect(res.status).toBe(200);
+    expect(res.body.result.status).toBe("REALIZADA");
+
+    const cobrancas = await cobrancasAtraso(id);
+    expect(cobrancas).toHaveLength(1);
+    expect(Number(cobrancas[0].valor)).toBe(330);
+  });
+
+  it("borda: minutos após o fim contam como 1 diária de atraso", async () => {
+    const id = await reservaDevolvivel(200);
+
+    // fim há 5 min -> ainda 1 diária de atraso; duração 1 dia (diária 200).
+    // 1 diária + 10% = 220.
+    const fim = new Date(Date.now() - 5 * 60 * 1000);
+    const inicio = new Date(fim.getTime() - 24 * 60 * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id },
+      data: { dataHoraInicio: inicio, dataHoraFim: fim },
+    });
+
+    const res = await devolver(id, locatario.token);
+    expect(res.status).toBe(200);
+
+    const cobrancas = await cobrancasAtraso(id);
+    expect(cobrancas).toHaveLength(1);
+    expect(Number(cobrancas[0].valor)).toBe(220);
+  });
+
+  it("devolver reserva não desbloqueada: 409", async () => {
+    const id = await reservaDevolvivel(300, false); // sem desbloqueio
+
+    const res = await devolver(id, locatario.token);
+    expect(res.status).toBe(409);
+  });
+
+  it("devolver reserva já devolvida: 409", async () => {
+    const id = await reservaDevolvivel();
+
+    const primeiro = await devolver(id, locatario.token);
+    expect(primeiro.status).toBe(200);
+
+    const segundo = await devolver(id, locatario.token);
+    expect(segundo.status).toBe(409);
+  });
+
+  it("requisitante sem acesso não devolve: 403", async () => {
+    const id = await reservaDevolvivel();
+    const intruso = await createLocatario();
+
+    const res = await devolver(id, intruso.token);
+    expect(res.status).toBe(403);
+  });
+});

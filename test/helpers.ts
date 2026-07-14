@@ -3,6 +3,7 @@ import request from "supertest";
 import { app } from "../src/app";
 import { prisma } from "../src/database/prisma";
 import { env } from "../src/config/env";
+import { isValidCnh } from "../src/shared/documentos";
 
 type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
 
@@ -69,7 +70,14 @@ function cnhComDv(base9: string): string {
 
 export const uniqueCnpj = () => cnpjComDv(pad(100000000000 + seq(), 12));
 export const uniqueCpf = () => cpfComDv(pad(100000000 + seq(), 9));
-export const uniqueCnh = () => cnhComDv(pad(200000000 + seq(), 9));
+// Alguns bases produzem DV = 10 (CNH inexistente, 12 dígitos) — pula até obter
+// uma CNH de 11 dígitos que passe na validação real (evita 400 esporádico).
+export const uniqueCnh = () => {
+  for (;;) {
+    const cnh = cnhComDv(pad(200000000 + seq(), 9));
+    if (cnh.length === 11 && isValidCnh(cnh)) return cnh;
+  }
+};
 export const uniqueRg = () => pad(100000000 + seq(), 9);
 // Data de nascimento válida (maioridade garantida) para os testes.
 export const DEFAULT_DATA_NASCIMENTO = "1990-05-15";

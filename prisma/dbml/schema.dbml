@@ -160,6 +160,7 @@ Table Reserva {
   codigoDesbloqueio String [unique]
   codigoGeradoEm DateTime
   codigoUsadoEm DateTime
+  devolvidoEm DateTime
   avaliacao Avaliacao
   condutores CondutorAdicional [not null]
   servicos ReservaServico [not null]
@@ -383,6 +384,7 @@ Enum MetodoPagamento {
 
 Enum TipoCobranca {
   CANCELAMENTO
+  ATRASO_DEVOLUCAO
 }
 
 Enum StatusGaragem {

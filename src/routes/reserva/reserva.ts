@@ -48,6 +48,8 @@ reservaRouter.post(
 );
 // Cancelamento (RN04). Acesso (dono/admin/locador) validado no service.
 reservaRouter.post("/:id/cancelar", authMiddleware, reservaController.cancelar);
+// Devolução (RN06). Acesso validado no service.
+reservaRouter.post("/:id/devolucao", authMiddleware, reservaController.devolver);
 reservaRouter.put("/:id", authMiddleware, reservaController.update);
 reservaRouter.delete("/:id", authMiddleware, reservaController.delete);
 

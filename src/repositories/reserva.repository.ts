@@ -41,6 +41,13 @@ export interface IReservaRepository {
   // RN04: cancela a reserva de forma atômica — registra a cobrança de multa
   // (valor 0 quando dentro do prazo) e transiciona status para CANCELADA.
   cancelar(id: string, multa: number): Promise<ReservaResponse>;
+  // RN06: registra a devolução — grava devolvidoEm, transiciona para REALIZADA
+  // e, quando valorCobranca > 0, lança a cobrança de atraso (transacional).
+  devolver(
+    id: string,
+    devolvidoEm: Date,
+    valorCobranca: number,
+  ): Promise<ReservaResponse>;
   // Existe reserva ativa do veículo que colide com o período informado?
   hasOverlapForVeiculo(
     idVeiculo: string,

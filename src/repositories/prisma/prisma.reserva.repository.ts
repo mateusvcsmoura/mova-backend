@@ -268,6 +268,35 @@ export class PrismaReservaRepository implements IReservaRepository {
     }
   }
 
+  async devolver(
+    id: string,
+    devolvidoEm: Date,
+    valorCobranca: number,
+  ): Promise<ReservaResponse> {
+    // Cobrança (só quando há atraso) + devolvidoEm + REALIZADA numa transação.
+    try {
+      const reserva = await prisma.$transaction(async (tx) => {
+        if (valorCobranca > 0) {
+          await tx.cobrancaReserva.create({
+            data: {
+              idReserva: id,
+              tipo: TipoCobranca.ATRASO_DEVOLUCAO,
+              valor: valorCobranca,
+            },
+          });
+        }
+        return tx.reserva.update({
+          where: { id },
+          data: { devolvidoEm, status: StatusReserva.REALIZADA },
+          include: RESERVA_INCLUDE,
+        });
+      });
+      return ReservaMapper.toResponse(reserva);
+    } catch {
+      throw new HttpError(404, "Reserva não encontrada.");
+    }
+  }
+
   async delete(id: string): Promise<void> {
     await prisma.reserva.delete({ where: { id } });
   }
