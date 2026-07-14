@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { MetodoPagamento, StatusPagamento, StatusReserva } from "@prisma/client";
 
+// RN05: duração da reserva. Mínimo 1 hora, máximo 30 dias (bordas inclusivas).
+// Espelha a checagem-fonte em ReservaService.assertPeriodoValido.
+const DURACAO_MINIMA_MS = 60 * 60 * 1000;
+const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
+const dentroDaDuracaoPermitida = (inicio: Date, fim: Date): boolean => {
+  const duracao = fim.getTime() - inicio.getTime();
+  return duracao >= DURACAO_MINIMA_MS && duracao <= DURACAO_MAXIMA_MS;
+};
+const MENSAGEM_DURACAO =
+  "A reserva deve ter entre 1 hora e 30 dias de duração.";
+
 export const createReservaSchema = z
   .object({
     idVeiculo: z.string().uuid(),
@@ -33,7 +44,11 @@ export const createReservaSchema = z
   .refine((data) => data.dataHoraFim > data.dataHoraInicio, {
     message: "A data/hora de término deve ser posterior à de início.",
     path: ["dataHoraFim"],
-  });
+  })
+  .refine(
+    (data) => dentroDaDuracaoPermitida(data.dataHoraInicio, data.dataHoraFim),
+    { message: MENSAGEM_DURACAO, path: ["dataHoraFim"] },
+  );
 
 export const updateReservaSchema = z
   .object({
@@ -58,6 +73,13 @@ export const updateReservaSchema = z
       message: "A data/hora de término deve ser posterior à de início.",
       path: ["dataHoraFim"],
     },
+  )
+  .refine(
+    (data) =>
+      data.dataHoraInicio === undefined ||
+      data.dataHoraFim === undefined ||
+      dentroDaDuracaoPermitida(data.dataHoraInicio, data.dataHoraFim),
+    { message: MENSAGEM_DURACAO, path: ["dataHoraFim"] },
   );
 
 // Query params da listagem (GET /api/reserva)

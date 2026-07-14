@@ -48,6 +48,10 @@ const CODIGO_MAX_TENTATIVAS = 5; // tentativas para evitar colisão de unique
 // Janela de validade do código a partir da data de início (2 dias).
 const CODIGO_VALIDADE_MS = 2 * 24 * 60 * 60 * 1000;
 
+// RN05: duração da reserva. Mínimo de 1 hora, máximo de 30 dias consecutivos.
+const DURACAO_MINIMA_MS = 60 * 60 * 1000;
+const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
+
 export class ReservaService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
@@ -204,6 +208,15 @@ export class ReservaService {
         400,
         "A data/hora de término deve ser posterior à de início.",
       );
+    }
+
+    // RN05: duração entre 1 hora e 30 dias (bordas exatas válidas).
+    const duracao = dataHoraFim.getTime() - dataHoraInicio.getTime();
+    if (duracao < DURACAO_MINIMA_MS) {
+      throw new HttpError(400, "A reserva deve ter no mínimo 1 hora.");
+    }
+    if (duracao > DURACAO_MAXIMA_MS) {
+      throw new HttpError(400, "A reserva não pode exceder 30 dias.");
     }
 
     if (dataHoraInicio < new Date()) {
