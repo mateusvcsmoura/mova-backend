@@ -947,3 +947,77 @@ describe("Reserva — serviços opcionais", () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe("Reserva — duração (RN05)", () => {
+  let locatario: LocatarioContext;
+  let veiculoId: string;
+
+  const UMA_HORA_MS = 60 * 60 * 1000;
+  const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+  // Período com controle de milissegundos (futurePeriod só dá granularidade de
+  // dias). startInDays evita sobreposição entre os cenários no mesmo veículo.
+  const periodo = (startInDays: number, duracaoMs: number) => {
+    const inicio = new Date();
+    inicio.setDate(inicio.getDate() + startInDays);
+    const fim = new Date(inicio.getTime() + duracaoMs);
+    return {
+      dataHoraInicio: inicio.toISOString(),
+      dataHoraFim: fim.toISOString(),
+    };
+  };
+
+  beforeAll(async () => {
+    const locador = await createLocador();
+    locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    veiculoId = veiculo.id;
+  });
+
+  const criar = (corpo: Record<string, unknown>) =>
+    request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculoId,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 100,
+        ...corpo,
+      });
+
+  it("recusa duração inferior a 1 hora (30 min) → 400", async () => {
+    const response = await criar(periodo(10, 30 * 60 * 1000));
+    expect(response.status).toBe(400);
+  });
+
+  it("recusa duração superior a 30 dias (31 dias) → 400", async () => {
+    const response = await criar(periodo(300, 31 * UM_DIA_MS));
+    expect(response.status).toBe(400);
+  });
+
+  it("aceita duração de exatamente 1 hora (borda) → 201", async () => {
+    const response = await criar(periodo(100, UMA_HORA_MS));
+    expect(response.status).toBe(201);
+  });
+
+  it("aceita duração de exatamente 30 dias (borda) → 201", async () => {
+    const response = await criar(periodo(200, 30 * UM_DIA_MS));
+    expect(response.status).toBe(201);
+  });
+
+  it("recusa update que estende a reserva para além de 30 dias → 400", async () => {
+    const criacao = await criar(periodo(400, 2 * UM_DIA_MS));
+    expect(criacao.status).toBe(201);
+    const reservaId = criacao.body.result.id;
+
+    const inicio = new Date(criacao.body.result.dataHoraInicio);
+    const fimExcessivo = new Date(inicio.getTime() + 31 * UM_DIA_MS);
+
+    const response = await request(app)
+      .put(`/api/reserva/${reservaId}`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ dataHoraFim: fimExcessivo.toISOString() });
+
+    expect(response.status).toBe(400);
+  });
+});
