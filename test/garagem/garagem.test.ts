@@ -1,7 +1,12 @@
 import request from "supertest";
 import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createLocador, createVeiculo, type LocadorContext } from "../helpers";
+import {
+  createGaragem,
+  createLocador,
+  createVeiculo,
+  type LocadorContext,
+} from "../helpers";
 
 describe("Garagem API", () => {
   let locador: LocadorContext;
@@ -156,6 +161,24 @@ describe("Garagem API", () => {
 
       expect(get.status).toBe(200);
       expect(get.body.result.status).toBe("INATIVA");
+    });
+
+    // RN08: ownership no delete — locador não-dono não desativa garagem alheia.
+    it("recusa exclusão de garagem de outro locador (403)", async () => {
+      const outro = await createLocador();
+      const garagem = await createGaragem(locador.token, locador.locadorId);
+
+      const del = await request(app)
+        .delete(`/api/garagem/${garagem.id}`)
+        .set("Authorization", `Bearer ${outro.token}`);
+
+      expect(del.status).toBe(403);
+
+      // Continua ATIVA (não foi desativada por quem não é dono).
+      const get = await request(app)
+        .get(`/api/garagem/${garagem.id}`)
+        .set("Authorization", `Bearer ${locador.token}`);
+      expect(get.body.result.status).toBe("ATIVA");
     });
   });
 });

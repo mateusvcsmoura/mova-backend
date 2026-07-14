@@ -322,7 +322,10 @@ describe("Favorito API", () => {
   });
 
   describe("Consistência na exclusão do veículo", () => {
-    it("deve remover os favoritos quando o veículo é excluído (cascade)", async () => {
+    // RN08: a exclusão de veículo virou soft delete (INATIVO). A linha de
+    // favorito é preservada (sem cascade destrutivo), mas o veículo removido
+    // do catálogo não aparece mais na lista de favoritos do locatário.
+    it("veículo soft-deleted sai da lista de favoritos, mas a linha é preservada", async () => {
       const veiculo = await createVeiculo(locador.token, locador.locadorId);
       const favorito = await createFavorito(locatario.token, veiculo.id);
       expect(favorito).toHaveProperty("id");
@@ -332,11 +335,13 @@ describe("Favorito API", () => {
         .set("Authorization", `Bearer ${locador.token}`);
       expect(del.status).toBe(204);
 
+      // Soft delete: a linha de favorito continua existindo (sem cascade).
       const restante = await prisma.favorito.findUnique({
         where: { id: favorito.id },
       });
-      expect(restante).toBeNull();
+      expect(restante).not.toBeNull();
 
+      // Mas o veículo INATIVO não aparece na lista de favoritos.
       const lista = await request(app)
         .get("/api/favorito")
         .set("Authorization", `Bearer ${locatario.token}`);

@@ -18,7 +18,7 @@ import {
   PaginationParams,
   toSkipTake,
 } from "../../shared/pagination.js";
-import { Prisma } from "@prisma/client";
+import { Prisma, StatusVeiculo } from "@prisma/client";
 
 const withModelo = { modeloVeiculo: true } as const;
 
@@ -235,7 +235,17 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.veiculo.delete({ where: { id } });
+    // RN08: soft delete — marca INATIVO (espelha garagem). Preserva histórico
+    // (evita cascade destrutivo) e tira o veículo de buscas (filtro DISPONIVEL)
+    // e de novas reservas (create rejeita status != DISPONIVEL).
+    try {
+      await prisma.veiculo.update({
+        where: { id },
+        data: { status: StatusVeiculo.INATIVO },
+      });
+    } catch {
+      throw new HttpError(404, "Veículo não encontrado.");
+    }
   }
 
   async updateModelo(
