@@ -5,6 +5,7 @@ import {
 
 export interface ICondutorRepository {
   findByReservaId(idReserva: string): Promise<CondutorResponse[]>;
+  countByReservaId(idReserva: string): Promise<number>;
   findByReservaAndCnh(
     idReserva: string,
     cnh: string,

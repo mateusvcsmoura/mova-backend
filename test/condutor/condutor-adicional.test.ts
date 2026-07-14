@@ -140,3 +140,51 @@ describe("Condutores adicionais (RF12)", () => {
     expect(del.status).toBe(409);
   });
 });
+
+describe("Condutores adicionais — limite de 3 (RN02)", () => {
+  let locatario: LocatarioContext;
+  let reservaId: string;
+
+  const addCondutor = (nome: string) =>
+    request(app)
+      .post(`/api/reserva/${reservaId}/condutores`)
+      .set(auth(locatario.token))
+      .send({ nome, cnh: uniqueCnh() });
+
+  beforeAll(async () => {
+    const locador = await createLocador();
+    locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+    );
+    reservaId = reserva.id;
+  });
+
+  it("aceita exatamente 3 condutores adicionais", async () => {
+    expect((await addCondutor("Condutor 1")).status).toBe(201);
+    expect((await addCondutor("Condutor 2")).status).toBe(201);
+    expect((await addCondutor("Condutor 3")).status).toBe(201);
+  });
+
+  it("recusa o 4º condutor adicional (409)", async () => {
+    const response = await addCondutor("Condutor 4");
+    expect(response.status).toBe(409);
+  });
+
+  it("permite adicionar novo condutor após remover um (contagem reflete remoções)", async () => {
+    const primeiro = await prisma.condutorAdicional.findFirst({
+      where: { idReserva: reservaId },
+      orderBy: { criadoEm: "asc" },
+    });
+    const del = await request(app)
+      .delete(`/api/reserva/${reservaId}/condutores/${primeiro!.id}`)
+      .set(auth(locatario.token));
+    expect(del.status).toBe(204);
+
+    const response = await addCondutor("Condutor 5");
+    expect(response.status).toBe(201);
+  });
+});

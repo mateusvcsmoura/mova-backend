@@ -52,6 +52,9 @@ const CODIGO_VALIDADE_MS = 2 * 24 * 60 * 60 * 1000;
 const DURACAO_MINIMA_MS = 60 * 60 * 1000;
 const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
 
+// RN02: máximo de condutores adicionais por reserva.
+const MAX_CONDUTORES_ADICIONAIS = 3;
+
 export class ReservaService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
@@ -657,6 +660,16 @@ export class ReservaService {
   ): Promise<CondutorResponse> => {
     const reserva = await this.getReservaComAcesso(idReserva, requester);
     this.assertReservaAlteravel(reserva);
+
+    // RN02: no máximo 3 condutores adicionais por reserva. Usa count real, que
+    // reflete remoções (não índice fixo).
+    const total = await this.condutorRepository.countByReservaId(idReserva);
+    if (total >= MAX_CONDUTORES_ADICIONAIS) {
+      throw new HttpError(
+        409,
+        "Limite de 3 condutores adicionais atingido.",
+      );
+    }
 
     // Duplicidade: mesmo condutor (CNH) já cadastrado nesta reserva.
     const existente = await this.condutorRepository.findByReservaAndCnh(
