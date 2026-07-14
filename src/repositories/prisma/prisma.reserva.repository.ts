@@ -188,6 +188,15 @@ export class PrismaReservaRepository implements IReservaRepository {
         );
       }
 
+      // RN01: associa a deficiência ao perfil do locatário na MESMA transação.
+      // Se o create abaixo falhar, esta escrita é revertida (sem efeito órfão).
+      if (data.deficienciaIdParaAssociar) {
+        await tx.locatario.update({
+          where: { id: data.idLocatario },
+          data: { deficienciaId: data.deficienciaIdParaAssociar },
+        });
+      }
+
       const reserva = await tx.reserva.create({
         data: {
           idVeiculo: data.idVeiculo,

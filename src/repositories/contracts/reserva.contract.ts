@@ -35,6 +35,9 @@ export interface CreateReservaRequest {
   // Serviços resolvidos (id + valor snapshot) — preenchido pelo service e
   // consumido pelo repositório para criar as associações.
   servicos?: ReservaServicoInput[];
+  // RN01: deficiência a associar ao locatário na MESMA transação da criação
+  // (veículo PCD sem deficiência já cadastrada). undefined = nada a associar.
+  deficienciaIdParaAssociar?: string;
 }
 
 export interface UpdateReservaRequest {
