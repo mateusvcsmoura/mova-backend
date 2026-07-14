@@ -1024,3 +1024,163 @@ describe("Reserva — duração (RN05)", () => {
     expect(response.status).toBe(400);
   });
 });
+
+// RN03: geofence (raio padrão 100m) + QR Code de desbloqueio.
+describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  const REF = { latitude: -23.5, longitude: -46.6 };
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+  });
+
+  // Cria reserva confirmada e com a janela de uso já aberta (backdate).
+  async function reservaDesbloqueavel() {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(1, 3),
+    );
+    await confirmarPagamentoWebhook(reserva.id);
+    const det = await prisma.reserva.findUnique({ where: { id: reserva.id } });
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: {
+        dataHoraInicio: new Date(Date.now() - 60 * 60 * 1000),
+        dataHoraFim: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+    return {
+      veiculoId: veiculo.id,
+      reservaId: reserva.id as string,
+      codigo: det!.codigoDesbloqueio!,
+    };
+  }
+
+  async function registrarLocalizacao(idVeiculo: string) {
+    await prisma.localizacao.create({
+      data: { idVeiculo, latitude: REF.latitude, longitude: REF.longitude },
+    });
+  }
+
+  function desbloquear(reservaId: string, body: Record<string, unknown>) {
+    return request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send(body);
+  }
+
+  it("sem localização de referência: geofence ignorado (permite)", async () => {
+    const { reservaId, codigo } = await reservaDesbloqueavel();
+    const res = await desbloquear(reservaId, { codigo });
+    expect(res.status).toBe(200);
+    expect(res.body.result.codigoUsadoEm).not.toBeNull();
+  });
+
+  it("dentro do raio: desbloqueia (200)", async () => {
+    const { veiculoId, reservaId, codigo } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
+
+    // ~33m ao norte da referência.
+    const res = await desbloquear(reservaId, {
+      codigo,
+      latitude: REF.latitude + 0.0003,
+      longitude: REF.longitude,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("borda: ~89m (< 100m) ainda desbloqueia (200, semântica <=)", async () => {
+    const { veiculoId, reservaId, codigo } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
+
+    const res = await desbloquear(reservaId, {
+      codigo,
+      latitude: REF.latitude + 0.0008,
+      longitude: REF.longitude,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("fora do raio: 403", async () => {
+    const { veiculoId, reservaId, codigo } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
+
+    // ~1.1km ao norte -> fora dos 100m.
+    const res = await desbloquear(reservaId, {
+      codigo,
+      latitude: REF.latitude + 0.01,
+      longitude: REF.longitude,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("com referência mas sem coordenada do dispositivo: 400", async () => {
+    const { veiculoId, reservaId, codigo } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
+
+    const res = await desbloquear(reservaId, { codigo });
+    expect(res.status).toBe(400);
+  });
+
+  it("QR válido desbloqueia e marca uso único (sem localização)", async () => {
+    const { reservaId } = await reservaDesbloqueavel();
+
+    const gerado = await request(app)
+      .get(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(gerado.status).toBe(200);
+    const qr = gerado.body.result.qr as string;
+    expect(qr).toBeTruthy();
+
+    const res = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr });
+    expect(res.status).toBe(200);
+    expect(res.body.result.codigoUsadoEm).not.toBeNull();
+
+    // Uso único: segundo QR (mesmo token) falha.
+    const reuso = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr });
+    expect(reuso.status).toBe(409);
+  });
+
+  it("QR via geofence: fora do raio 403, dentro 200", async () => {
+    const { veiculoId, reservaId } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
+
+    const gerado = await request(app)
+      .get(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    const qr = gerado.body.result.qr as string;
+
+    const fora = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr, latitude: REF.latitude + 0.01, longitude: REF.longitude });
+    expect(fora.status).toBe(403);
+
+    const dentro = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr, latitude: REF.latitude + 0.0003, longitude: REF.longitude });
+    expect(dentro.status).toBe(200);
+  });
+
+  it("QR adulterado: 400", async () => {
+    const { reservaId } = await reservaDesbloqueavel();
+
+    const res = await request(app)
+      .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr: "nao.e.um.jwt.valido" });
+    expect(res.status).toBe(400);
+  });
+});

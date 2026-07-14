@@ -95,13 +95,44 @@ export const reservaIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
+// Coordenada do dispositivo no momento do desbloqueio (RN03 — geofence).
+// Latitude/longitude são opcionais, mas ou ambas ou nenhuma.
+const coordenadaFields = {
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+};
+const ambasOuNenhumaCoordenada = (data: {
+  latitude?: number;
+  longitude?: number;
+}) => (data.latitude === undefined) === (data.longitude === undefined);
+const MENSAGEM_COORDENADA =
+  "Informe latitude e longitude juntas (ou nenhuma).";
+
 // Body do desbloqueio do veículo (POST /api/reserva/:id/desbloqueio)
-export const desbloquearReservaSchema = z.object({
-  codigo: z
-    .string()
-    .trim()
-    .transform((v) => v.toUpperCase())
-    .refine((v) => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(v), {
-      message: "Código deve estar no formato XXXX-XXXX",
-    }),
-});
+export const desbloquearReservaSchema = z
+  .object({
+    codigo: z
+      .string()
+      .trim()
+      .transform((v) => v.toUpperCase())
+      .refine((v) => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(v), {
+        message: "Código deve estar no formato XXXX-XXXX",
+      }),
+    ...coordenadaFields,
+  })
+  .refine(ambasOuNenhumaCoordenada, {
+    message: MENSAGEM_COORDENADA,
+    path: ["longitude"],
+  });
+
+// Body do desbloqueio via QR Code (POST /api/reserva/:id/desbloqueio/qr).
+// O QR carrega um token assinado que resolve para o mesmo código textual.
+export const desbloquearQrSchema = z
+  .object({
+    qr: z.string().min(1),
+    ...coordenadaFields,
+  })
+  .refine(ambasOuNenhumaCoordenada, {
+    message: MENSAGEM_COORDENADA,
+    path: ["longitude"],
+  });
