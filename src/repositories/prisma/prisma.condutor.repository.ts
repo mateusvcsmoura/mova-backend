@@ -27,6 +27,10 @@ export class PrismaCondutorRepository implements ICondutorRepository {
     return rows.map(toResponse);
   }
 
+  async countByReservaId(idReserva: string): Promise<number> {
+    return prisma.condutorAdicional.count({ where: { idReserva } });
+  }
+
   async findByReservaAndCnh(
     idReserva: string,
     cnh: string,
