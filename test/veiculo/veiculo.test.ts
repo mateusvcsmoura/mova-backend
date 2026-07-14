@@ -1,11 +1,13 @@
 import request from "supertest";
 import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
+import { prisma } from "../../src/database/prisma";
 import {
   createAccount,
   createLocador,
   createLocatario,
   createVeiculo,
+  futurePeriod,
   uniquePlaca,
   type Account,
   type LocadorContext,
@@ -318,13 +320,45 @@ describe("Veiculo API", () => {
       expect(response.status).toBe(401);
     });
 
-    it("deve remover o veículo (locador dono)", async () => {
+    it("deve fazer soft delete do veículo (locador dono): INATIVO, ainda existente", async () => {
       const response = await request(app)
         .delete(`/api/veiculo/${veiculoId}`)
         .set(auth(locador.token));
 
       expect(response.status).toBe(204);
       expect(response.body).toEqual({});
+
+      // RN08: soft delete — o veículo continua existindo, marcado INATIVO.
+      const persistido = await prisma.veiculo.findUnique({
+        where: { id: veiculoId },
+      });
+      expect(persistido).not.toBeNull();
+      expect(persistido!.status).toBe("INATIVO");
+
+      // Detalhe público trata INATIVO como inexistente (fora do catálogo).
+      const publico = await request(app).get(`/api/veiculo/${veiculoId}`);
+      expect(publico.status).toBe(404);
+    });
+
+    it("veículo INATIVO (soft-deleted) não é reservável (409)", async () => {
+      // Veículo próprio, desativado por soft delete.
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const del = await request(app)
+        .delete(`/api/veiculo/${veiculo.id}`)
+        .set(auth(locador.token));
+      expect(del.status).toBe(204);
+
+      const reserva = await request(app)
+        .post("/api/reserva")
+        .set(auth(locatario.token))
+        .send({
+          idVeiculo: veiculo.id,
+          idLocatario: locatario.locatarioId,
+          valorTotal: 150,
+          ...futurePeriod(600, 1),
+        });
+
+      expect(reserva.status).toBe(409);
     });
   });
 });

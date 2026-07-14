@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, StatusVeiculo } from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
 import { IFavoritoRepository } from "../favorito.repository.js";
@@ -74,7 +74,12 @@ export class PrismaFavoritoRepository implements IFavoritoRepository {
     pagination: PaginationParams,
   ): Promise<PaginatedResult<FavoritoResponse>> {
     const { skip, take } = toSkipTake(pagination);
-    const where = { idLocatario };
+    // RN08: veículo soft-deleted (INATIVO) sai da lista de favoritos — a linha
+    // de favorito é preservada, mas não expõe um veículo removido do catálogo.
+    const where: Prisma.FavoritoWhereInput = {
+      idLocatario,
+      veiculo: { status: { not: StatusVeiculo.INATIVO } },
+    };
     const [data, total] = await prisma.$transaction([
       prisma.favorito.findMany({
         where,
