@@ -50,6 +50,7 @@ jobs:
       MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
       ASAAS_WEBHOOK_SECRET: ${{ secrets.ASAAS_WEBHOOK_SECRET }}
+      DESBLOQUEIO_RAIO_METROS: ${{ secrets.DESBLOQUEIO_RAIO_METROS }}
 
     steps:
       - name: Checkout
