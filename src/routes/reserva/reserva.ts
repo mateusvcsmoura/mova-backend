@@ -32,6 +32,8 @@ reservaRouter.post(
   authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.desbloquear,
 );
+// Cancelamento (RN04). Acesso (dono/admin/locador) validado no service.
+reservaRouter.post("/:id/cancelar", authMiddleware, reservaController.cancelar);
 reservaRouter.put("/:id", authMiddleware, reservaController.update);
 reservaRouter.delete("/:id", authMiddleware, reservaController.delete);
 

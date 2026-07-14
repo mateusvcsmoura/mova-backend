@@ -55,6 +55,11 @@ const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
 // RN02: máximo de condutores adicionais por reserva.
 const MAX_CONDUTORES_ADICIONAIS = 3;
 
+// RN04: política de cancelamento. Grátis até 2 horas antes da retirada; após
+// esse prazo, multa de 20% sobre o valor da reserva.
+const PRAZO_CANCELAMENTO_MS = 2 * 60 * 60 * 1000;
+const MULTA_CANCELAMENTO_TARDIO = 0.2;
+
 export class ReservaService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
@@ -495,11 +500,6 @@ export class ReservaService {
 
     await this.assertReservaAccess(requester, reserva);
 
-    // Confirmar uma reserva também exige locatário liberado (sem bloqueio ativo).
-    if (data.status === StatusReserva.CONFIRMADA) {
-      await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
-    }
-
     // Se mexeu em qualquer das datas, revalida o período usando os valores finais.
     if (data.dataHoraInicio !== undefined || data.dataHoraFim !== undefined) {
       await this.assertPeriodoValido(
@@ -526,6 +526,48 @@ export class ReservaService {
     // do pagamento só muda por confirmarPagamento, acionado pelo webhook
     // assinado do gateway. O PUT trata apenas datas/status/devolução.
     return this.reservaRepository.update(id, data);
+  };
+
+  // RN04: cancelamento como ação de domínio. Grátis até 2h antes da retirada;
+  // após, multa de 20% sobre o valor da reserva, registrada em CobrancaReserva.
+  // Único caminho de cancelamento (PUT /:id não altera mais status).
+  cancelarReserva = async (
+    id: string,
+    requester: ReservaAccessContext,
+  ): Promise<ReservaResponse> => {
+    const reserva = await this.reservaRepository.findById(id);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+
+    await this.assertReservaAccess(requester, reserva);
+
+    // Máquina de estados: só AGUARDANDO_PAGAMENTO/CONFIRMADA podem ser canceladas.
+    if (reserva.status === StatusReserva.CANCELADA) {
+      throw new HttpError(409, "Reserva já cancelada.");
+    }
+    if (
+      reserva.status === StatusReserva.EM_ANDAMENTO ||
+      reserva.status === StatusReserva.REALIZADA
+    ) {
+      throw new HttpError(
+        409,
+        "Reserva em andamento ou concluída não pode ser cancelada.",
+      );
+    }
+
+    // Prazo: cancelar após (dataHoraInicio - 2h) é tardio -> multa de 20%.
+    const agora = new Date();
+    const prazoLimite = new Date(
+      reserva.dataHoraInicio.getTime() - PRAZO_CANCELAMENTO_MS,
+    );
+    const tardio = agora > prazoLimite;
+    // Arredonda para 2 casas (coluna Decimal(10,2)).
+    const multa = tardio
+      ? Math.round(reserva.valorTotal * MULTA_CANCELAMENTO_TARDIO * 100) / 100
+      : 0;
+
+    return this.reservaRepository.cancelar(id, multa);
   };
 
   // Fluxo INTERNO do gateway de pagamento. Só o webhook (após validar a

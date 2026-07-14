@@ -258,30 +258,9 @@ describe("Bloqueio de locatário — impacto na reserva", () => {
     expect(response.status).toBe(201);
   });
 
-  it("confirmar reserva exige locatário liberado", async () => {
-    const locatario = await createLocatario();
-
-    // Cria a reserva enquanto liberado.
-    const criada = await tentarReserva(
-      locatario.token,
-      veiculoId,
-      locatario.locatarioId,
-      futurePeriod(100, 1),
-    );
-    expect(criada.status).toBe(201);
-
-    // Bloqueia depois.
-    await createBloqueio(admin.token, locatario.locatarioId, {
-      motivo: "ADMINISTRATIVO",
-    });
-
-    const response = await request(app)
-      .put(`/api/reserva/${criada.body.result.id}`)
-      .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ status: "CONFIRMADA" });
-
-    expect(response.status).toBe(403);
-  });
+  // NOTA (RN04): a confirmação via PUT {status:"CONFIRMADA"} foi removida — o
+  // PUT não altera mais status. O bloqueio na confirmação passou a ser coberto
+  // pela trilha do webhook de pagamento (RN07), testado no describe abaixo.
 });
 
 // RN07: o webhook de pagamento é a única trilha que gera o código de
