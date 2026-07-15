@@ -7,7 +7,7 @@ import { observability } from "../../src/middlewares/observability";
 
 describe("Observabilidade", () => {
   it("adiciona o header X-Request-Id na resposta", async () => {
-    const res = await request(app).get("/health");
+    const res = await request(app).get("/api/health");
 
     expect(res.headers).toHaveProperty("x-request-id");
     expect(res.headers["x-request-id"]).toMatch(/[0-9a-f-]{36}/i);
@@ -16,7 +16,7 @@ describe("Observabilidade", () => {
   it("reutiliza o X-Request-Id recebido para correlação", async () => {
     const enviado = "req-de-teste-123";
     const res = await request(app)
-      .get("/health")
+      .get("/api/health")
       .set("X-Request-Id", enviado);
 
     expect(res.headers["x-request-id"]).toBe(enviado);

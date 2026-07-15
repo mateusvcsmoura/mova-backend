@@ -7,9 +7,9 @@ import { createHealthRouter } from "../../src/routes/health/health";
 import { observability } from "../../src/middlewares/observability";
 
 describe("Health & readiness", () => {
-  describe("GET /health", () => {
+  describe("GET /api/health", () => {
     it("retorna 200 com status, uptime e timestamp", async () => {
-      const res = await request(app).get("/health");
+      const res = await request(app).get("/api/health");
 
       expect(res.status).toBe(200);
       expect(res.body.status).toBe("ok");
@@ -20,9 +20,9 @@ describe("Health & readiness", () => {
     });
   });
 
-  describe("GET /ready", () => {
+  describe("GET /api/ready", () => {
     it("retorna 200 quando o banco responde", async () => {
-      const res = await request(app).get("/ready");
+      const res = await request(app).get("/api/ready");
 
       expect(res.status).toBe(200);
       expect(res.body.status).toBe("ready");
