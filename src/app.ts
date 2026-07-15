@@ -33,7 +33,9 @@ const app = express();
 // ausência, um whitelist de desenvolvimento. NUNCA "*".
 const DEV_ORIGINS = ["http://localhost:3000", "http://localhost:5173"];
 const allowedOrigins = env.CORS_ORIGINS
-  ? env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  ? env.CORS_ORIGINS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
   : DEV_ORIGINS;
 
 const corsOptions: CorsOptions = {
@@ -72,7 +74,7 @@ app.use(express.json({ limit: env.BODY_LIMIT }));
 
 // Health/readiness antes do apiMetadata: respostas enxutas (status/uptime/...)
 // sem o envelope de metadados, no formato esperado por orquestradores.
-app.use(healthRouter);
+app.use("/api/", healthRouter);
 
 app.use(apiMetadata("v1.0.0"));
 
