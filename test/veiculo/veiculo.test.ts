@@ -196,10 +196,121 @@ describe("Veiculo API", () => {
 
       expect(response.status).toBe(200);
       const veiculo = response.body.result.find((item: any) => item.id === veiculoId);
+      expect(veiculo.garagem.status).toBe("ATIVA");
       expect(veiculo).toMatchObject({
         garagemId: garagem.id,
         garagem: { id: garagem.id, nome: "Garagem do catálogo" },
       });
+    });
+  });
+
+  describe("Veiculo API — status da garagem no contrato", () => {
+    it("expõe status INATIVA e MANUTENCAO da garagem no catálogo", async () => {
+      const garagemInativa = await createGaragem(
+        locador.token,
+        locador.locadorId,
+        { nome: "Garagem inativa do catálogo" },
+      );
+      const garagemManutencao = await createGaragem(
+        locador.token,
+        locador.locadorId,
+        { nome: "Garagem em manutencao do catálogo" },
+      );
+      const veiculoInativo = await createVeiculo(
+        locador.token,
+        locador.locadorId,
+      );
+      const veiculoManutencao = await createVeiculo(
+        locador.token,
+        locador.locadorId,
+      );
+
+      expect(
+        (
+          await request(app)
+            .post(
+              `/api/garagem/${garagemInativa.id}/veiculos/${veiculoInativo.id}`,
+            )
+            .set(auth(locador.token))
+            .send({})
+        ).status,
+      ).toBe(204);
+      expect(
+        (
+          await request(app)
+            .post(
+              `/api/garagem/${garagemManutencao.id}/veiculos/${veiculoManutencao.id}`,
+            )
+            .set(auth(locador.token))
+            .send({})
+        ).status,
+      ).toBe(204);
+      await prisma.garagem.update({
+        where: { id: garagemInativa.id },
+        data: { status: "INATIVA" },
+      });
+      await prisma.garagem.update({
+        where: { id: garagemManutencao.id },
+        data: { status: "MANUTENCAO" },
+      });
+
+      const response = await request(app)
+        .get("/api/veiculo")
+        .set(auth(locatario.token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: veiculoInativo.id,
+            garagem: {
+              id: garagemInativa.id,
+              nome: "Garagem inativa do catálogo",
+              status: "INATIVA",
+            },
+          }),
+          expect.objectContaining({
+            id: veiculoManutencao.id,
+            garagem: {
+              id: garagemManutencao.id,
+              nome: "Garagem em manutencao do catálogo",
+              status: "MANUTENCAO",
+            },
+          }),
+        ]),
+      );
+
+      const detalheInativo = await request(app).get(
+        `/api/veiculo/${veiculoInativo.id}`,
+      );
+      const detalheManutencao = await request(app).get(
+        `/api/veiculo/${veiculoManutencao.id}`,
+      );
+      expect(detalheInativo.body.result.garagem.status).toBe("INATIVA");
+      expect(detalheManutencao.body.result.garagem.status).toBe("MANUTENCAO");
+    });
+
+    it("retorna garagem nula quando veículo não está alocado", async () => {
+      const semGaragem = await createVeiculo(locador.token, locador.locadorId);
+
+      const response = await request(app)
+        .get("/api/veiculo")
+        .set(auth(locador.token));
+
+      expect(response.status).toBe(200);
+      expect(
+        response.body.result.find((item: any) => item.id === semGaragem.id),
+      ).toMatchObject({ id: semGaragem.id, garagemId: null, garagem: null });
+    });
+
+    it("preserva paginação na listagem com garagem aninhada", async () => {
+      const response = await request(app)
+        .get("/api/veiculo?page=1&limit=1")
+        .set(auth(locador.token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toHaveLength(1);
+      expect(response.body.pagination).toMatchObject({ page: 1, limit: 1 });
     });
   });
 
@@ -209,6 +320,7 @@ describe("Veiculo API", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.result.id).toBe(veiculoId);
+      expect(response.body.result.garagem).toMatchObject({ status: "ATIVA" });
     });
 
     it("não deve expor veículo INATIVO (404)", async () => {

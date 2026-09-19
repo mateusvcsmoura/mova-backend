@@ -6,7 +6,7 @@ import {
 
 type VeiculoComModelo = Veiculo & {
   modeloVeiculo: ModeloVeiculo;
-  garagem?: Pick<Garagem, "id" | "nome"> | null;
+  garagem?: Pick<Garagem, "id" | "nome" | "status"> | null;
 };
 
 export class VeiculoMapper {
@@ -35,7 +35,11 @@ export class VeiculoMapper {
       modeloVeiculo: this.toModeloResponse(veiculo.modeloVeiculo),
       garagemId: veiculo.garagemId,
       garagem: veiculo.garagem
-        ? { id: veiculo.garagem.id, nome: veiculo.garagem.nome }
+        ? {
+            id: veiculo.garagem.id,
+            nome: veiculo.garagem.nome,
+            status: veiculo.garagem.status,
+          }
         : null,
       placa: veiculo.placa,
       status: veiculo.status,

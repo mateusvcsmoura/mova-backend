@@ -1,3 +1,4 @@
+import { StatusGaragem } from "@prisma/client";
 import { VeiculoResponse } from "./veiculo.contract.js";
 
 export interface CreateFavoritoRequest {
@@ -18,6 +19,7 @@ export interface FavoritoGaragemResponse {
   nome: string;
   endereco: string;
   acessibilidade: boolean;
+  status: StatusGaragem;
 }
 
 // Veículo como retornado na listagem de favoritos: mesmo shape das demais

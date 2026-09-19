@@ -46,6 +46,7 @@ export class InteresseMapper {
       nome: garagem.nome,
       endereco: garagem.endereco,
       acessibilidade: garagem.acessibilidade,
+      status: garagem.status,
     };
   }
 

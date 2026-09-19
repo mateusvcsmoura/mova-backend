@@ -39,6 +39,7 @@ export class FavoritoMapper {
       nome: garagem.nome,
       endereco: garagem.endereco,
       acessibilidade: garagem.acessibilidade,
+      status: garagem.status,
     };
   }
 

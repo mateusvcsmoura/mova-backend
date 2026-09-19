@@ -1,4 +1,9 @@
-import { Cargo, CategoriaVeiculo, StatusVeiculo } from "@prisma/client";
+import {
+  Cargo,
+  CategoriaVeiculo,
+  StatusGaragem,
+  StatusVeiculo,
+} from "@prisma/client";
 import { PaginationParams } from "../../shared/pagination.js";
 
 export interface ModeloVeiculoData {
@@ -94,4 +99,5 @@ export interface UpdateModeloVeiculoRequest {
 export interface GaragemVeiculoResponse {
   id: string;
   nome: string;
+  status: StatusGaragem;
 }

@@ -1,4 +1,4 @@
-import { StatusInteresse } from "@prisma/client";
+import { StatusGaragem, StatusInteresse } from "@prisma/client";
 import { VeiculoResponse } from "./veiculo.contract.js";
 
 export interface CreateInteresseRequest {
@@ -19,6 +19,7 @@ export interface InteresseGaragemResponse {
   nome: string;
   endereco: string;
   acessibilidade: boolean;
+  status: StatusGaragem;
 }
 
 // Veículo como retornado na listagem de interesses: mesmo shape das demais
