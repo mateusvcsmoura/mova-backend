@@ -44,8 +44,18 @@ describe("Reserva — cancelamento (RN04)", () => {
   });
 
   // Cada reserva usa um veículo próprio para não colidir períodos.
-  async function novaReserva(overrides: Record<string, unknown> = {}) {
-    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+  // O valor da reserva e calculado pelo backend (TASK 04) a partir da diaria do
+  // modelo; por isso o teste controla valorDiaria, nao valorTotal. A diaria mora
+  // no ModeloVeiculo, reaproveitado pelo unique [idLocador, marca, modelo, ano],
+  // entao o modelo tambem varia.
+  async function novaReserva(
+    overrides: Record<string, unknown> = {},
+    valorDiaria = 100,
+  ) {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+      modelo: `Argo-${valorDiaria}`,
+      valorDiaria,
+    });
     return createReserva(
       locatario.token,
       veiculo.id,
@@ -63,6 +73,7 @@ describe("Reserva — cancelamento (RN04)", () => {
     const res = await cancelar(locatario.token, reserva.id);
     expect(res.status).toBe(200);
     expect(res.body.result.status).toBe("CANCELADA");
+    expect(res.body.result.multaCancelamento).toBe(0);
 
     const cobrancas = await cobrancasDe(reserva.id);
     expect(cobrancas).toHaveLength(1);
@@ -71,11 +82,13 @@ describe("Reserva — cancelamento (RN04)", () => {
   });
 
   it("cancelar ≤2h antes: multa de 20% registrada, status CANCELADA", async () => {
-    const reserva = await novaReserva({ ...janelaTardia(), valorTotal: 400 });
+    // janelaTardia dura 1h30 -> 1 diaria. Diaria 400 => valorTotal 400.
+    const reserva = await novaReserva(janelaTardia(), 400);
 
     const res = await cancelar(locatario.token, reserva.id);
     expect(res.status).toBe(200);
     expect(res.body.result.status).toBe("CANCELADA");
+    expect(res.body.result.multaCancelamento).toBe(80);
 
     const cobrancas = await cobrancasDe(reserva.id);
     expect(cobrancas).toHaveLength(1);
@@ -83,7 +96,7 @@ describe("Reserva — cancelamento (RN04)", () => {
   });
 
   it("multa = valorTotal * 0.20 exato (arredondamento Decimal)", async () => {
-    const reserva = await novaReserva({ ...janelaTardia(), valorTotal: 333.33 });
+    const reserva = await novaReserva(janelaTardia(), 333.33);
 
     const res = await cancelar(locatario.token, reserva.id);
     expect(res.status).toBe(200);
@@ -93,7 +106,7 @@ describe("Reserva — cancelamento (RN04)", () => {
   });
 
   it("cancelar reserva já CANCELADA retorna 409", async () => {
-    const reserva = await novaReserva({ ...futurePeriod(6, 1), valorTotal: 200 });
+    const reserva = await novaReserva({ ...futurePeriod(6, 1) });
 
     const primeiro = await cancelar(locatario.token, reserva.id);
     expect(primeiro.status).toBe(200);
@@ -103,7 +116,7 @@ describe("Reserva — cancelamento (RN04)", () => {
   });
 
   it("cancelar reserva REALIZADA retorna 409", async () => {
-    const reserva = await novaReserva({ ...futurePeriod(7, 1), valorTotal: 200 });
+    const reserva = await novaReserva({ ...futurePeriod(7, 1) });
 
     // Estado terminal setado direto no banco (não há rota de transição).
     await prisma.reserva.update({
@@ -115,8 +128,17 @@ describe("Reserva — cancelamento (RN04)", () => {
     expect(res.status).toBe(409);
   });
 
+  it("cancelar reserva EM_ANDAMENTO retorna 409", async () => {
+    const reserva = await novaReserva({ ...futurePeriod(7.5, 1) });
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { status: "EM_ANDAMENTO", codigoUsadoEm: new Date() },
+    });
+    expect((await cancelar(locatario.token, reserva.id)).status).toBe(409);
+  });
+
   it("requisitante sem acesso não cancela (403)", async () => {
-    const reserva = await novaReserva({ ...futurePeriod(8, 1), valorTotal: 200 });
+    const reserva = await novaReserva({ ...futurePeriod(8, 1) });
 
     const intruso = await createLocatario();
     const res = await cancelar(intruso.token, reserva.id);

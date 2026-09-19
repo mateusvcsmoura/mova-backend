@@ -1,9 +1,24 @@
-import { Reserva, ReservaServico, ServicoOpcional } from "@prisma/client";
+import {
+  ModeloVeiculo,
+  CobrancaReserva,
+  TipoCobranca,
+  Reserva,
+  ReservaServico,
+  ServicoOpcional,
+  Veiculo,
+  Garagem,
+} from "@prisma/client";
 import { ReservaResponse } from "../contracts/reserva.contract.js";
+import { VeiculoMapper } from "./veiculo.mapper.js";
 
-// Reserva carregada com a junção de serviços (servicos -> servico do catálogo).
+// Reserva carregada com a junção de serviços (servicos -> servico do catálogo)
+// e com o veículo + modelo, conforme RESERVA_INCLUDE.
 export type ReservaComServicos = Reserva & {
   servicos?: (ReservaServico & { servico: ServicoOpcional })[];
+  cobrancas?: CobrancaReserva[];
+  veiculo: Veiculo & { modeloVeiculo: ModeloVeiculo };
+  garagemRetirada?: Pick<Garagem, "id" | "nome" | "endereco" | "status"> | null;
+  garagemDevolucao?: Pick<Garagem, "id" | "nome" | "endereco" | "status"> | null;
 };
 
 export class ReservaMapper {
@@ -14,6 +29,8 @@ export class ReservaMapper {
       idLocatario: reserva.idLocatario,
       idGaragemRetirada: reserva.idGaragemRetirada,
       idGaragemDevolucao: reserva.idGaragemDevolucao,
+      garagemRetirada: reserva.garagemRetirada ?? null,
+      garagemDevolucao: reserva.garagemDevolucao ?? null,
       dataHoraInicio: reserva.dataHoraInicio,
       dataHoraFim: reserva.dataHoraFim,
       criadaEm: reserva.criadaEm,
@@ -26,6 +43,12 @@ export class ReservaMapper {
       codigoGeradoEm: reserva.codigoGeradoEm,
       codigoUsadoEm: reserva.codigoUsadoEm,
       devolvidoEm: reserva.devolvidoEm,
+      cobrancaAtraso: (reserva.cobrancas ?? [])
+        .filter((cobranca) => cobranca.tipo === TipoCobranca.ATRASO_DEVOLUCAO)
+        .reduce((total, cobranca) => total + Number(cobranca.valor), 0),
+      multaCancelamento: (reserva.cobrancas ?? [])
+        .filter((cobranca) => cobranca.tipo === TipoCobranca.CANCELAMENTO)
+        .reduce((total, cobranca) => total + Number(cobranca.valor), 0),
       servicos: (reserva.servicos ?? []).map((rs) => ({
         idServico: rs.idServico,
         nome: rs.servico.nome,
@@ -33,6 +56,7 @@ export class ReservaMapper {
         // valor contratado (snapshot), não o valor atual do catálogo
         valor: Number(rs.valor),
       })),
+      veiculo: VeiculoMapper.toResponse(reserva.veiculo),
       atualizadoEm: reserva.atualizadoEm,
     };
   }

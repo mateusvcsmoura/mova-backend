@@ -5,6 +5,7 @@ import {
   StatusReserva,
 } from "@prisma/client";
 import { PaginationParams } from "../../shared/pagination.js";
+import { VeiculoResponse } from "./veiculo.contract.js";
 
 // Serviço opcional já resolvido (id + valor snapshot), pronto para persistir.
 // Preenchido pelo ReservaService após validar os IDs contra o catálogo.
@@ -23,11 +24,9 @@ export interface CreateReservaRequest {
   idGaragemDevolucao?: string;
   dataHoraInicio: Date;
   dataHoraFim: Date;
-  // valorTotal recebido é o valor base; o ReservaService soma os serviços
-  // opcionais selecionados antes de persistir.
+  // valorTotal é CALCULADO pelo ReservaService (diária × diárias + serviços).
+  // Nunca chega do cliente.
   valorTotal: number;
-  status?: StatusReserva;
-  statusPagamento?: StatusPagamento;
   // Forma de pagamento escolhida (RF11).
   metodoPagamento?: MetodoPagamento;
   // IDs dos serviços opcionais selecionados pelo locatário (entrada do cliente).
@@ -39,6 +38,16 @@ export interface CreateReservaRequest {
   // (veículo PCD sem deficiência já cadastrada). undefined = nada a associar.
   deficienciaIdParaAssociar?: string;
 }
+
+/**
+ * O que o CLIENTE pode enviar ao criar uma reserva. Não inclui valorTotal
+ * (calculado pelo ReservaService a partir da diária do modelo) nem os campos
+ * internos preenchidos pelo próprio service antes de chegar ao repositório.
+ */
+export type CreateReservaInput = Omit<
+  CreateReservaRequest,
+  "valorTotal" | "servicos" | "deficienciaIdParaAssociar"
+>;
 
 export interface UpdateReservaRequest {
   idGaragemDevolucao?: string;
@@ -74,12 +83,23 @@ export interface ReservaServicoResponse {
   valor: number;
 }
 
+// Dados necessários para identificar os locais da jornada sem exigir uma
+// consulta por reserva no frontend.
+export interface ReservaGaragemResponse {
+  id: string;
+  nome: string;
+  endereco: string;
+  status: string;
+}
+
 export interface ReservaResponse {
   id: string;
   idVeiculo: string;
   idLocatario: string;
   idGaragemRetirada: string | null;
   idGaragemDevolucao: string | null;
+  garagemRetirada: ReservaGaragemResponse | null;
+  garagemDevolucao: ReservaGaragemResponse | null;
   dataHoraInicio: Date;
   dataHoraFim: Date;
   criadaEm: Date;
@@ -92,7 +112,12 @@ export interface ReservaResponse {
   codigoUsadoEm: Date | null;
   // RN06: instante da devolução real (nulo até devolver).
   devolvidoEm: Date | null;
+  cobrancaAtraso?: number;
+  multaCancelamento?: number;
   // Serviços opcionais vinculados a esta reserva.
   servicos: ReservaServicoResponse[];
+  // Veículo da reserva, já com o modelo aninhado. Mesmo formato de
+  // GET /api/veiculo/:id — o cliente reaproveita a normalização.
+  veiculo: VeiculoResponse;
   atualizadoEm: Date;
 }

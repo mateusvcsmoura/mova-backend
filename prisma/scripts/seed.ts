@@ -340,6 +340,8 @@ async function main() {
               capacidade: 4 + (m % 3),
               eletrico: m === 0,
               adaptado: m === 1,
+              // Diária varia por modelo para o catálogo não ficar homogêneo.
+              valorDiaria: 120 + seq * 15,
             },
           });
           modelos.push(modelo);

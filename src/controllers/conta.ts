@@ -83,15 +83,9 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = createContaSchema.safeParse(req.body);
+      const result = createContaSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
 
       const { conta, token } = await this.contaService.register(data);
 
@@ -105,15 +99,9 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = loginSchema.safeParse(req.body);
+      const result = loginSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
       const { token } = await this.contaService.login(data.email, data.senha);
 
       return res.status(200).json({ result: { token } });
@@ -126,15 +114,9 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = updateContaSchema.safeParse(req.body);
+      const result = updateContaSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
 
       const userId = req.user?.id;
 
@@ -154,15 +136,9 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = changePasswordSchema.safeParse(req.body);
+      const result = changePasswordSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
 
       const userId = req.user?.id;
 
@@ -202,15 +178,9 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = createContaSchema.safeParse(req.body);
+      const result = createContaSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
       const conta = await this.contaService.create(data);
 
       return res.status(201).json({ result: conta });
@@ -232,15 +202,9 @@ export class ContaController {
 
       const id = parsedId.data;
 
-      const result = updateContaSchema.safeParse(req.body);
+      const result = updateContaSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
       const conta = await this.contaService.update(id, data);
 
       return res.status(200).json({ result: conta });

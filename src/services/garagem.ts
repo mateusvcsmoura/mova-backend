@@ -1,4 +1,4 @@
-import { Cargo } from "@prisma/client";
+import { Cargo, StatusGaragem } from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
@@ -42,6 +42,16 @@ export class GaragemService {
       return;
     }
 
+    // O locatário precisa consultar garagens para escolher retirada/devolução
+    // na reserva. Só enxerga as ATIVAS, e apenas em leitura — toda escrita
+    // continua restrita ao locador dono (assertLocadorResponsavel).
+    if (requester.cargo === Cargo.LOCATARIO) {
+      if (garagem.status !== StatusGaragem.ATIVA) {
+        throw new HttpError(404, "Garagem não encontrada");
+      }
+      return;
+    }
+
     if (
       requester.cargo !== Cargo.LOCADOR ||
       requester.id !== garagem.idLocador
@@ -72,6 +82,16 @@ export class GaragemService {
   }: ListGaragemRequest): Promise<PaginatedResult<GaragemBaseResponse>> => {
     if (requester.cargo === Cargo.ADMIN) {
       return this.garagemRepository.findAll(filters ?? {}, pagination);
+    }
+
+    // Locatário: catálogo público de garagens, restrito às ATIVAS. O filtro é
+    // forçado aqui (não aceita override pela query) para não vazar garagens
+    // inativas ou em manutenção.
+    if (requester.cargo === Cargo.LOCATARIO) {
+      return this.garagemRepository.findAll(
+        { ...(filters ?? {}), status: StatusGaragem.ATIVA },
+        pagination,
+      );
     }
 
     if (requester.cargo !== Cargo.LOCADOR) {

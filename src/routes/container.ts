@@ -78,6 +78,7 @@ import { MonitoramentoScheduler } from "../services/monitoramento-scheduler.js";
 import { MonitoramentoController } from "../controllers/monitoramento.js";
 import { construirGatewaysPagamento } from "../infra/payment/gateway.js";
 import { PagamentoWebhookService } from "../services/pagamento-webhook.js";
+import { PagamentoService } from "../services/pagamento.js";
 import { PagamentoWebhookController } from "../controllers/pagamento-webhook.js";
 import { ILgpdRepository } from "../repositories/lgpd.repository.js";
 import { PrismaLgpdRepository } from "../repositories/prisma/prisma.lgpd.repository.js";
@@ -183,13 +184,16 @@ export const condutorRepository: ICondutorRepository = new PrismaCondutorReposit
 // para ser injetada no ReservaService (o LocalizacaoService a reusa mais abaixo).
 export const localizacaoRepository: ILocalizacaoRepository = new PrismaLocalizacaoRepository();
 export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, localizacaoRepository, notificacaoReservaService);
-export const reservaController = new ReservaController(reservaService);
-
 // Webhook de pagamento: registro de gateways (Mercado Pago/Stripe/Asaas) +
 // service que valida assinatura e delega a confirmação ao domínio.
 export const gatewaysPagamento = construirGatewaysPagamento();
 export const pagamentoWebhookService = new PagamentoWebhookService(gatewaysPagamento, reservaService);
 export const pagamentoWebhookController = new PagamentoWebhookController(pagamentoWebhookService);
+
+// Início do pagamento (sandbox). Entrega o desfecho pelo MESMO webhook service,
+// com assinatura — não existe caminho paralelo para confirmar pagamento.
+export const pagamentoService = new PagamentoService(reservaRepository, pagamentoWebhookService);
+export const reservaController = new ReservaController(reservaService, pagamentoService);
 
 // LGPD: exportação, anonimização e auditoria de acesso a dados pessoais.
 export const lgpdRepository: ILgpdRepository = new PrismaLgpdRepository();

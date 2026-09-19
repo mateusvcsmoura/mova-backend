@@ -22,6 +22,7 @@ const veiculoRepo = {
       modelo: "Argo",
       ano: 2022,
       cambio: "Manual",
+      valorDiaria: 125.25,
       capacidade: 5,
       eletrico: false,
       adaptado: false,
@@ -82,6 +83,8 @@ function makeReserva(overrides: Partial<ReservaResponse> = {}): ReservaResponse 
     idLocatario: "locatario-1",
     idGaragemRetirada: "gar-1",
     idGaragemDevolucao: "gar-2",
+    garagemRetirada: null,
+    garagemDevolucao: null,
     dataHoraInicio: inicio,
     dataHoraFim: fim,
     criadaEm: new Date("2026-07-01T09:00:00.000Z"),
@@ -97,6 +100,29 @@ function makeReserva(overrides: Partial<ReservaResponse> = {}): ReservaResponse 
       { idServico: "s1", nome: "Seguro adicional", descricao: "Cobertura total", valor: 80 },
       { idServico: "s2", nome: "Tanque cheio", descricao: "Combustível", valor: 20 },
     ],
+    veiculo: {
+      id: "veic-1",
+      idLocador: "loc-1",
+      idModeloVeiculo: "modelo-1",
+      modeloVeiculo: {
+        id: "modelo-1",
+        idLocador: "loc-1",
+        marca: "Fiat",
+        modelo: "Argo",
+        ano: 2024,
+        cambio: "Manual",
+        capacidade: 5,
+        eletrico: false,
+        adaptado: false,
+        categoria: null,
+        valorDiaria: 150,
+        criadoEm: new Date("2026-07-01T09:00:00.000Z"),
+      },
+      garagemId: "gar-1",
+      placa: "ABC1D23",
+      status: "DISPONIVEL",
+      criadoEm: new Date("2026-07-01T09:00:00.000Z"),
+    },
     atualizadoEm: new Date(),
     ...overrides,
   };
@@ -193,6 +219,26 @@ describe("ReservaReportService.buildPayload", () => {
 });
 
 describe("renderReservaReport (template)", () => {
+  // TASK 03: o formatador precisa fixar o fuso de negócio. Sem isso ele usaria
+  // o fuso do PROCESSO, e o mesmo instante sairia com horas diferentes em
+  // máquinas diferentes (dev em America/Sao_Paulo vs. Render em UTC).
+  // O fixture usa 2026-08-01T10:00:00.000Z, que é 07:00 em São Paulo.
+  it("formata data/hora no fuso de negócio, não no fuso do servidor", async () => {
+    const payload = await service.buildPayload(makeReserva());
+
+    // Força o processo para UTC: é o cenário do Render. Sem o timeZone fixo no
+    // template, o horário sairia 10:00 (o próprio UTC) em vez de 07:00.
+    const tzOriginal = process.env.TZ;
+    process.env.TZ = "UTC";
+    try {
+      const { html } = renderReservaReport(payload);
+      expect(html).toContain("07:00");
+      expect(html).not.toContain("10:00");
+    } finally {
+      process.env.TZ = tzOriginal;
+    }
+  });
+
   it("gera assunto de confirmação com id curto", async () => {
     const payload = await service.buildPayload(makeReserva());
     const { subject } = renderReservaReport(payload);

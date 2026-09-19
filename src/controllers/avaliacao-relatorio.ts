@@ -11,15 +11,12 @@ export class AvaliacaoRelatorioController {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      const result = avaliacaoRelatorioQuerySchema.safeParse(req.query);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = avaliacaoRelatorioQuerySchema.parse(req.query);
 
       // idLocador vem do token (req.user.id) — o cliente nunca informa o dono.
       const dashboard = await this.relatorioService.gerarDashboard(
         req.user.id,
-        result.data,
+        result,
       );
       return res.status(200).json({ result: dashboard });
     } catch (error) {

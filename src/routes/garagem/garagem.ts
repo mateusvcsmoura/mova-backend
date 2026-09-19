@@ -9,8 +9,9 @@ const garagemRouter = Router();
 garagemRouter.get("/:id/veiculos", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN), garagemController.findVeiculos);
 garagemRouter.post("/:garagemId/veiculos/:veiculoId", authMiddleware, authorize(Cargo.LOCADOR), garagemController.alocarVeiculo);
 garagemRouter.delete("/:garagemId/veiculos/:veiculoId", authMiddleware, authorize(Cargo.LOCADOR), garagemController.desalocarVeiculo);
-garagemRouter.get("/", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN), garagemController.index);
-garagemRouter.get("/:id", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN), garagemController.findById);
+// Leitura aberta ao LOCATARIO (escopo aplicado no GaragemService: só ATIVAS).
+garagemRouter.get("/", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN, Cargo.LOCATARIO), garagemController.index);
+garagemRouter.get("/:id", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN, Cargo.LOCATARIO), garagemController.findById);
 garagemRouter.post("/", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN), garagemController.create);
 garagemRouter.put("/:id", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN), garagemController.update);
 garagemRouter.delete("/:id", authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN), garagemController.delete);

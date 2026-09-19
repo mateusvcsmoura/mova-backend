@@ -18,14 +18,11 @@ export class InteresseController {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      const result = createInteresseSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = createInteresseSchema.parse(req.body);
 
       const interesse = await this.interesseService.registrar(
         req.user.id,
-        result.data.idVeiculo,
+        result.idVeiculo,
       );
       return res.status(201).json({ result: interesse });
     } catch (error) {

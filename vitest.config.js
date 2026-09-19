@@ -12,7 +12,10 @@ export default defineConfig({
     ],
     exclude: ["dist/**", "node_modules"],
     fileParallelism: false,
-    testTimeout: 20_000,
+    // 30s (era 20s): a suite roda contra Postgres remoto (Supabase) e o teste
+    // dos tres gateways de pagamento encostava no limite (18,6s medidos), falhando
+    // de forma intermitente. Nao muda regra de negocio.
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "json-summary", "html"],

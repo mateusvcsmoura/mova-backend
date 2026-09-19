@@ -524,6 +524,7 @@ describe("VeiculoService — histórico de status (regressão)", () => {
         eletrico: false,
         adaptado: false,
         categoria: null,
+        valorDiaria: 150,
         criadoEm: new Date(),
       },
       garagemId: null,

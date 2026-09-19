@@ -1,4 +1,10 @@
-import { Prisma, StatusReserva, TipoCobranca } from "@prisma/client";
+import {
+  MetodoPagamento,
+  Prisma,
+  StatusPagamento,
+  StatusReserva,
+  TipoCobranca,
+} from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
 import { HttpError } from "../../errors/HttpError.js";
@@ -21,6 +27,16 @@ import {
 // única consulta (evita N+1 ao montar a resposta).
 const RESERVA_INCLUDE = {
   servicos: { include: { servico: true } },
+  cobrancas: true,
+  garagemRetirada: {
+    select: { id: true, nome: true, endereco: true, status: true },
+  },
+  garagemDevolucao: {
+    select: { id: true, nome: true, endereco: true, status: true },
+  },
+  // O cliente precisa identificar o veículo da reserva (marca/modelo/placa)
+  // sem uma segunda chamada por item de lista.
+  veiculo: { include: { modeloVeiculo: true } },
 } satisfies Prisma.ReservaInclude;
 
 export class PrismaReservaRepository implements IReservaRepository {
@@ -206,8 +222,8 @@ export class PrismaReservaRepository implements IReservaRepository {
           dataHoraInicio: data.dataHoraInicio,
           dataHoraFim: data.dataHoraFim,
           valorTotal: data.valorTotal,
-          status: data.status ?? undefined,
-          statusPagamento: data.statusPagamento ?? undefined,
+          // status e statusPagamento usam sempre o default do schema
+          // (AGUARDANDO_PAGAMENTO): não são entrada do cliente.
           metodoPagamento: data.metodoPagamento ?? undefined,
           // Cria as associações de serviços opcionais na mesma operação,
           // gravando o valor contratado como snapshot.
@@ -238,21 +254,58 @@ export class PrismaReservaRepository implements IReservaRepository {
     }
 
     try {
-      const reserva = await prisma.reserva.update({
-        where: { id },
+      const atualizacao = await prisma.reserva.updateMany({
+        // Campos de domínio ficam fora desta operação pública; apenas uma
+        // reserva não cancelada pode alterar os dados editáveis.
+        where: { id, status: { not: StatusReserva.CANCELADA } },
         data: {
           idGaragemDevolucao: data.idGaragemDevolucao ?? undefined,
           dataHoraInicio: data.dataHoraInicio ?? undefined,
           dataHoraFim: data.dataHoraFim ?? undefined,
-          valorTotal: data.valorTotal ?? undefined,
-          status: data.status ?? undefined,
-          statusPagamento: data.statusPagamento ?? undefined,
           metodoPagamento: data.metodoPagamento ?? undefined,
         },
+      });
+      if (atualizacao.count !== 1) {
+        const existente = await prisma.reserva.findUnique({ where: { id } });
+        if (!existente) throw new HttpError(404, "Reserva não encontrada.");
+        throw new HttpError(409, "Código de desbloqueio já utilizado ou reserva inválida.");
+      }
+      const reserva = await prisma.reserva.findUniqueOrThrow({
+        where: { id },
         include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(404, "Reserva não encontrada.");
+    }
+  }
+
+  async atualizarStatusPagamento(
+    id: string,
+    statusPagamento: StatusPagamento,
+    metodoPagamento?: MetodoPagamento,
+  ): Promise<ReservaResponse> {
+    try {
+      const atualizacao = await prisma.reserva.updateMany({
+        where: { id, status: { not: StatusReserva.CANCELADA } },
+        data: {
+          statusPagamento,
+          metodoPagamento: metodoPagamento ?? undefined,
+        },
+      });
+      if (atualizacao.count !== 1) {
+        const existente = await prisma.reserva.findUnique({ where: { id } });
+        if (!existente) throw new HttpError(404, "Reserva não encontrada.");
+        throw new HttpError(409, "Reserva cancelada.");
+      }
+      const reserva = await prisma.reserva.findUniqueOrThrow({
+        where: { id },
+        include: RESERVA_INCLUDE,
+      });
+      return ReservaMapper.toResponse(reserva);
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Reserva não encontrada.");
     }
   }
@@ -262,17 +315,27 @@ export class PrismaReservaRepository implements IReservaRepository {
     // nada. Grava a cobrança mesmo com valor 0 (trilha completa — RN04).
     try {
       const reserva = await prisma.$transaction(async (tx) => {
+        const atualizacao = await tx.reserva.updateMany({
+          where: {
+            id,
+            status: { in: [StatusReserva.AGUARDANDO_PAGAMENTO, StatusReserva.CONFIRMADA] },
+          },
+          data: { status: StatusReserva.CANCELADA },
+        });
+        if (atualizacao.count !== 1) {
+          throw new HttpError(409, "Reserva já cancelada ou não pode ser cancelada.");
+        }
         await tx.cobrancaReserva.create({
           data: { idReserva: id, tipo: TipoCobranca.CANCELAMENTO, valor: multa },
         });
-        return tx.reserva.update({
+        return tx.reserva.findUniqueOrThrow({
           where: { id },
-          data: { status: StatusReserva.CANCELADA },
           include: RESERVA_INCLUDE,
         });
       });
       return ReservaMapper.toResponse(reserva);
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Reserva não encontrada.");
     }
   }
@@ -285,6 +348,11 @@ export class PrismaReservaRepository implements IReservaRepository {
     // Cobrança (só quando há atraso) + devolvidoEm + REALIZADA numa transação.
     try {
       const reserva = await prisma.$transaction(async (tx) => {
+        const atualizacao = await tx.reserva.updateMany({
+          where: { id, status: StatusReserva.EM_ANDAMENTO, codigoUsadoEm: { not: null }, devolvidoEm: null },
+          data: { devolvidoEm, status: StatusReserva.REALIZADA },
+        });
+        if (atualizacao.count !== 1) throw new HttpError(409, "Reserva já devolvida ou não iniciada.");
         if (valorCobranca > 0) {
           await tx.cobrancaReserva.create({
             data: {
@@ -294,15 +362,15 @@ export class PrismaReservaRepository implements IReservaRepository {
             },
           });
         }
-        return tx.reserva.update({
+        return tx.reserva.findUniqueOrThrow({
           where: { id },
-          data: { devolvidoEm, status: StatusReserva.REALIZADA },
           include: RESERVA_INCLUDE,
         });
       });
       return ReservaMapper.toResponse(reserva);
-    } catch {
-      throw new HttpError(404, "Reserva não encontrada.");
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw new HttpError(404, "Reserva não encontrada.");
     }
   }
 
@@ -314,35 +382,89 @@ export class PrismaReservaRepository implements IReservaRepository {
     id: string,
     codigo: string,
     geradoEm: Date,
+    status?: StatusReserva,
   ): Promise<ReservaResponse> {
     try {
-      const reserva = await prisma.reserva.update({
-        where: { id },
+      const atualizacao = await prisma.reserva.updateMany({
+        where: {
+          id,
+          codigoDesbloqueio: null,
+          status: { not: StatusReserva.CANCELADA },
+        },
         data: {
           codigoDesbloqueio: codigo,
           codigoGeradoEm: geradoEm,
           codigoUsadoEm: null,
+          ...(status ? { status } : {}),
+        },
+      });
+      const reserva = await prisma.reserva.findUnique({
+        where: { id },
+        include: RESERVA_INCLUDE,
+      });
+      if (!reserva) throw new HttpError(404, "Reserva não encontrada.");
+      // Outra entrega pode ter vencido a corrida; devolvemos o estado vencedor.
+      void atualizacao;
+      return ReservaMapper.toResponse(reserva);
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(404, "Reserva não encontrada.");
+    }
+  }
+
+  async registrarPagamentoIniciado(
+    idReserva: string,
+    valor: number,
+    metodoPagamento: MetodoPagamento,
+  ): Promise<ReservaResponse> {
+    // Cobrança + mudança de estado na mesma transação: ou registra e marca
+    // PROCESSANDO, ou não faz nem uma coisa nem outra.
+    return prisma.$transaction(async (tx) => {
+      await tx.cobrancaReserva.create({
+        data: {
+          idReserva,
+          tipo: TipoCobranca.PAGAMENTO_RESERVA,
+          valor,
+        },
+      });
+
+      const reserva = await tx.reserva.update({
+        where: { id: idReserva },
+        data: {
+          statusPagamento: StatusPagamento.PROCESSANDO,
+          metodoPagamento,
         },
         include: RESERVA_INCLUDE,
       });
+
       return ReservaMapper.toResponse(reserva);
-    } catch {
-      throw new HttpError(404, "Reserva não encontrada.");
-    }
+    });
   }
 
   async marcarCodigoComoUsado(
     id: string,
     usadoEm: Date,
+    status?: StatusReserva,
   ): Promise<ReservaResponse> {
     try {
-      const reserva = await prisma.reserva.update({
+      const atualizacao = await prisma.reserva.updateMany({
+        where: { id, codigoUsadoEm: null, status: StatusReserva.CONFIRMADA },
+        // codigoUsadoEm e status mudam na MESMA escrita: nunca existe reserva
+        // com código usado que continue CONFIRMADA (nem o inverso).
+        data: { codigoUsadoEm: usadoEm, ...(status ? { status } : {}) },
+      });
+      if (atualizacao.count !== 1) {
+        const existente = await prisma.reserva.findUnique({ where: { id } });
+        if (!existente) throw new HttpError(404, "Reserva não encontrada.");
+        throw new HttpError(409, "Código de desbloqueio já utilizado ou reserva inválida.");
+      }
+      const reserva = await prisma.reserva.findUniqueOrThrow({
         where: { id },
-        data: { codigoUsadoEm: usadoEm },
         include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Reserva não encontrada.");
     }
   }

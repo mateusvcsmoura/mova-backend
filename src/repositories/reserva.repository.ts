@@ -1,3 +1,4 @@
+import { MetodoPagamento, StatusPagamento, StatusReserva } from "@prisma/client";
 import {
   CreateReservaRequest,
   ReservaFilters,
@@ -10,6 +11,16 @@ import {
 } from "../shared/pagination.js";
 
 export interface IReservaRepository {
+  /**
+   * Registra a cobrança da reserva e marca o pagamento como PROCESSANDO.
+   * O valor vem da própria reserva — nunca do cliente.
+   */
+  registrarPagamentoIniciado(
+    idReserva: string,
+    valor: number,
+    metodoPagamento: MetodoPagamento,
+  ): Promise<ReservaResponse>;
+
   findAll(
     pagination: PaginationParams,
   ): Promise<PaginatedResult<ReservaResponse>>;
@@ -29,15 +40,27 @@ export interface IReservaRepository {
   findByCodigoDesbloqueio(codigo: string): Promise<ReservaResponse | null>;
   create(data: CreateReservaRequest): Promise<ReservaResponse>;
   update(id: string, data: UpdateReservaRequest): Promise<ReservaResponse>;
+  atualizarStatusPagamento(
+    id: string,
+    statusPagamento: StatusPagamento,
+    metodoPagamento?: MetodoPagamento,
+  ): Promise<ReservaResponse>;
   delete(id: string): Promise<void>;
   // Persiste o código de desbloqueio gerado na confirmação do pagamento.
   gerarCodigoDesbloqueio(
     id: string,
     codigo: string,
     geradoEm: Date,
+    // Status a aplicar junto com o código (pagamento aprovado → CONFIRMADA).
+    status?: StatusReserva,
   ): Promise<ReservaResponse>;
-  // Marca o código como usado (desbloqueio efetivado).
-  marcarCodigoComoUsado(id: string, usadoEm: Date): Promise<ReservaResponse>;
+  // Marca o código como usado (desbloqueio efetivado) e aplica o status da
+  // transição (desbloqueio → EM_ANDAMENTO), na mesma escrita.
+  marcarCodigoComoUsado(
+    id: string,
+    usadoEm: Date,
+    status?: StatusReserva,
+  ): Promise<ReservaResponse>;
   // RN04: cancela a reserva de forma atômica — registra a cobrança de multa
   // (valor 0 quando dentro do prazo) e transiciona status para CANCELADA.
   cancelar(id: string, multa: number): Promise<ReservaResponse>;

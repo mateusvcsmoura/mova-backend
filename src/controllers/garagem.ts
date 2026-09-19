@@ -112,12 +112,9 @@ export class GaragemController {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      const result = createGaragemSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = createGaragemSchema.parse(req.body);
 
-      const garagem = await this.garagemService.create(result.data, req.user);
+      const garagem = await this.garagemService.create(result, req.user);
       return res.status(201).json({ result: garagem });
     } catch (error) {
       next(error);
@@ -131,14 +128,11 @@ export class GaragemController {
       const parsedId = z.string().uuid().safeParse(req.params.id);
       if (!parsedId.success) throw new HttpError(400, "ID inválido");
 
-      const result = updateGaragemSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = updateGaragemSchema.parse(req.body);
 
       const garagem = await this.garagemService.update(
         parsedId.data,
-        result.data,
+        result,
         req.user,
       );
       return res.status(200).json({ result: garagem });

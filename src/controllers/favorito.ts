@@ -18,14 +18,11 @@ export class FavoritoController {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      const result = createFavoritoSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = createFavoritoSchema.parse(req.body);
 
       const favorito = await this.favoritoService.favoritar(
         req.user.id,
-        result.data.idVeiculo,
+        result.idVeiculo,
       );
       return res.status(201).json({ result: favorito });
     } catch (error) {

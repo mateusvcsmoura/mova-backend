@@ -14,17 +14,14 @@ export class ServicoOpcionalController {
 
   index: Handler = async (req, res, next) => {
     try {
-      const parsedQuery = servicoOpcionalQuerySchema.safeParse(req.query);
-      if (!parsedQuery.success) {
-        return res.status(400).json({ errors: parsedQuery.error.format() });
-      }
+      const parsedQuery = servicoOpcionalQuerySchema.parse(req.query);
 
       const pagination = getPaginationParams(req.query);
 
       // Por padrão lista apenas os serviços disponíveis (ativos). Permite
       // ?ativo=false para inspeção administrativa do catálogo completo.
       const filters = {
-        ativo: parsedQuery.data.ativo ?? true,
+        ativo: parsedQuery.ativo ?? true,
       };
 
       const servicos = await this.servicoOpcionalService.list(

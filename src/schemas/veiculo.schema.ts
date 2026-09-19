@@ -27,6 +27,9 @@ export const createVeiculoSchema = z.object({
   eletrico: z.boolean(),
   adaptado: z.boolean(),
   categoria: z.nativeEnum(CategoriaVeiculo).optional(),
+
+  // Preço da diária: o backend calcula o valor da reserva a partir daqui.
+  valorDiaria: z.number().positive(),
 });
 
 export const updateVeiculoSchema = createVeiculoSchema
@@ -47,6 +50,7 @@ export const createVeiculoLoteSchema = z.object({
   eletrico: z.boolean(),
   adaptado: z.boolean(),
   categoria: z.nativeEnum(CategoriaVeiculo).optional(),
+  valorDiaria: z.number().positive(),
   garagemId: z.string().uuid().optional(),
   placas: z.array(z.string().min(1)).min(1, "Informe ao menos uma placa"),
 });
@@ -58,6 +62,7 @@ export const updateModeloVeiculoSchema = z
     eletrico: z.boolean().optional(),
     adaptado: z.boolean().optional(),
     categoria: z.nativeEnum(CategoriaVeiculo).optional(),
+    valorDiaria: z.number().positive().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: "Informe ao menos um campo para atualização",
@@ -73,4 +78,5 @@ export const updateModeloDoVeiculoSchema = z.object({
   eletrico: z.boolean(),
   adaptado: z.boolean(),
   categoria: z.nativeEnum(CategoriaVeiculo).optional(),
+  valorDiaria: z.number().positive(),
 });

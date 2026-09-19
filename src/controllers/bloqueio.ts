@@ -19,13 +19,10 @@ export class BloqueioController {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      const result = createBloqueioSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = createBloqueioSchema.parse(req.body);
 
       const bloqueio = await this.bloqueioService.create({
-        ...result.data,
+        ...result,
         criadoPor: req.user.id,
       });
       return res.status(201).json({ result: bloqueio });
@@ -55,12 +52,9 @@ export class BloqueioController {
         .safeParse(req.params.idLocatario);
       if (!parsedId.success) throw new HttpError(400, "ID inválido");
 
-      const parsedQuery = bloqueioQuerySchema.safeParse(req.query);
-      if (!parsedQuery.success) {
-        return res.status(400).json({ errors: parsedQuery.error.format() });
-      }
+      const parsedQuery = bloqueioQuerySchema.parse(req.query);
 
-      if (parsedQuery.data.ativos) {
+      if (parsedQuery.ativos) {
         const ativos = await this.bloqueioService.findAtivosByLocatario(
           parsedId.data,
         );

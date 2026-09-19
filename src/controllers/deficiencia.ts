@@ -60,15 +60,9 @@ export class DeficienciaController {
 
   create: Handler = async (req, res, next: NextFunction) => {
     try {
-      const result = createDeficienciaSchema.safeParse(req.body);
+      const result = createDeficienciaSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const deficiencia = await this.deficienciaService.create(result.data);
+      const deficiencia = await this.deficienciaService.create(result);
 
       return res.status(201).json({ result: deficiencia });
     } catch (error) {
@@ -89,15 +83,9 @@ export class DeficienciaController {
 
       const id = parsedId.data;
 
-      const result = createDeficienciaSchema.safeParse(req.body);
+      const result = createDeficienciaSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const deficiencia = await this.deficienciaService.update(id, result.data);
+      const deficiencia = await this.deficienciaService.update(id, result);
 
       return res.status(200).json({ result: deficiencia });
     } catch (error) {

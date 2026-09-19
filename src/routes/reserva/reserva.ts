@@ -21,10 +21,24 @@ reservaRouter.get(
 reservaRouter.get("/", authMiddleware, reservaController.index);
 reservaRouter.get("/:id", authMiddleware, reservaController.findById);
 reservaRouter.post(
+  "/precificacao",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.precificar,
+);
+reservaRouter.post(
   "/",
   authMiddleware,
   authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.create,
+);
+// Pagamento (sandbox). Só o dono da reserva inicia; a confirmação vem do
+// webhook assinado, nunca daqui.
+reservaRouter.post(
+  "/:id/pagamento",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  reservaController.iniciarPagamento,
 );
 reservaRouter.post(
   "/:id/desbloqueio",

@@ -77,6 +77,15 @@ describe("Condutores adicionais (RF12)", () => {
     expect(response.status).toBe(400);
   });
 
+  it("deve recusar CPF inválido (400)", async () => {
+    const response = await request(app)
+      .post(`/api/reserva/${reservaId}/condutores`)
+      .set(auth(locatario.token))
+      .send({ nome: "CPF Ruim", cpf: "11111111111", cnh: uniqueCnh() });
+
+    expect(response.status).toBe(400);
+  });
+
   it("deve recusar gestão de condutores por outro locatário (403)", async () => {
     const response = await request(app)
       .post(`/api/reserva/${reservaId}/condutores`)

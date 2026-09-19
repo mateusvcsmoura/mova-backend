@@ -60,6 +60,7 @@ const reportRepos = {
         modelo: "Argo",
         ano: 2022,
         cambio: "Manual",
+        valorDiaria: 125.25,
         capacidade: 5,
         eletrico: false,
         adaptado: false,
@@ -311,6 +312,7 @@ describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
     const reservaRepository = {
       findById: vi.fn(async () => base),
       update: vi.fn(async () => ({ ...base, statusPagamento: "SUCESSO" })),
+      atualizarStatusPagamento: vi.fn(async () => ({ ...base, statusPagamento: "SUCESSO" })),
       gerarCodigoDesbloqueio: vi.fn(async () => confirmada),
       findByCodigoDesbloqueio: vi.fn(async () => null),
     } as any;

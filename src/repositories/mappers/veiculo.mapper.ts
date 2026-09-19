@@ -19,6 +19,7 @@ export class VeiculoMapper {
       eletrico: modelo.eletrico,
       adaptado: modelo.adaptado,
       categoria: modelo.categoria,
+      valorDiaria: Number(modelo.valorDiaria),
       criadoEm: modelo.criadoEm,
     };
   }

@@ -12,6 +12,7 @@ import {
 
 import { HttpError } from "../errors/HttpError.js";
 import {
+  CreateReservaInput,
   CreateReservaRequest,
   ListReservasRequest,
   ReservaFilters,
@@ -63,6 +64,9 @@ const MAX_CONDUTORES_ADICIONAIS = 3;
 // esse prazo, multa de 20% sobre o valor da reserva.
 const PRAZO_CANCELAMENTO_MS = 2 * 60 * 60 * 1000;
 const MULTA_CANCELAMENTO_TARDIO = 0.2;
+
+// Dinheiro sempre com 2 casas — evita 0.1 + 0.2 aparecendo na resposta.
+const arredondar2 = (v: number): number => Math.round(v * 100) / 100;
 
 // RN06: atraso na devolução. Cobra a diária proporcional aos dias de atraso
 // mais multa de 10%. DECISÃO (base do 10%): a multa incide sobre a TAXA de
@@ -367,6 +371,21 @@ export class ReservaService {
   }
 
   // Garagem inativa/em manutenção não entra em novas reservas (RF19).
+  /**
+   * Base do valor da reserva: diária do modelo × número de diárias.
+   * Fração de dia conta como diária cheia (mesma regra que a tela exibe e que
+   * RN06 usa para atraso). Estático para ser testável sem instanciar o service.
+   */
+  static calcularValorBase(
+    valorDiaria: number,
+    inicio: Date,
+    fim: Date,
+  ): number {
+    const UM_DIA = 24 * 60 * 60 * 1000;
+    const diarias = Math.max(1, Math.ceil((fim.getTime() - inicio.getTime()) / UM_DIA));
+    return arredondar2(valorDiaria * diarias);
+  }
+
   private assertGaragemAtiva(status: StatusGaragem, contexto: string): void {
     if (status !== StatusGaragem.ATIVA) {
       throw new HttpError(
@@ -452,14 +471,17 @@ export class ReservaService {
   findByLocatarioId = async (
     idLocatario: string,
     pagination: PaginationParams,
+    requester: ReservaAccessContext,
   ): Promise<PaginatedResult<ReservaResponse>> => {
+    if (requester.cargo !== Cargo.ADMIN && requester.id !== idLocatario) {
+      throw new HttpError(403, "Acesso negado");
+    }
     const reservas = await this.reservaRepository.findByLocatarioId(
       idLocatario,
       pagination,
     );
-    if (reservas.total === 0) {
-      throw new HttpError(404, "Nenhuma reserva encontrada para este locatário");
-    }
+    // Lista vazia é resultado válido, não 404: um locatário recém-cadastrado
+    // deve ver um histórico vazio, não uma tela de erro.
     return reservas;
   };
 
@@ -477,8 +499,38 @@ export class ReservaService {
     return reservas;
   };
 
+  // Cotação sem persistência. Usa a mesma diária e o mesmo catálogo de serviços
+  // da criação; a criação recalcula novamente para impedir preço obsoleto ou
+  // manipulado entre a visualização e o POST final.
+  precificar = async (
+    data: CreateReservaInput,
+    requester: ReservaAccessContext,
+  ) => {
+    if (requester.cargo !== Cargo.ADMIN && requester.id !== data.idLocatario) {
+      throw new HttpError(403, "Acesso negado");
+    }
+    const veiculo = await this.veiculoRepository.findById(data.idVeiculo);
+    if (!veiculo) throw new HttpError(404, "Veículo não encontrado");
+    if (veiculo.status !== StatusVeiculo.DISPONIVEL) {
+      throw new HttpError(409, "O veículo não está disponível para reserva.");
+    }
+    await this.assertPeriodoValido(data.idVeiculo, data.dataHoraInicio, data.dataHoraFim);
+    const { servicos, valorServicos } = await this.resolverServicosOpcionais(data.servicosIds);
+    const valorDiaria = Number(veiculo.modeloVeiculo.valorDiaria);
+    const valorBase = ReservaService.calcularValorBase(valorDiaria, data.dataHoraInicio, data.dataHoraFim);
+    const diarias = Math.max(1, Math.ceil((data.dataHoraFim.getTime() - data.dataHoraInicio.getTime()) / UM_DIA_MS));
+    return {
+      valorDiaria,
+      diarias,
+      valorBase,
+      valorServicos: arredondar2(valorServicos),
+      valorTotal: arredondar2(valorBase + valorServicos),
+      servicos,
+    };
+  };
+
   create = async (
-    data: CreateReservaRequest,
+    data: CreateReservaInput,
     requester: ReservaAccessContext,
   ): Promise<ReservaResponse> => {
     // LOCATARIO só reserva pra si mesmo; ADMIN reserva em nome de qualquer um.
@@ -545,12 +597,20 @@ export class ReservaService {
         );
     }
 
-    // Serviços opcionais: valida os IDs e calcula a soma dos valores. O valor
-    // total = valor base (informado) + soma dos serviços contratados.
+    // Serviços opcionais: valida os IDs e calcula a soma dos valores.
     const { servicos, valorServicos } = await this.resolverServicosOpcionais(
       data.servicosIds,
     );
-    const valorTotal = data.valorTotal + valorServicos;
+
+    // VALOR: calculado aqui, nunca recebido do cliente. Base = diária do modelo
+    // × número de diárias (fração conta como diária cheia, igual ao que a tela
+    // exibe), somada aos serviços contratados.
+    const valorBase = ReservaService.calcularValorBase(
+      veiculo.modeloVeiculo.valorDiaria,
+      data.dataHoraInicio,
+      data.dataHoraFim,
+    );
+    const valorTotal = arredondar2(valorBase + valorServicos);
 
     // A associação da deficiência ao perfil e a criação da reserva ocorrem na
     // mesma transação (repo) — se a criação falhar, o perfil não é alterado.
@@ -677,6 +737,9 @@ export class ReservaService {
         "Veículo ainda não foi desbloqueado; não há devolução a registrar.",
       );
     }
+    if (reserva.status !== StatusReserva.EM_ANDAMENTO) {
+      throw new HttpError(409, "Reserva não está em andamento.");
+    }
 
     const devolvidoEm = new Date();
     let cobranca = 0;
@@ -710,10 +773,20 @@ export class ReservaService {
       throw new HttpError(404, "Reserva não encontrada");
     }
 
-    const atualizada = await this.reservaRepository.update(idReserva, {
-      statusPagamento: evento.status,
-      ...(evento.metodo ? { metodoPagamento: evento.metodo } : {}),
-    });
+    // Eventos de gateway podem ser reenviados fora de ordem. Aprovação é
+    // terminal e uma reserva cancelada não pode voltar a receber confirmação.
+    if (
+      reserva.status === StatusReserva.CANCELADA ||
+      reserva.statusPagamento === StatusPagamento.SUCESSO
+    ) {
+      return reserva;
+    }
+
+    const atualizada = await this.reservaRepository.atualizarStatusPagamento(
+      idReserva,
+      evento.status,
+      evento.metodo,
+    );
 
     // Pagamento confirmado agora e ainda sem código -> gera o código de
     // desbloqueio e envia o relatório por e-mail (best-effort: o notifier nunca
@@ -732,6 +805,10 @@ export class ReservaService {
         idReserva,
         codigo,
         new Date(),
+        // Pagamento aprovado promove a reserva de AGUARDANDO_PAGAMENTO para
+        // CONFIRMADA. É a única transição automática de status — e acontece
+        // na mesma operação que gera o código, então nunca ficam dessincronizados.
+        StatusReserva.CONFIRMADA,
       );
       await this.reservaNotifier?.notificarReservaConfirmada(confirmada);
       return confirmada;
@@ -770,7 +847,14 @@ export class ReservaService {
     this.assertCodigoUsavel(reserva);
     await this.assertLocalDesbloqueio(reserva.idVeiculo, coord);
 
-    return this.reservaRepository.marcarCodigoComoUsado(id, new Date());
+    // Desbloqueio efetivado: reserva passa de CONFIRMADA para EM_ANDAMENTO.
+    // É a contraparte da transição do pagamento (AGUARDANDO → CONFIRMADA) e
+    // vale como trava de cancelamento (RN04 recusa cancelar EM_ANDAMENTO).
+    return this.reservaRepository.marcarCodigoComoUsado(
+      id,
+      new Date(),
+      StatusReserva.EM_ANDAMENTO,
+    );
   };
 
   // RN03: gera o token assinado embutido no QR Code de desbloqueio. Carrega

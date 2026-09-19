@@ -75,15 +75,9 @@ export class LocatarioController {
 
   create: Handler = async (req, res, next: NextFunction) => {
     try {
-      const result = createLocatarioSchema.safeParse(req.body);
+      const result = createLocatarioSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
       const locatario = await this.locatarioService.create(data);
 
       return res.status(201).json({ result: locatario });
@@ -105,14 +99,9 @@ export class LocatarioController {
 
       const id = parsedId.data;
 
-      const result = updateLocatarioSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
+      const result = updateLocatarioSchema.parse(req.body);
 
-      const data = result.data;
+      const data = result;
       const locatario = await this.locatarioService.update(id, data);
 
       return res.status(200).json({ result: locatario });

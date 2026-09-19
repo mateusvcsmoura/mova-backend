@@ -59,6 +59,7 @@ function makeVeiculo(
       modelo: "Argo",
       ano: 2022,
       cambio: "Manual",
+      valorDiaria: 125.25,
       capacidade: 5,
       eletrico: false,
       adaptado: false,

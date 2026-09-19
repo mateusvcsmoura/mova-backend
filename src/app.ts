@@ -2,7 +2,7 @@ import express from "express";
 import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
 import { env } from "./config/env.js";
-import { writeMethodsLimiter } from "./middlewares/rate-limit.js";
+import { webhookLimiter, writeMethodsLimiter } from "./middlewares/rate-limit.js";
 import { observability } from "./middlewares/observability.js";
 import { localeMiddleware } from "./middlewares/locale.js";
 import { errorHandler } from "./middlewares/error-handler.js";
@@ -68,7 +68,7 @@ app.use(cors(corsOptions));
 
 // Webhooks de pagamento ANTES do express.json: precisam do corpo cru (bytes
 // exatos) para validar a assinatura HMAC. O próprio router aplica express.raw.
-app.use("/api/webhooks", webhookRouter);
+app.use("/api/webhooks", webhookLimiter, webhookRouter);
 
 app.use(express.json({ limit: env.BODY_LIMIT }));
 

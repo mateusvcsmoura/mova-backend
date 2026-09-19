@@ -11,6 +11,8 @@ export interface ModeloVeiculoData {
   eletrico: boolean;
   adaptado: boolean;
   categoria?: CategoriaVeiculo;
+  // Preço da diária — fonte de verdade do valor da reserva.
+  valorDiaria: number;
 }
 
 export interface CreateVeiculoRequest extends ModeloVeiculoData {
@@ -62,6 +64,8 @@ export interface ModeloVeiculoResponse {
   eletrico: boolean;
   adaptado: boolean;
   categoria: CategoriaVeiculo | null;
+  // Decimal(10,2) no banco -> number na API.
+  valorDiaria: number;
   criadoEm: Date;
 }
 
@@ -82,4 +86,5 @@ export interface UpdateModeloVeiculoRequest {
   eletrico?: boolean;
   adaptado?: boolean;
   categoria?: CategoriaVeiculo;
+  valorDiaria?: number;
 }

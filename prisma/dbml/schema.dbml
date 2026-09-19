@@ -94,6 +94,7 @@ Table ModeloVeiculo {
   eletrico Boolean [not null]
   adaptado Boolean [not null]
   categoria CategoriaVeiculo
+  valorDiaria Decimal [not null]
   criadoEm DateTime [default: `now()`, not null]
   veiculos Veiculo [not null]
   atualizadoEm DateTime [default: `now()`, not null]
@@ -385,6 +386,7 @@ Enum MetodoPagamento {
 Enum TipoCobranca {
   CANCELAMENTO
   ATRASO_DEVOLUCAO
+  PAGAMENTO_RESERVA
 }
 
 Enum StatusGaragem {

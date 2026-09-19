@@ -14,12 +14,9 @@ export class LocalizacaoController {
 
   registrar: Handler = async (req, res, next) => {
     try {
-      const result = createLocalizacaoSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = createLocalizacaoSchema.parse(req.body);
 
-      const localizacao = await this.localizacaoService.registrar(result.data);
+      const localizacao = await this.localizacaoService.registrar(result);
       return res.status(201).json({ result: localizacao });
     } catch (error) {
       next(error);

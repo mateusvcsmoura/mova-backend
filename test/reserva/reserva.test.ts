@@ -11,6 +11,7 @@ import {
   createReserva,
   createServico,
   createVeiculo,
+  VALOR_DIARIA_PADRAO,
   confirmarPagamentoWebhook,
   futurePeriod,
   type LocadorContext,
@@ -54,7 +55,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: veiculoId,
           idLocatario: locatario.locatarioId,
-          valorTotal: 350.75,
           ...periodo,
         });
 
@@ -63,7 +63,8 @@ describe("Reserva API", () => {
       expect(response.body.result).toHaveProperty("id");
       expect(response.body.result.idVeiculo).toBe(veiculoId);
       expect(response.body.result.idLocatario).toBe(locatario.locatarioId);
-      expect(response.body.result.valorTotal).toBe(350.75);
+      // Valor calculado pelo backend: 2 diarias (futurePeriod(1, 2)).
+      expect(response.body.result.valorTotal).toBe(VALOR_DIARIA_PADRAO * 2);
       expect(response.body.result.status).toBe("AGUARDANDO_PAGAMENTO");
       expect(response.body.result.statusPagamento).toBe("AGUARDANDO_PAGAMENTO");
 
@@ -76,7 +77,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: veiculoId,
           idLocatario: locatario.locatarioId,
-          valorTotal: 100,
           ...futurePeriod(10, 1),
         });
 
@@ -90,7 +90,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: veiculoId,
           idLocatario: outroLocatario.locatarioId,
-          valorTotal: 100,
           ...futurePeriod(20, 1),
         });
 
@@ -109,7 +108,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: veiculoId,
           idLocatario: locatario.locatarioId,
-          valorTotal: 100,
           dataHoraInicio: inicio.toISOString(),
           dataHoraFim: fim.toISOString(),
         });
@@ -129,7 +127,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: veiculoId,
           idLocatario: locatario.locatarioId,
-          valorTotal: 100,
           dataHoraInicio: inicio.toISOString(),
           dataHoraFim: fim.toISOString(),
         });
@@ -145,7 +142,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: veiculoId,
           idLocatario: outroLocatario.locatarioId,
-          valorTotal: 200,
           ...futurePeriod(1, 2),
         });
 
@@ -159,7 +155,6 @@ describe("Reserva API", () => {
         .send({
           idVeiculo: "00000000-0000-0000-0000-000000000000",
           idLocatario: locatario.locatarioId,
-          valorTotal: 100,
           ...futurePeriod(30, 1),
         });
 
@@ -474,7 +469,6 @@ describe("Reserva — locais de retirada e devolução", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 400,
         idGaragemDevolucao: garagemDevolucao.id,
         ...futurePeriod(100, 2),
       });
@@ -503,7 +497,6 @@ describe("Reserva — locais de retirada e devolução", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 400,
         idGaragemDevolucao: garagemOutroLocador.id,
         ...futurePeriod(200, 2),
       });
@@ -518,7 +511,6 @@ describe("Reserva — locais de retirada e devolução", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 400,
         idGaragemRetirada: garagemDevolucao.id, // não é a garagem onde está alocado
         ...futurePeriod(300, 2),
       });
@@ -533,7 +525,6 @@ describe("Reserva — locais de retirada e devolução", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 400,
         idGaragemDevolucao: "00000000-0000-0000-0000-000000000000",
         ...futurePeriod(400, 2),
       });
@@ -619,7 +610,6 @@ describe("Reserva — forma de pagamento (RF11)", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 300,
         metodoPagamento: "BOLETO",
         ...futurePeriod(530, 2),
       });
@@ -657,7 +647,6 @@ describe("Reserva — garagem inativa não entra em novas reservas (RF19)", () =
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 400,
         idGaragemDevolucao: garagemDevolucao.id,
         ...futurePeriod(600, 2),
       });
@@ -677,7 +666,6 @@ describe("Reserva — garagem inativa não entra em novas reservas (RF19)", () =
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: 400,
         ...futurePeriod(610, 2),
       });
 
@@ -914,7 +902,8 @@ describe("Reserva — serviços opcionais", () => {
   let seguro: Awaited<ReturnType<typeof createServico>>;
   let tanque: Awaited<ReturnType<typeof createServico>>;
 
-  const VALOR_BASE = 300;
+  // futurePeriod(_, 1) -> 1 diaria. O backend calcula; o teste so espelha.
+  const VALOR_BASE = VALOR_DIARIA_PADRAO;
 
   beforeAll(async () => {
     locador = await createLocador();
@@ -941,7 +930,6 @@ describe("Reserva — serviços opcionais", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: VALOR_BASE,
         ...futurePeriod(600, 1),
       });
 
@@ -957,7 +945,6 @@ describe("Reserva — serviços opcionais", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: VALOR_BASE,
         servicosIds: [seguro.id],
         ...futurePeriod(610, 1),
       });
@@ -977,7 +964,6 @@ describe("Reserva — serviços opcionais", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: VALOR_BASE,
         servicosIds: [tanque.id],
         ...futurePeriod(620, 1),
       });
@@ -995,7 +981,6 @@ describe("Reserva — serviços opcionais", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: VALOR_BASE,
         servicosIds: [seguro.id, tanque.id],
         ...futurePeriod(630, 1),
       });
@@ -1014,7 +999,6 @@ describe("Reserva — serviços opcionais", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: VALOR_BASE,
         servicosIds: [seguro.id, tanque.id],
         ...futurePeriod(640, 1),
       });
@@ -1039,7 +1023,6 @@ describe("Reserva — serviços opcionais", () => {
       .send({
         idVeiculo: veiculoId,
         idLocatario: locatario.locatarioId,
-        valorTotal: VALOR_BASE,
         servicosIds: ["00000000-0000-0000-0000-000000000000"],
         ...futurePeriod(650, 1),
       });
@@ -1222,6 +1205,21 @@ describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
 
     const res = await desbloquear(reservaId, { codigo });
     expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Coordenada do dispositivo obrigatória para desbloqueio.");
+  });
+
+  it.each([
+    { latitude: 91, longitude: REF.longitude },
+    { latitude: REF.latitude, longitude: -181 },
+    { latitude: "-23.5", longitude: REF.longitude },
+    { latitude: REF.latitude },
+  ])("recusa localização inválida antes do geofence: %j", async (coord) => {
+    const { veiculoId, reservaId, codigo } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
+    const res = await desbloquear(reservaId, { codigo, ...coord });
+    expect(res.status).toBe(400);
+    const reserva = await prisma.reserva.findUnique({ where: { id: reservaId } });
+    expect(reserva?.codigoUsadoEm).toBeNull();
   });
 
   it("QR válido desbloqueia e marca uso único (sem localização)", async () => {
@@ -1300,13 +1298,23 @@ describe("Reserva — devolução e atraso (RN06)", () => {
 
   // Reserva confirmada e desbloqueada (código usado). Janela aberta no desbloqueio;
   // depois os testes ajustam dataHoraFim/Inicio para simular prazo/atraso.
-  async function reservaDevolvivel(valorTotal = 300, desbloquear = true) {
-    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+  // O valor da reserva e calculado pelo backend (TASK 04): o teste controla a
+  // diaria do veiculo, nao o total. futurePeriod(1, 3) -> 3 diarias.
+  const DIARIAS = 3;
+
+  async function reservaDevolvivel(valorDiaria = 100, desbloquear = true) {
+    // valorDiaria mora no ModeloVeiculo, que e reaproveitado pelo unique
+    // [idLocador, marca, modelo, ano] sem sobrescrever o preco. Para variar a
+    // diaria e preciso variar o modelo.
+    const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+      modelo: `Argo-${valorDiaria}`,
+      valorDiaria,
+    });
     const reserva = await createReserva(
       locatario.token,
       veiculo.id,
       locatario.locatarioId,
-      { ...futurePeriod(1, 3), valorTotal },
+      futurePeriod(1, 3),
     );
     await confirmarPagamentoWebhook(reserva.id);
 
@@ -1342,15 +1350,18 @@ describe("Reserva — devolução e atraso (RN06)", () => {
     expect(res.status).toBe(200);
     expect(res.body.result.status).toBe("REALIZADA");
     expect(res.body.result.devolvidoEm).not.toBeNull();
+    expect(res.body.result.cobrancaAtraso).toBe(0);
 
     expect(await cobrancasAtraso(id)).toHaveLength(0);
   });
 
   it("devolução com atraso: cobrança = diária proporcional + 10%, REALIZADA", async () => {
-    const id = await reservaDevolvivel(300);
+    const valorTotal = 100 * DIARIAS; // 300
+    const id = await reservaDevolvivel(100);
 
-    // fim há 1h (atraso < 1 dia -> 1 diária); duração exata de 1 dia (diária =
-    // 300). 1 diária + 10% = 330. inicio ancorado em fim p/ evitar drift de ms.
+    // fim há 1h (atraso < 1 dia -> 1 diária); duração exata de 1 dia, logo a
+    // diária proporcional = valorTotal (300). 1 diária + 10% = 330. inicio
+    // ancorado em fim p/ evitar drift de ms.
     const fim = new Date(Date.now() - 60 * 60 * 1000);
     const inicio = new Date(fim.getTime() - 24 * 60 * 60 * 1000);
     await prisma.reserva.update({
@@ -1361,17 +1372,19 @@ describe("Reserva — devolução e atraso (RN06)", () => {
     const res = await devolver(id, locatario.token);
     expect(res.status).toBe(200);
     expect(res.body.result.status).toBe("REALIZADA");
+    expect(res.body.result.cobrancaAtraso).toBe(valorTotal * 1.1);
 
     const cobrancas = await cobrancasAtraso(id);
     expect(cobrancas).toHaveLength(1);
-    expect(Number(cobrancas[0].valor)).toBe(330);
+    expect(Number(cobrancas[0].valor)).toBe(valorTotal * 1.1);
   });
 
   it("borda: minutos após o fim contam como 1 diária de atraso", async () => {
+    const valorTotal = 200 * DIARIAS; // 600
     const id = await reservaDevolvivel(200);
 
-    // fim há 5 min -> ainda 1 diária de atraso; duração 1 dia (diária 200).
-    // 1 diária + 10% = 220.
+    // fim há 5 min -> ainda 1 diária de atraso; duração 1 dia, logo a diária
+    // proporcional = valorTotal (600). 1 diária + 10% = 660.
     const fim = new Date(Date.now() - 5 * 60 * 1000);
     const inicio = new Date(fim.getTime() - 24 * 60 * 60 * 1000);
     await prisma.reserva.update({
@@ -1384,11 +1397,11 @@ describe("Reserva — devolução e atraso (RN06)", () => {
 
     const cobrancas = await cobrancasAtraso(id);
     expect(cobrancas).toHaveLength(1);
-    expect(Number(cobrancas[0].valor)).toBe(220);
+    expect(Number(cobrancas[0].valor)).toBe(valorTotal * 1.1);
   });
 
   it("devolver reserva não desbloqueada: 409", async () => {
-    const id = await reservaDevolvivel(300, false); // sem desbloqueio
+    const id = await reservaDevolvivel(100, false); // sem desbloqueio
 
     const res = await devolver(id, locatario.token);
     expect(res.status).toBe(409);
@@ -1402,6 +1415,24 @@ describe("Reserva — devolução e atraso (RN06)", () => {
 
     const segundo = await devolver(id, locatario.token);
     expect(segundo.status).toBe(409);
+    expect(await cobrancasAtraso(id)).toHaveLength(0);
+  });
+
+  it("recusa reserva inexistente e ID inválido", async () => {
+    expect((await devolver("11111111-2222-4333-8444-555555555555", locatario.token)).status).toBe(404);
+    expect((await devolver("id-invalido", locatario.token)).status).toBe(400);
+  });
+
+  it("recusa reserva cancelada", async () => {
+    const id = await reservaDevolvivel(100, false);
+    await prisma.reserva.update({ where: { id }, data: { status: "CANCELADA" } });
+    expect((await devolver(id, locatario.token)).status).toBe(409);
+  });
+
+  it("recusa status CONFIRMADA mesmo se codigoUsadoEm estiver preenchido", async () => {
+    const id = await reservaDevolvivel();
+    await prisma.reserva.update({ where: { id }, data: { status: "CONFIRMADA" } });
+    expect((await devolver(id, locatario.token)).status).toBe(409);
   });
 
   it("requisitante sem acesso não devolve: 403", async () => {
@@ -1410,5 +1441,165 @@ describe("Reserva — devolução e atraso (RN06)", () => {
 
     const res = await devolver(id, intruso.token);
     expect(res.status).toBe(403);
+  });
+});
+
+// TASK 05 — desbloqueio ponta a ponta: transição para EM_ANDAMENTO e os casos
+// de recusa que a tela precisa distinguir. Ver auditoria/DESBLOQUEIO.md.
+describe("Reserva — desbloqueio: efeito e recusas (TASK 05)", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+  });
+
+  // Reserva paga, com a janela de uso já aberta (início ontem, fim amanhã).
+  async function reservaDesbloqueavel() {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(300 + Math.floor(Math.random() * 1000), 3),
+    );
+
+    await confirmarPagamentoWebhook(reserva.id);
+
+    const atualizada = await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: {
+        dataHoraInicio: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        dataHoraFim: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      id: reserva.id,
+      idVeiculo: veiculo.id,
+      codigo: atualizada.codigoDesbloqueio!,
+    };
+  }
+
+  const desbloquear = (id: string, token: string, codigo: string) =>
+    request(app)
+      .post(`/api/reserva/${id}/desbloqueio`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ codigo });
+
+  it("código correto: 200, código marcado como usado e status EM_ANDAMENTO", async () => {
+    const { id, codigo } = await reservaDesbloqueavel();
+
+    const res = await desbloquear(id, locatario.token, codigo);
+
+    expect(res.status).toBe(200);
+    expect(res.body.result.codigoUsadoEm).not.toBeNull();
+    expect(res.body.result.status).toBe("EM_ANDAMENTO");
+
+    // Fonte de verdade: a consulta subsequente devolve o mesmo estado.
+    const consulta = await request(app)
+      .get(`/api/reserva/${id}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(consulta.body.result.status).toBe("EM_ANDAMENTO");
+  });
+
+  it("desbloqueio duplicado: 409 e o estado não regride", async () => {
+    const { id, codigo } = await reservaDesbloqueavel();
+
+    expect((await desbloquear(id, locatario.token, codigo)).status).toBe(200);
+
+    const segundo = await desbloquear(id, locatario.token, codigo);
+    expect(segundo.status).toBe(409);
+
+    const consulta = await request(app)
+      .get(`/api/reserva/${id}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(consulta.body.result.status).toBe("EM_ANDAMENTO");
+  });
+
+  it("código incorreto: 400 e a reserva continua bloqueada", async () => {
+    const { id } = await reservaDesbloqueavel();
+
+    const res = await desbloquear(id, locatario.token, "ZZZZ-9999");
+    expect(res.status).toBe(400);
+
+    const consulta = await request(app)
+      .get(`/api/reserva/${id}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(consulta.body.result.codigoUsadoEm).toBeNull();
+    expect(consulta.body.result.status).toBe("CONFIRMADA");
+  });
+
+  it("código de outra reserva (outro veículo): 400 em ambas", async () => {
+    const alvo = await reservaDesbloqueavel();
+    const outra = await reservaDesbloqueavel();
+    expect(alvo.idVeiculo).not.toBe(outra.idVeiculo);
+
+    const res = await desbloquear(alvo.id, locatario.token, outra.codigo);
+    expect(res.status).toBe(400);
+
+    // E o veículo correto da outra reserva também segue bloqueado.
+    const consulta = await request(app)
+      .get(`/api/reserva/${outra.id}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(consulta.body.result.codigoUsadoEm).toBeNull();
+  });
+
+  it("reserva inexistente: 404", async () => {
+    const res = await desbloquear(
+      "11111111-2222-4333-8444-555555555555",
+      locatario.token,
+      "ABCD-2345",
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("usuário sem acesso: 403 mesmo com o código certo", async () => {
+    const { id, codigo } = await reservaDesbloqueavel();
+    const intruso = await createLocatario();
+
+    const res = await desbloquear(id, intruso.token, codigo);
+    expect(res.status).toBe(403);
+
+    const consulta = await request(app)
+      .get(`/api/reserva/${id}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(consulta.body.result.codigoUsadoEm).toBeNull();
+  });
+
+  it("QR desbloqueia e também promove para EM_ANDAMENTO", async () => {
+    const { id } = await reservaDesbloqueavel();
+
+    const qr = await request(app)
+      .get(`/api/reserva/${id}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(qr.status).toBe(200);
+
+    const res = await request(app)
+      .post(`/api/reserva/${id}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr: qr.body.result.qr });
+
+    expect(res.status).toBe(200);
+    expect(res.body.result.status).toBe("EM_ANDAMENTO");
+
+    // Uso único vale para os dois caminhos: o QR não reabre o código usado.
+    const repetido = await request(app)
+      .post(`/api/reserva/${id}/desbloqueio/qr`)
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({ qr: qr.body.result.qr });
+    expect(repetido.status).toBe(409);
+  });
+
+  it("reserva desbloqueada não pode mais ser cancelada: 409 (RN04)", async () => {
+    const { id, codigo } = await reservaDesbloqueavel();
+    expect((await desbloquear(id, locatario.token, codigo)).status).toBe(200);
+
+    const res = await request(app)
+      .post(`/api/reserva/${id}/cancelar`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(res.status).toBe(409);
   });
 });

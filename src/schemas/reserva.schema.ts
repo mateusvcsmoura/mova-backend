@@ -28,15 +28,16 @@ export const createReservaSchema = z
     dataHoraInicio: z.coerce.date(),
     dataHoraFim: z.coerce.date(),
 
-    // Decimal(10,2) no schema -> valor base positivo (o service soma os serviços)
-    valorTotal: z.number().positive(),
+    // valorTotal NÃO é aceito do cliente. O backend calcula a partir da
+    // valorDiaria do ModeloVeiculo × diárias + serviços opcionais.
 
     // Serviços opcionais selecionados (nenhum, um ou vários). Lista de UUIDs.
     servicosIds: z.array(z.string().uuid()).optional(),
 
-    status: z.nativeEnum(StatusReserva).optional(),
-    // statusPagamento NÃO é aceito do cliente: o resultado do pagamento só
-    // muda pelo webhook assinado do gateway (POST /api/webhooks/pagamento/*).
+    // status e statusPagamento NÃO são aceitos do cliente. Toda reserva nasce
+    // AGUARDANDO_PAGAMENTO (default do banco); o status só avança por ações de
+    // domínio (/cancelar, /devolucao) e o statusPagamento só pelo webhook
+    // assinado do gateway (POST /api/webhooks/pagamento/*).
     // metodoPagamento é uma escolha do cliente (meio pretendido), não o
     // resultado, então permanece aceito.
     metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),

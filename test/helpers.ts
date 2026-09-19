@@ -4,6 +4,8 @@ import { app } from "../src/app";
 import { prisma } from "../src/database/prisma";
 import { env } from "../src/config/env";
 import { isValidCnh } from "../src/shared/documentos";
+import { StatusReserva } from "@prisma/client";
+import { ReservaMapper } from "../src/repositories/mappers/reserva.mapper";
 
 type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
 
@@ -181,6 +183,12 @@ export async function createLocatario(
   };
 }
 
+// Diaria padrao dos veiculos de teste. 125,25/dia x 2 diarias (futurePeriod
+// padrao) = 250,50 — mesmo valor que os testes usavam quando o cliente ainda
+// enviava valorTotal. O backend e a fonte de verdade do preco (TASK 04), entao
+// os testes derivam o esperado daqui em vez de cravar um numero.
+export const VALOR_DIARIA_PADRAO = 125.25;
+
 // Cria um veículo. Exige token LOCADOR (dono) ou ADMIN — a rota de criação
 // agora é protegida e o ownership é validado no service.
 export async function createVeiculo(
@@ -190,6 +198,7 @@ export async function createVeiculo(
 ) {
   const payload = {
     idLocador,
+    valorDiaria: VALOR_DIARIA_PADRAO,
     placa: uniquePlaca(),
     marca: "Fiat",
     modelo: "Argo",
@@ -299,18 +308,34 @@ export async function createReserva(
   idLocatario: string,
   overrides: Record<string, unknown> = {},
 ) {
+  // status NÃO é mais aceito pela API (é do domínio). Os testes que precisam de
+  // uma reserva em outro estado continuam pedindo via override, mas o valor é
+  // aplicado direto no banco, depois da criação — arranjo de cenário, não um
+  // buraco no contrato.
+  const { status, ...resto } = overrides as { status?: StatusReserva };
+  // valorTotal NÃO é mais enviado: o backend calcula a partir da valorDiaria
+  // do modelo do veículo.
   const payload = {
     idVeiculo,
     idLocatario,
-    valorTotal: 250.5,
     ...futurePeriod(),
-    ...overrides,
+    ...resto,
   };
 
   const res = await request(app)
     .post("/api/reserva")
     .set("Authorization", `Bearer ${token}`)
     .send(payload);
+
+  if (status && res.body.result?.id) {
+    return ReservaMapper.toResponse(
+      await prisma.reserva.update({
+        where: { id: res.body.result.id },
+        data: { status },
+        include: { servicos: { include: { servico: true } }, veiculo: { include: { modeloVeiculo: true } } },
+      }),
+    );
+  }
 
   return res.body.result;
 }

@@ -54,6 +54,12 @@ export const writeLimiter = createRateLimiter({
   limit: env.RATE_LIMIT_WRITE_MAX,
 });
 
+// Webhooks recebem corpo cru antes do parser JSON global; por isso precisam de
+// um limitador próprio no ponto em que são montados.
+export const webhookLimiter = createRateLimiter({
+  limit: env.RATE_LIMIT_WRITE_MAX,
+});
+
 // Aplica o writeLimiter apenas a métodos que mutam estado. Métodos de leitura
 // (GET/HEAD/OPTIONS) passam direto.
 const METODOS_ESCRITA = new Set(["POST", "PUT", "PATCH", "DELETE"]);

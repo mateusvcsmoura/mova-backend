@@ -68,6 +68,8 @@ enum MetodoPagamento {
 enum TipoCobranca {
   CANCELAMENTO
   ATRASO_DEVOLUCAO
+  // Cobrança principal da reserva, registrada ao iniciar o pagamento.
+  PAGAMENTO_RESERVA
 }
 
 // Situação operacional da garagem (RF19). Soft delete: desativar = INATIVA,
@@ -259,6 +261,9 @@ model ModeloVeiculo {
   adaptado     Boolean
   // Categoria comercial (RF07/RF16). Nula até o locador classificar o modelo.
   categoria    CategoriaVeiculo?
+  // Valor da diária. É a FONTE DE VERDADE do preço: o valorTotal da reserva é
+  // calculado pelo backend a partir daqui, nunca aceito do cliente.
+  valorDiaria  Decimal   @db.Decimal(10, 2)
   criadoEm     DateTime  @default(now())
   veiculos     Veiculo[]
   atualizadoEm DateTime  @default(now()) @updatedAt

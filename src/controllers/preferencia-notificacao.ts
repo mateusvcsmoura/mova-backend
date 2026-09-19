@@ -20,14 +20,11 @@ export class PreferenciaNotificacaoController {
   definir: Handler = async (req, res, next) => {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
-      const parsed = definirPreferenciaSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ errors: parsed.error.format() });
-      }
+      const parsed = definirPreferenciaSchema.parse(req.body);
       const result = await this.service.definir(
         req.user.id,
         req.user,
-        parsed.data,
+        parsed,
       );
       return res.status(200).json({ result });
     } catch (error) {

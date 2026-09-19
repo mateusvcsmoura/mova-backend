@@ -75,15 +75,9 @@ export class LocadorController {
 
   create: Handler = async (req, res, next: NextFunction) => {
     try {
-      const result = createLocadorSchema.safeParse(req.body);
+      const result = createLocadorSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
       const locador = await this.locadorService.create(data);
 
       return res.status(201).json({ result: locador });
@@ -105,15 +99,9 @@ export class LocadorController {
 
       const id = parsedId.data;
 
-      const result = updateLocadorSchema.safeParse(req.body);
+      const result = updateLocadorSchema.parse(req.body);
 
-      if (!result.success) {
-        return res.status(400).json({
-          errors: result.error.format(),
-        });
-      }
-
-      const data = result.data;
+      const data = result;
       const locador = await this.locadorService.update(id, data);
 
       return res.status(200).json({ result: locador });

@@ -12,13 +12,10 @@ export class AvaliacaoController {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      const result = createAvaliacaoSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ errors: result.error.format() });
-      }
+      const result = createAvaliacaoSchema.parse(req.body);
 
       const avaliacao = await this.avaliacaoService.criar(
-        result.data,
+        result,
         req.user,
       );
       return res.status(201).json({ result: avaliacao });

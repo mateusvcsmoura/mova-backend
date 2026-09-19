@@ -92,6 +92,15 @@ class PaymentGatewayHmac implements PaymentGateway {
   }
 }
 
+// Header de assinatura por provedor. Exportado para o simulador de sandbox
+// conseguir montar um webhook assinado usando exatamente o mesmo esquema que a
+// verificacao usa — nada de caminho paralelo.
+export const HEADER_ASSINATURA: Record<string, string> = {
+  mercadopago: "x-mp-signature",
+  stripe: "stripe-signature",
+  asaas: "asaas-signature",
+};
+
 // Registro dos gateways suportados. Header de assinatura segue a convenção de
 // cada provedor; o segredo vem do env (gateway sem segredo rejeita tudo).
 export function construirGatewaysPagamento(): Map<string, PaymentGateway> {
@@ -99,14 +108,14 @@ export function construirGatewaysPagamento(): Map<string, PaymentGateway> {
     new PaymentGatewayHmac(
       "mercadopago",
       env.MERCADOPAGO_WEBHOOK_SECRET,
-      "x-mp-signature",
+      HEADER_ASSINATURA.mercadopago,
     ),
     new PaymentGatewayHmac(
       "stripe",
       env.STRIPE_WEBHOOK_SECRET,
-      "stripe-signature",
+      HEADER_ASSINATURA.stripe,
     ),
-    new PaymentGatewayHmac("asaas", env.ASAAS_WEBHOOK_SECRET, "asaas-signature"),
+    new PaymentGatewayHmac("asaas", env.ASAAS_WEBHOOK_SECRET, HEADER_ASSINATURA.asaas),
   ];
   return new Map(gateways.map((g) => [g.nome, g]));
 }

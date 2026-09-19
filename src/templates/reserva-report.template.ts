@@ -5,6 +5,7 @@ import {
   ReservaReportPayload,
 } from "../services/contracts/reserva-report.js";
 import { Locale, LOCALE_PADRAO } from "../i18n/index.js";
+import { env } from "../config/env.js";
 
 // Template do relatório de reserva. Função pura: recebe o payload + idioma e
 // devolve o conteúdo (assunto + HTML + texto). Mantido fora dos services para
@@ -243,18 +244,25 @@ export function renderReservaReport(
     style: "currency",
     currency: "BRL",
   });
+  // Fuso FIXO de exibição. Sem isto o formatador usaria o fuso do processo, e o
+  // mesmo instante sairia com horas diferentes em máquinas diferentes (local
+  // America/Sao_Paulo vs. Render em UTC). Ver auditoria/DATAS-HORARIOS.md.
+  const timeZone = env.TIMEZONE_EXIBICAO;
   const dateTime = new Intl.DateTimeFormat(intlTag, {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone,
   });
   const dayFmt = new Intl.DateTimeFormat(intlTag, {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone,
   });
   const timeFmt = new Intl.DateTimeFormat(intlTag, {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   });
   const formatMoney = (v: number) => money.format(v);
   const formatDate = (d: Date) => dateTime.format(d);

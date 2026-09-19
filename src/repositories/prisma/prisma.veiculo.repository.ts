@@ -46,6 +46,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         capacidade: data.capacidade,
         eletrico: data.eletrico,
         adaptado: data.adaptado,
+        valorDiaria: data.valorDiaria,
         categoria: data.categoria ?? undefined,
       },
     });
@@ -120,6 +121,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
       marca: modelo.marca,
       modelo: modelo.modelo,
       ano: modelo.ano,
+      valorDiaria: Number(modelo.valorDiaria),
       cambio: modelo.cambio,
       capacidade: modelo.capacidade,
       eletrico: modelo.eletrico,
@@ -253,18 +255,20 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     data: UpdateModeloVeiculoRequest,
   ): Promise<ModeloVeiculoResponse> {
     try {
-      return await prisma.modeloVeiculo.update({
+      const atualizado = await prisma.modeloVeiculo.update({
         where: { id: idModelo },
         data: {
           cambio: data.cambio ?? undefined,
           capacidade: data.capacidade ?? undefined,
           eletrico: data.eletrico ?? undefined,
           adaptado: data.adaptado ?? undefined,
+          valorDiaria: data.valorDiaria ?? undefined,
           categoria: data.categoria ?? undefined,
           // marca, modelo, ano intencionalmente fora — mudar isso
           // quebraria o @@unique e a identidade do modelo
         },
       });
+      return VeiculoMapper.toModeloResponse(atualizado);
     } catch {
       throw new HttpError(404, "Modelo de veículo não encontrado.");
     }
