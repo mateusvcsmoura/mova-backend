@@ -6,6 +6,7 @@ import {
   createAccount,
   createLocador,
   createLocatario,
+  createGaragem,
   createVeiculo,
   futurePeriod,
   uniquePlaca,
@@ -177,6 +178,28 @@ describe("Veiculo API", () => {
     it("deve recusar listagem sem autenticação", async () => {
       const response = await request(app).get("/api/veiculo");
       expect(response.status).toBe(401);
+    });
+
+    it("inclui o nome da garagem efetiva na resposta do catálogo", async () => {
+      const garagem = await createGaragem(locador.token, locador.locadorId, {
+        nome: "Garagem do catálogo",
+      });
+      const alocacao = await request(app)
+        .post(`/api/garagem/${garagem.id}/veiculos/${veiculoId}`)
+        .set(auth(locador.token))
+        .send({});
+      expect(alocacao.status).toBe(204);
+
+      const response = await request(app)
+        .get("/api/veiculo")
+        .set(auth(locador.token));
+
+      expect(response.status).toBe(200);
+      const veiculo = response.body.result.find((item: any) => item.id === veiculoId);
+      expect(veiculo).toMatchObject({
+        garagemId: garagem.id,
+        garagem: { id: garagem.id, nome: "Garagem do catálogo" },
+      });
     });
   });
 
