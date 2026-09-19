@@ -75,6 +75,7 @@ export interface VeiculoResponse {
   idModeloVeiculo: string;
   modeloVeiculo: ModeloVeiculoResponse;
   garagemId: string | null;
+  garagem?: GaragemVeiculoResponse | null;
   placa: string;
   status: StatusVeiculo;
   criadoEm: Date;
@@ -87,4 +88,10 @@ export interface UpdateModeloVeiculoRequest {
   adaptado?: boolean;
   categoria?: CategoriaVeiculo;
   valorDiaria?: number;
+}
+
+/** Dados mínimos da garagem necessários para localizar o veículo no catálogo. */
+export interface GaragemVeiculoResponse {
+  id: string;
+  nome: string;
 }

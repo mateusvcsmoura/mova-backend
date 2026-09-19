@@ -1,10 +1,13 @@
-import { ModeloVeiculo, Veiculo } from "@prisma/client";
+import { Garagem, ModeloVeiculo, Veiculo } from "@prisma/client";
 import {
   ModeloVeiculoResponse,
   VeiculoResponse,
 } from "../contracts/veiculo.contract.js";
 
-type VeiculoComModelo = Veiculo & { modeloVeiculo: ModeloVeiculo };
+type VeiculoComModelo = Veiculo & {
+  modeloVeiculo: ModeloVeiculo;
+  garagem?: Pick<Garagem, "id" | "nome"> | null;
+};
 
 export class VeiculoMapper {
   static toModeloResponse(modelo: ModeloVeiculo): ModeloVeiculoResponse {
@@ -31,6 +34,9 @@ export class VeiculoMapper {
       idModeloVeiculo: veiculo.idModeloVeiculo,
       modeloVeiculo: this.toModeloResponse(veiculo.modeloVeiculo),
       garagemId: veiculo.garagemId,
+      garagem: veiculo.garagem
+        ? { id: veiculo.garagem.id, nome: veiculo.garagem.nome }
+        : null,
       placa: veiculo.placa,
       status: veiculo.status,
       criadoEm: veiculo.criadoEm,

@@ -20,7 +20,12 @@ import {
 } from "../../shared/pagination.js";
 import { Prisma, StatusVeiculo } from "@prisma/client";
 
-const withModelo = { modeloVeiculo: true } as const;
+// A listagem do catálogo precisa identificar a garagem efetiva do veículo.
+// Selecionar esses dois campos na mesma query evita GET /garagem/:id por card.
+const withModelo = {
+  modeloVeiculo: true,
+  garagem: { select: { id: true, nome: true } },
+} as const;
 
 export class PrismaVeiculoRepository implements IVeiculoRepository {
   // ── Upsert interno do modelo ──────────────────────────────────────────────
