@@ -8,7 +8,9 @@ const cnpjSchema = z
   .refine(isValidCnpj, "CNPJ inválido");
 
 export const createLocadorSchema = z.object({
-  id: z.string().uuid("ID deve ser um UUID válido"),
+  // Para LOCADOR, o service substitui este campo pelo ID do JWT. Ele é
+  // mantido opcional somente para a operação administrativa existente.
+  id: z.string().uuid("ID deve ser um UUID válido").optional(),
 
   empresa: z
     .string()

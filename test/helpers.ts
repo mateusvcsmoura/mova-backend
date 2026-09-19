@@ -137,6 +137,7 @@ export async function createLocador(): Promise<LocadorContext> {
 
   const res = await request(app)
     .post("/api/locador")
+    .set("Authorization", `Bearer ${account.token}`)
     .send({ id: account.conta.id, empresa, cnpj });
 
   return {

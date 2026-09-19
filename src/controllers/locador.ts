@@ -14,7 +14,8 @@ export class LocadorController {
   index: Handler = async (req, res, next: NextFunction) => {
     try {
       const pagination = getPaginationParams(req.query);
-      const locadores = await this.locadorService.findAll(pagination);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const locadores = await this.locadorService.findAll(pagination, req.user);
 
       return res.status(200).json({
         result: locadores.data,
@@ -33,7 +34,8 @@ export class LocadorController {
         throw new HttpError(400, "ID inválido");
       }
 
-      const locador = await this.locadorService.findById(result.data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const locador = await this.locadorService.findById(result.data, req.user);
 
       return res.status(200).json({ result: locador });
     } catch (error) {
@@ -45,8 +47,9 @@ export class LocadorController {
     const { cnpj, empresa } = req.query;
 
     try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       if (cnpj && typeof cnpj === "string") {
-        const locador = await this.locadorService.findByCnpj(cnpj);
+        const locador = await this.locadorService.findByCnpj(cnpj, req.user);
         return res.status(200).json({ result: locador });
       }
 
@@ -55,7 +58,7 @@ export class LocadorController {
       if (empresa && typeof empresa === "string") {
         const locadores = await this.locadorService.findByEmpresa(
           empresa,
-          pagination,
+          pagination, req.user,
         );
         return res.status(200).json({
           result: locadores.data,
@@ -63,7 +66,7 @@ export class LocadorController {
         });
       }
 
-      const locadores = await this.locadorService.findAll(pagination);
+      const locadores = await this.locadorService.findAll(pagination, req.user);
       return res.status(200).json({
         result: locadores.data,
         pagination: toPaginationMeta(locadores),
@@ -78,7 +81,8 @@ export class LocadorController {
       const result = createLocadorSchema.parse(req.body);
 
       const data = result;
-      const locador = await this.locadorService.create(data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const locador = await this.locadorService.create(data, req.user);
 
       return res.status(201).json({ result: locador });
     } catch (error) {
@@ -102,7 +106,8 @@ export class LocadorController {
       const result = updateLocadorSchema.parse(req.body);
 
       const data = result;
-      const locador = await this.locadorService.update(id, data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const locador = await this.locadorService.update(id, data, req.user);
 
       return res.status(200).json({ result: locador });
     } catch (error) {
@@ -118,7 +123,8 @@ export class LocadorController {
         throw new HttpError(400, "ID inválido");
       }
 
-      await this.locadorService.delete(result.data);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      await this.locadorService.delete(result.data, req.user);
 
       return res.status(204).send();
     } catch (error) {

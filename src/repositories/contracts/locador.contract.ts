@@ -7,7 +7,7 @@ export interface LocadorResponse {
 export interface CreateLocadorRequest {
   empresa: string;
   cnpj: string;
-  id: string;
+  id?: string;
 }
 
 export interface UpdateLocadorRequest {
