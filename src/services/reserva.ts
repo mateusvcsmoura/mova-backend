@@ -29,6 +29,7 @@ import { ICondutorRepository } from "../repositories/condutor.repository.js";
 import {
   CondutorResponse,
   CreateCondutorRequest,
+  ReservaBloqueadaParaCondutor,
 } from "../repositories/contracts/condutor.contract.js";
 import { ReservaServicoInput } from "../repositories/contracts/reserva.contract.js";
 import { ILocalizacaoRepository } from "../repositories/localizacao.repository.js";
@@ -56,9 +57,6 @@ const CODIGO_VALIDADE_MS = 2 * 24 * 60 * 60 * 1000;
 // RN05: duração da reserva. Mínimo de 1 hora, máximo de 30 dias consecutivos.
 const DURACAO_MINIMA_MS = 60 * 60 * 1000;
 const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
-
-// RN02: máximo de condutores adicionais por reserva.
-const MAX_CONDUTORES_ADICIONAIS = 3;
 
 // RN04: política de cancelamento. Grátis até 2 horas antes da retirada; após
 // esse prazo, multa de 20% sobre o valor da reserva.
@@ -251,7 +249,7 @@ export class ReservaService {
   // ADMIN sempre; LOCATARIO se for o dono; LOCADOR se o veículo for dele.
   private async assertReservaAccess(
     requester: ReservaAccessContext,
-    reserva: ReservaResponse,
+    reserva: Pick<ReservaResponse, "idLocatario" | "idVeiculo">,
   ): Promise<void> {
     if (requester.cargo === Cargo.ADMIN) {
       return;
@@ -942,7 +940,9 @@ export class ReservaService {
 
   // Alterações (incluir/remover condutor) só são permitidas antes do início da
   // reserva e enquanto ela não estiver cancelada.
-  private assertReservaAlteravel(reserva: ReservaResponse): void {
+  private assertReservaAlteravel(
+    reserva: Pick<ReservaResponse, "status" | "dataHoraInicio">,
+  ): void {
     if (reserva.status === StatusReserva.CANCELADA) {
       throw new HttpError(409, "Reserva cancelada.");
     }
@@ -972,32 +972,13 @@ export class ReservaService {
     data: Omit<CreateCondutorRequest, "idReserva">,
     requester: ReservaAccessContext,
   ): Promise<CondutorResponse> => {
-    const reserva = await this.getReservaComAcesso(idReserva, requester);
-    this.assertReservaAlteravel(reserva);
-
-    // RN02: no máximo 3 condutores adicionais por reserva. Usa count real, que
-    // reflete remoções (não índice fixo).
-    const total = await this.condutorRepository.countByReservaId(idReserva);
-    if (total >= MAX_CONDUTORES_ADICIONAIS) {
-      throw new HttpError(
-        409,
-        "Limite de 3 condutores adicionais atingido.",
-      );
-    }
-
-    // Duplicidade: mesmo condutor (CNH) já cadastrado nesta reserva.
-    const existente = await this.condutorRepository.findByReservaAndCnh(
-      idReserva,
-      data.cnh,
+    return this.condutorRepository.createWithinLimit(
+      { idReserva, ...data },
+      async (reserva: ReservaBloqueadaParaCondutor) => {
+        await this.assertReservaAccess(requester, reserva);
+        this.assertReservaAlteravel(reserva);
+      },
     );
-    if (existente) {
-      throw new HttpError(
-        409,
-        "Já existe um condutor com esta CNH nesta reserva.",
-      );
-    }
-
-    return this.condutorRepository.create({ idReserva, ...data });
   };
 
   listarCondutores = async (

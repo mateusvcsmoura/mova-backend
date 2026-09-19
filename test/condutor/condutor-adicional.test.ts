@@ -197,3 +197,103 @@ describe("Condutores adicionais — limite de 3 (RN02)", () => {
     expect(response.status).toBe(201);
   });
 });
+
+describe("Condutores adicionais — concorrência RN02", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+
+  const addCondutor = (reservaId: string, nome: string, cnh = uniqueCnh()) =>
+    request(app)
+      .post(`/api/reserva/${reservaId}/condutores`)
+      .set(auth(locatario.token))
+      .send({ nome, cnh });
+
+  async function criarReservaComDoisCondutores() {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+    );
+
+    expect((await addCondutor(reserva.id, "Condutor base 1")).status).toBe(201);
+    expect((await addCondutor(reserva.id, "Condutor base 2")).status).toBe(201);
+
+    return reserva.id;
+  }
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+  });
+
+  it("serializa inclusões concorrentes e mantém exatamente três condutores", async () => {
+    for (let tentativa = 1; tentativa <= 3; tentativa++) {
+      const reservaId = await criarReservaComDoisCondutores();
+
+      const [primeira, segunda] = await Promise.all([
+        addCondutor(reservaId, `Concorrente A ${tentativa}`),
+        addCondutor(reservaId, `Concorrente B ${tentativa}`),
+      ]);
+
+      expect([primeira.status, segunda.status].sort()).toEqual([201, 409]);
+
+      const condutores = await prisma.condutorAdicional.findMany({
+        where: { idReserva: reservaId },
+      });
+      expect(condutores).toHaveLength(3);
+    }
+  });
+
+  it("aceita no máximo uma inclusão concorrente da mesma CNH", async () => {
+    const reservaId = await criarReservaComDoisCondutores();
+    const cnh = uniqueCnh();
+
+    const [primeira, segunda] = await Promise.all([
+      addCondutor(reservaId, "Mesma CNH A", cnh),
+      addCondutor(reservaId, "Mesma CNH B", cnh),
+    ]);
+
+    expect([primeira.status, segunda.status].sort()).toEqual([201, 409]);
+
+    const condutores = await prisma.condutorAdicional.findMany({
+      where: { idReserva: reservaId },
+    });
+    expect(condutores).toHaveLength(3);
+    expect(condutores.filter((condutor) => condutor.cnh === cnh)).toHaveLength(1);
+  });
+
+  it("não bloqueia inclusões de reservas diferentes", async () => {
+    const primeiraReserva = await criarReservaComDoisCondutores();
+    const segundaReserva = await criarReservaComDoisCondutores();
+
+    const [primeira, segunda] = await Promise.all([
+      addCondutor(primeiraReserva, "Reserva independente A"),
+      addCondutor(segundaReserva, "Reserva independente B"),
+    ]);
+
+    expect(primeira.status).toBe(201);
+    expect(segunda.status).toBe(201);
+  });
+
+  it("recusa reserva inexistente sem criar condutor", async () => {
+    const response = await addCondutor(
+      "00000000-0000-4000-8000-000000000007",
+      "Reserva inexistente",
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("recusa inclusão em reserva cancelada", async () => {
+    const reservaId = await criarReservaComDoisCondutores();
+    await prisma.reserva.update({
+      where: { id: reservaId },
+      data: { status: "CANCELADA" },
+    });
+
+    const response = await addCondutor(reservaId, "Reserva cancelada");
+
+    expect(response.status).toBe(409);
+  });
+});
