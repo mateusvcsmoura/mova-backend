@@ -18,7 +18,7 @@ import {
   PaginationParams,
   toSkipTake,
 } from "../../shared/pagination.js";
-import { Prisma, StatusVeiculo } from "@prisma/client";
+import { Prisma, StatusGaragem, StatusVeiculo } from "@prisma/client";
 
 // A listagem do catálogo precisa identificar a garagem efetiva do veículo.
 // Selecionar esses campos na mesma query evita GET /garagem/:id por card.
@@ -145,6 +145,12 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
       idLocador: filters.idLocador,
       garagemId: filters.garagemId,
       status: "DISPONIVEL",
+      // Catálogo reservável: veículo sem garagem continua elegível para a
+      // jornada escolher retirada; garagem vinculada precisa estar ativa.
+      OR: [
+        { garagemId: null },
+        { garagem: { status: StatusGaragem.ATIVA } },
+      ],
       modeloVeiculo: {
         marca: filters.marca,
         modelo: filters.modelo,

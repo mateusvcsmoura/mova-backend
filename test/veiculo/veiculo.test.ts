@@ -205,7 +205,7 @@ describe("Veiculo API", () => {
   });
 
   describe("Veiculo API — status da garagem no contrato", () => {
-    it("expõe status INATIVA e MANUTENCAO da garagem no catálogo", async () => {
+    it("não apresenta garagem INATIVA ou MANUTENCAO no catálogo reservável", async () => {
       const garagemInativa = await createGaragem(
         locador.token,
         locador.locadorId,
@@ -259,25 +259,11 @@ describe("Veiculo API", () => {
         .set(auth(locatario.token));
 
       expect(response.status).toBe(200);
-      expect(response.body.result).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            id: veiculoInativo.id,
-            garagem: {
-              id: garagemInativa.id,
-              nome: "Garagem inativa do catálogo",
-              status: "INATIVA",
-            },
-          }),
-          expect.objectContaining({
-            id: veiculoManutencao.id,
-            garagem: {
-              id: garagemManutencao.id,
-              nome: "Garagem em manutencao do catálogo",
-              status: "MANUTENCAO",
-            },
-          }),
-        ]),
+      expect(response.body.result.map((item: any) => item.id)).not.toContain(
+        veiculoInativo.id,
+      );
+      expect(response.body.result.map((item: any) => item.id)).not.toContain(
+        veiculoManutencao.id,
       );
 
       const detalheInativo = await request(app).get(
@@ -428,6 +414,16 @@ describe("Veiculo API", () => {
       expect(response.body.result.status).toBe("MANUTENCAO");
     });
 
+    it("deve reativar veículo em manutenção para DISPONIVEL", async () => {
+      const response = await request(app)
+        .put(`/api/veiculo/${veiculoId}`)
+        .set(auth(locador.token))
+        .send({ status: "DISPONIVEL" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.result.status).toBe("DISPONIVEL");
+    });
+
     it("deve recusar edição de veículo de outro locador (403)", async () => {
       const response = await request(app)
         .put(`/api/veiculo/${veiculoId}`)
@@ -480,6 +476,16 @@ describe("Veiculo API", () => {
       expect(publico.status).toBe(404);
     });
 
+    it("deve reativar veículo INATIVO para DISPONIVEL", async () => {
+      const response = await request(app)
+        .put(`/api/veiculo/${veiculoId}`)
+        .set(auth(locador.token))
+        .send({ status: "DISPONIVEL" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.result.status).toBe("DISPONIVEL");
+    });
+
     it("veículo INATIVO (soft-deleted) não é reservável (409)", async () => {
       // Veículo próprio, desativado por soft delete.
       const veiculo = await createVeiculo(locador.token, locador.locadorId);
@@ -500,6 +506,62 @@ describe("Veiculo API", () => {
 
       expect(reserva.status).toBe(409);
     });
+  });
+});
+
+describe("Veículo em MANUTENCAO não entra em novas reservas", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+  });
+
+  it("rejeita reserva direta enquanto o veículo está em manutenção", async () => {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+      status: "MANUTENCAO",
+    });
+
+    const response = await request(app)
+      .post("/api/reserva")
+      .set(auth(locatario.token))
+      .send({
+        idVeiculo: veiculo.id,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 250,
+        ...futurePeriod(800, 2),
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toMatch(/não está disponível/i);
+  });
+
+  it("preserva reserva existente ao colocar o veículo em manutenção", async () => {
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const criada = await request(app)
+      .post("/api/reserva")
+      .set(auth(locatario.token))
+      .send({
+        idVeiculo: veiculo.id,
+        idLocatario: locatario.locatarioId,
+        valorTotal: 250,
+        ...futurePeriod(810, 2),
+      });
+
+    expect(criada.status).toBe(201);
+
+    const alterado = await request(app)
+      .put(`/api/veiculo/${veiculo.id}`)
+      .set(auth(locador.token))
+      .send({ status: "MANUTENCAO" });
+    expect(alterado.status).toBe(200);
+
+    const consulta = await request(app)
+      .get(`/api/reserva/${criada.body.result.id}`)
+      .set(auth(locatario.token));
+    expect(consulta.status).toBe(200);
+    expect(consulta.body.result.idVeiculo).toBe(veiculo.id);
   });
 });
 

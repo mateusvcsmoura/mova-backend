@@ -143,6 +143,22 @@ describe("Garagem API", () => {
       expect(response.status).toBe(200);
       expect(response.body.result.status).toBe("MANUTENCAO");
     });
+
+    it("recusa a alteração de status por outro locador (403)", async () => {
+      const outro = await createLocador();
+
+      const response = await request(app)
+        .put(`/api/garagem/${garagemId}`)
+        .set("Authorization", `Bearer ${outro.token}`)
+        .send({ status: "ATIVA" });
+
+      expect(response.status).toBe(403);
+
+      const get = await request(app)
+        .get(`/api/garagem/${garagemId}`)
+        .set("Authorization", `Bearer ${locador.token}`);
+      expect(get.body.result.status).toBe("MANUTENCAO");
+    });
   });
 
   describe("DELETE /api/garagem/:id (soft delete)", () => {
@@ -161,6 +177,16 @@ describe("Garagem API", () => {
 
       expect(get.status).toBe(200);
       expect(get.body.result.status).toBe("INATIVA");
+    });
+
+    it("deve reativar a garagem inativa pelo locador responsável", async () => {
+      const reativada = await request(app)
+        .put(`/api/garagem/${garagemId}`)
+        .set("Authorization", `Bearer ${locador.token}`)
+        .send({ status: "ATIVA" });
+
+      expect(reativada.status).toBe(200);
+      expect(reativada.body.result.status).toBe("ATIVA");
     });
 
     // RN08: ownership no delete — locador não-dono não desativa garagem alheia.

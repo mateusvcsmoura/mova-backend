@@ -88,6 +88,35 @@ describe("Garagens na jornada de reserva", () => {
       expect(res.body.result.map((g: any) => g.id)).not.toContain(inativa.id);
     });
 
+    it("volta ao catálogo somente após o locador reativar a garagem", async () => {
+      const garagem = await createGaragem(locador.token, locador.locadorId);
+
+      const desativar = await request(app)
+        .delete(`/api/garagem/${garagem.id}`)
+        .set("Authorization", `Bearer ${locador.token}`);
+      expect(desativar.status).toBe(204);
+
+      const duranteInatividade = await request(app)
+        .get(`/api/garagem?idLocador=${locador.locadorId}`)
+        .set("Authorization", `Bearer ${locatario.token}`);
+      expect(duranteInatividade.body.result.map((g: any) => g.id)).not.toContain(
+        garagem.id,
+      );
+
+      const reativar = await request(app)
+        .put(`/api/garagem/${garagem.id}`)
+        .set("Authorization", `Bearer ${locador.token}`)
+        .send({ status: "ATIVA" });
+      expect(reativar.status).toBe(200);
+
+      const aposReativacao = await request(app)
+        .get(`/api/garagem?idLocador=${locador.locadorId}`)
+        .set("Authorization", `Bearer ${locatario.token}`);
+      expect(aposReativacao.body.result.map((g: any) => g.id)).toContain(
+        garagem.id,
+      );
+    });
+
     it("locador continua vendo só as próprias garagens", async () => {
       const doOutro = await createGaragem(
         outroLocador.token,
@@ -151,6 +180,17 @@ describe("Garagens na jornada de reserva", () => {
       });
       expect(noBanco?.idGaragemRetirada).toBe(retirada.id);
       expect(noBanco?.idGaragemDevolucao).toBe(devolucao.id);
+
+      await request(app)
+        .delete(`/api/garagem/${devolucao.id}`)
+        .set("Authorization", `Bearer ${locador.token}`)
+        .expect(204);
+
+      const reservaExistente = await request(app)
+        .get(`/api/reserva/${res.body.result.id}`)
+        .set("Authorization", `Bearer ${locatario.token}`);
+      expect(reservaExistente.status).toBe(200);
+      expect(reservaExistente.body.result.idGaragemDevolucao).toBe(devolucao.id);
     });
 
     it("devolução em garagem inexistente responde 404", async () => {
