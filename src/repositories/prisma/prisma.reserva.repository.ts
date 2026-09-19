@@ -299,6 +299,14 @@ export class PrismaReservaRepository implements IReservaRepository {
         if (!existente) throw new HttpError(404, "Reserva não encontrada.");
         throw new HttpError(409, "Reserva cancelada.");
       }
+      await prisma.cobrancaReserva.updateMany({
+        where: {
+          idReserva: id,
+          tipo: TipoCobranca.PAGAMENTO_RESERVA,
+          statusPagamento: { not: StatusPagamento.SUCESSO },
+        },
+        data: { statusPagamento, metodoPagamento: metodoPagamento ?? undefined },
+      });
       const reserva = await prisma.reserva.findUniqueOrThrow({
         where: { id },
         include: RESERVA_INCLUDE,
@@ -326,7 +334,14 @@ export class PrismaReservaRepository implements IReservaRepository {
           throw new HttpError(409, "Reserva já cancelada ou não pode ser cancelada.");
         }
         await tx.cobrancaReserva.create({
-          data: { idReserva: id, tipo: TipoCobranca.CANCELAMENTO, valor: multa },
+          data: {
+            idReserva: id,
+            tipo: TipoCobranca.CANCELAMENTO,
+            valor: multa,
+            statusPagamento: multa > 0
+              ? StatusPagamento.AGUARDANDO_PAGAMENTO
+              : StatusPagamento.SUCESSO,
+          },
         });
         return tx.reserva.findUniqueOrThrow({
           where: { id },
@@ -359,6 +374,7 @@ export class PrismaReservaRepository implements IReservaRepository {
               idReserva: id,
               tipo: TipoCobranca.ATRASO_DEVOLUCAO,
               valor: valorCobranca,
+              statusPagamento: StatusPagamento.AGUARDANDO_PAGAMENTO,
             },
           });
         }
@@ -420,25 +436,48 @@ export class PrismaReservaRepository implements IReservaRepository {
     // Cobrança + mudança de estado na mesma transação: ou registra e marca
     // PROCESSANDO, ou não faz nem uma coisa nem outra.
     return prisma.$transaction(async (tx) => {
+      const atualizacao = await tx.reserva.updateMany({
+        where: {
+          id: idReserva,
+          status: { not: StatusReserva.CANCELADA },
+          statusPagamento: { in: [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.FALHA] },
+        },
+        data: { statusPagamento: StatusPagamento.PROCESSANDO, metodoPagamento },
+      });
+      if (atualizacao.count !== 1) {
+        throw new HttpError(409, "Pagamento já está em processamento ou foi aprovado.");
+      }
       await tx.cobrancaReserva.create({
         data: {
           idReserva,
           tipo: TipoCobranca.PAGAMENTO_RESERVA,
           valor,
-        },
-      });
-
-      const reserva = await tx.reserva.update({
-        where: { id: idReserva },
-        data: {
           statusPagamento: StatusPagamento.PROCESSANDO,
           metodoPagamento,
         },
+      });
+
+      const reserva = await tx.reserva.findUniqueOrThrow({
+        where: { id: idReserva },
         include: RESERVA_INCLUDE,
       });
 
       return ReservaMapper.toResponse(reserva);
     });
+  }
+
+  async hasCobrancaFinanceiraPendente(idLocatario: string): Promise<boolean> {
+    const count = await prisma.cobrancaReserva.count({
+      where: {
+        reserva: { idLocatario },
+        valor: { gt: 0 },
+        tipo: { in: [TipoCobranca.CANCELAMENTO, TipoCobranca.ATRASO_DEVOLUCAO] },
+        statusPagamento: {
+          in: [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.PROCESSANDO],
+        },
+      },
+    });
+    return count > 0;
   }
 
   async marcarCodigoComoUsado(

@@ -49,6 +49,9 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
       modelo: "Argo-E2E",
       valorDiaria: VALOR_DIARIA,
     });
+    await prisma.localizacao.create({
+      data: { idVeiculo: veiculo.id, latitude: -23.5505, longitude: -46.6333 },
+    });
     const servico = await createServico({
       nome: "Proteção E2E",
       descricao: "Cobertura adicional da jornada",
@@ -169,7 +172,7 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
     const desbloqueio = await request(app)
       .post(`/api/reserva/${reservaId}/desbloqueio`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ codigo });
+      .send({ codigo, latitude: -23.5505, longitude: -46.6333 });
 
     expect(desbloqueio.status).toBe(200);
     expect(desbloqueio.body.result.codigoUsadoEm).not.toBeNull();
@@ -180,7 +183,7 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
     const repetido = await request(app)
       .post(`/api/reserva/${reservaId}/desbloqueio`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ codigo });
+      .send({ codigo, latitude: -23.5505, longitude: -46.6333 });
 
     expect(repetido.status).toBe(409);
 

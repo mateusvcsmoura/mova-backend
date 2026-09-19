@@ -111,19 +111,20 @@ export class ReservaService {
   }
 
   // RN03: exige que o desbloqueio ocorra dentro do raio da última localização
-  // conhecida do veículo. Sem localização de referência -> geofence ignorado
-  // (permite, com aviso) para não travar operação legítima. Com referência, a
-  // coordenada do dispositivo é obrigatória. Borda: distância == raio é válida.
+  // conhecida do veículo. Sem localização de referência, o desbloqueio é
+  // bloqueado: sem uma origem confiável não é possível provar a regra de local.
+  // Com referência, a coordenada do dispositivo é obrigatória. Borda:
+  // distância == raio é válida.
   private async assertLocalDesbloqueio(
     idVeiculo: string,
     coord?: { latitude: number; longitude: number },
   ): Promise<void> {
     const ref = await this.localizacaoRepository.findLatestByVeiculoId(idVeiculo);
     if (!ref) {
-      console.warn(
-        `[desbloqueio] veículo ${idVeiculo} sem localização de referência — geofence ignorado.`,
+      throw new HttpError(
+        409,
+        "Localização de referência do veículo indisponível para desbloqueio.",
       );
-      return;
     }
 
     if (!coord) {

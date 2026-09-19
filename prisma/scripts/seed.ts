@@ -93,7 +93,7 @@ const disabilityDescriptions = [
 const servicosOpcionais = [
   {
     nome: "Seguro adicional",
-    descricao: "Cobertura adicional contra danos e terceiros durante a locacao.",
+    descricao: "Serviço opcional de seguro para a reserva.",
     valor: 49.9,
   },
   {

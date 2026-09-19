@@ -59,11 +59,18 @@ describe("Integridade das operações de reserva", () => {
       where: { id: reserva.id },
       data: { dataHoraInicio: new Date(Date.now() - 60 * 60 * 1000), dataHoraFim: new Date(Date.now() + 60 * 60 * 1000) },
     });
+    await prisma.localizacao.create({
+      data: { idVeiculo: veiculo.id, latitude: -23.5, longitude: -46.6 },
+    });
 
     const enviar = () => request(app)
       .post(`/api/reserva/${reserva.id}/desbloqueio`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ codigo: confirmada.codigoDesbloqueio });
+      .send({
+        codigo: confirmada.codigoDesbloqueio,
+        latitude: -23.5,
+        longitude: -46.6,
+      });
     const respostas = await Promise.all([enviar(), enviar()]);
     expect(respostas.map((resposta) => resposta.status).sort()).toEqual([200, 409]);
   });

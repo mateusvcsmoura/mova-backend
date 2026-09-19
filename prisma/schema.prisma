@@ -383,10 +383,15 @@ model CobrancaReserva {
 
   tipo  TipoCobranca
   valor Decimal      @db.Decimal(10, 2)
+  // Reusa a máquina de estados do gateway; não há uma segunda noção de quitação.
+  statusPagamento StatusPagamento @default(AGUARDANDO_PAGAMENTO)
+  metodoPagamento MetodoPagamento?
 
   criadoEm DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
 
   @@index([idReserva])
+  @@index([statusPagamento])
 }
 
 // Registro/auditoria dos envios de notificação de uma reserva (ex.: relatório

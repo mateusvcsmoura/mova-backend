@@ -79,6 +79,7 @@ describe("Reserva — cancelamento (RN04)", () => {
     expect(cobrancas).toHaveLength(1);
     expect(Number(cobrancas[0].valor)).toBe(0);
     expect(cobrancas[0].tipo).toBe("CANCELAMENTO");
+    expect(cobrancas[0].statusPagamento).toBe("SUCESSO");
   });
 
   it("cancelar ≤2h antes: multa de 20% registrada, status CANCELADA", async () => {
@@ -93,6 +94,12 @@ describe("Reserva — cancelamento (RN04)", () => {
     const cobrancas = await cobrancasDe(reserva.id);
     expect(cobrancas).toHaveLength(1);
     expect(Number(cobrancas[0].valor)).toBe(80); // 400 * 0.20
+    expect(cobrancas[0].statusPagamento).toBe("AGUARDANDO_PAGAMENTO");
+    // Isola os próximos cenários: a pendência foi comprovada acima.
+    await prisma.cobrancaReserva.update({
+      where: { id: cobrancas[0].id },
+      data: { statusPagamento: "SUCESSO" },
+    });
   });
 
   it("multa = valorTotal * 0.20 exato (arredondamento Decimal)", async () => {
@@ -103,6 +110,10 @@ describe("Reserva — cancelamento (RN04)", () => {
 
     const cobrancas = await cobrancasDe(reserva.id);
     expect(Number(cobrancas[0].valor)).toBe(66.67); // round(66.666)
+    await prisma.cobrancaReserva.update({
+      where: { id: cobrancas[0].id },
+      data: { statusPagamento: "SUCESSO" },
+    });
   });
 
   it("cancelar reserva já CANCELADA retorna 409", async () => {

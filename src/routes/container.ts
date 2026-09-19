@@ -115,8 +115,9 @@ export const garagemRepository: IGaragemRepository = new PrismaGaragemRepository
 export const garagemService = new GaragemService(garagemRepository, veiculoRepository);
 export const garagemController = new GaragemController(garagemService);
 
+export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
 export const bloqueioRepository: IBloqueioRepository = new PrismaBloqueioRepository();
-export const bloqueioService = new BloqueioService(bloqueioRepository, locatarioRepository);
+export const bloqueioService = new BloqueioService(bloqueioRepository, locatarioRepository, reservaRepository);
 export const bloqueioController = new BloqueioController(bloqueioService);
 
 export const servicoOpcionalRepository: IServicoOpcionalRepository = new PrismaServicoOpcionalRepository();
@@ -178,7 +179,6 @@ export const veiculoController = new VeiculoController(veiculoService);
 export const interesseService = new InteresseVeiculoService(interesseRepository, veiculoRepository, locatarioRepository);
 export const interesseController = new InteresseController(interesseService);
 
-export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
 export const condutorRepository: ICondutorRepository = new PrismaCondutorRepository();
 // Localização (RN03): referência do geofence de desbloqueio; instanciada aqui
 // para ser injetada no ReservaService (o LocalizacaoService a reusa mais abaixo).

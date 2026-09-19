@@ -382,11 +382,14 @@ describe("Reserva — código de desbloqueio", () => {
         dataHoraFim: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
+    await prisma.localizacao.create({
+      data: { idVeiculo: veiculoId, latitude: -23.5, longitude: -46.6 },
+    });
 
     const response = await request(app)
       .post(`/api/reserva/${reservaId}/desbloqueio`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ codigo });
+      .send({ codigo, latitude: -23.5, longitude: -46.6 });
 
     expect(response.status).toBe(200);
     expect(response.body.result.codigoUsadoEm).not.toBeNull();
@@ -1154,11 +1157,19 @@ describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
       .send(body);
   }
 
-  it("sem localização de referência: geofence ignorado (permite)", async () => {
+  it("sem localização de referência: bloqueia explicitamente (409)", async () => {
     const { reservaId, codigo } = await reservaDesbloqueavel();
-    const res = await desbloquear(reservaId, { codigo });
-    expect(res.status).toBe(200);
-    expect(res.body.result.codigoUsadoEm).not.toBeNull();
+    const res = await desbloquear(reservaId, {
+      codigo,
+      latitude: REF.latitude,
+      longitude: REF.longitude,
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe(
+      "Localização de referência do veículo indisponível para desbloqueio.",
+    );
+    const reserva = await prisma.reserva.findUnique({ where: { id: reservaId } });
+    expect(reserva?.codigoUsadoEm).toBeNull();
   });
 
   it("dentro do raio: desbloqueia (200)", async () => {
@@ -1222,8 +1233,9 @@ describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
     expect(reserva?.codigoUsadoEm).toBeNull();
   });
 
-  it("QR válido desbloqueia e marca uso único (sem localização)", async () => {
-    const { reservaId } = await reservaDesbloqueavel();
+  it("QR válido dentro do raio desbloqueia e marca uso único", async () => {
+    const { veiculoId, reservaId } = await reservaDesbloqueavel();
+    await registrarLocalizacao(veiculoId);
 
     const gerado = await request(app)
       .get(`/api/reserva/${reservaId}/desbloqueio/qr`)
@@ -1235,7 +1247,7 @@ describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
     const res = await request(app)
       .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ qr });
+      .send({ qr, latitude: REF.latitude, longitude: REF.longitude });
     expect(res.status).toBe(200);
     expect(res.body.result.codigoUsadoEm).not.toBeNull();
 
@@ -1243,7 +1255,7 @@ describe("Reserva — desbloqueio: geofence + QR (RN03)", () => {
     const reuso = await request(app)
       .post(`/api/reserva/${reservaId}/desbloqueio/qr`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ qr });
+      .send({ qr, latitude: REF.latitude, longitude: REF.longitude });
     expect(reuso.status).toBe(409);
   });
 
@@ -1327,10 +1339,17 @@ describe("Reserva — devolução e atraso (RN06)", () => {
           dataHoraFim: new Date(Date.now() + 60 * 60 * 1000),
         },
       });
+      await prisma.localizacao.create({
+        data: { idVeiculo: veiculo.id, latitude: -23.5, longitude: -46.6 },
+      });
       const res = await request(app)
         .post(`/api/reserva/${reserva.id}/desbloqueio`)
         .set("Authorization", `Bearer ${locatario.token}`)
-        .send({ codigo: det!.codigoDesbloqueio });
+        .send({
+          codigo: det!.codigoDesbloqueio,
+          latitude: -23.5,
+          longitude: -46.6,
+        });
       expect(res.status).toBe(200);
     }
 
@@ -1377,6 +1396,11 @@ describe("Reserva — devolução e atraso (RN06)", () => {
     const cobrancas = await cobrancasAtraso(id);
     expect(cobrancas).toHaveLength(1);
     expect(Number(cobrancas[0].valor)).toBe(valorTotal * 1.1);
+    expect(cobrancas[0].statusPagamento).toBe("AGUARDANDO_PAGAMENTO");
+    await prisma.cobrancaReserva.update({
+      where: { id: cobrancas[0].id },
+      data: { statusPagamento: "SUCESSO" },
+    });
   });
 
   it("borda: minutos após o fim contam como 1 diária de atraso", async () => {
@@ -1398,6 +1422,10 @@ describe("Reserva — devolução e atraso (RN06)", () => {
     const cobrancas = await cobrancasAtraso(id);
     expect(cobrancas).toHaveLength(1);
     expect(Number(cobrancas[0].valor)).toBe(valorTotal * 1.1);
+    await prisma.cobrancaReserva.update({
+      where: { id: cobrancas[0].id },
+      data: { statusPagamento: "SUCESSO" },
+    });
   });
 
   it("devolver reserva não desbloqueada: 409", async () => {
@@ -1474,6 +1502,9 @@ describe("Reserva — desbloqueio: efeito e recusas (TASK 05)", () => {
         dataHoraFim: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
+    await prisma.localizacao.create({
+      data: { idVeiculo: veiculo.id, latitude: -23.5, longitude: -46.6 },
+    });
 
     return {
       id: reserva.id,
@@ -1486,7 +1517,7 @@ describe("Reserva — desbloqueio: efeito e recusas (TASK 05)", () => {
     request(app)
       .post(`/api/reserva/${id}/desbloqueio`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ codigo });
+      .send({ codigo, latitude: -23.5, longitude: -46.6 });
 
   it("código correto: 200, código marcado como usado e status EM_ANDAMENTO", async () => {
     const { id, codigo } = await reservaDesbloqueavel();
@@ -1579,7 +1610,7 @@ describe("Reserva — desbloqueio: efeito e recusas (TASK 05)", () => {
     const res = await request(app)
       .post(`/api/reserva/${id}/desbloqueio/qr`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ qr: qr.body.result.qr });
+      .send({ qr: qr.body.result.qr, latitude: -23.5, longitude: -46.6 });
 
     expect(res.status).toBe(200);
     expect(res.body.result.status).toBe("EM_ANDAMENTO");
@@ -1588,7 +1619,7 @@ describe("Reserva — desbloqueio: efeito e recusas (TASK 05)", () => {
     const repetido = await request(app)
       .post(`/api/reserva/${id}/desbloqueio/qr`)
       .set("Authorization", `Bearer ${locatario.token}`)
-      .send({ qr: qr.body.result.qr });
+      .send({ qr: qr.body.result.qr, latitude: -23.5, longitude: -46.6 });
     expect(repetido.status).toBe(409);
   });
 

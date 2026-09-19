@@ -7,6 +7,7 @@ import {
 } from "../repositories/contracts/bloqueio.contract.js";
 import { IBloqueioRepository } from "../repositories/bloqueio.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
+import { IReservaRepository } from "../repositories/reserva.repository.js";
 import {
   PaginatedResult,
   PaginationParams,
@@ -32,12 +33,16 @@ export class BloqueioService {
   constructor(
     private readonly bloqueioRepository: IBloqueioRepository,
     private readonly locatarioRepository: ILocatarioRepository,
+    private readonly reservaRepository: IReservaRepository,
   ) {}
 
   // Regra central reutilizada na criação/confirmação de reservas. Lança 403
   // quando há um bloqueio impeditivo, com a mensagem correspondente ao motivo.
   // Consulta única e otimizada (findFirst), sem carregar o histórico.
   assertLocatarioLiberado = async (idLocatario: string): Promise<void> => {
+    if (await this.reservaRepository.hasCobrancaFinanceiraPendente(idLocatario)) {
+      throw new HttpError(403, MENSAGEM_POR_MOTIVO.INADIMPLENCIA);
+    }
     const bloqueio = await this.bloqueioRepository.findBloqueioAtivo(
       idLocatario,
       new Date(),

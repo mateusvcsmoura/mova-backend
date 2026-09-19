@@ -176,7 +176,10 @@ Table CobrancaReserva {
   reserva Reserva [not null]
   tipo TipoCobranca [not null]
   valor Decimal [not null]
+  statusPagamento StatusPagamento [not null, default: 'AGUARDANDO_PAGAMENTO']
+  metodoPagamento MetodoPagamento
   criadoEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
 }
 
 Table NotificacaoReserva {

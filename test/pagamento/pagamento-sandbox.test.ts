@@ -120,6 +120,10 @@ describe("Pagamento — sandbox", () => {
     expect(persistida.statusPagamento).toBe("FALHA");
     expect(persistida.status).toBe("AGUARDANDO_PAGAMENTO");
     expect(persistida.codigoDesbloqueio).toBeNull();
+
+    // A pendência é intencional neste cenário; quitá-la evita contaminar as
+    // reservas independentes criadas pelos próximos exemplos.
+    expect((await confirmarPagamentoWebhook(reserva.id)).status).toBe(200);
   });
 
   it("recusado pode ser repetido com outro cartão e então aprova", async () => {
@@ -154,6 +158,44 @@ describe("Pagamento — sandbox", () => {
     expect(persistida.statusPagamento).toBe("PROCESSANDO");
     expect(persistida.status).toBe("AGUARDANDO_PAGAMENTO");
     expect(persistida.codigoDesbloqueio).toBeNull();
+  });
+
+  it("pendência financeira bloqueia nova reserva e pagamento quitado libera", async () => {
+    const reservaPendente = await novaReserva();
+    const cobranca = await prisma.cobrancaReserva.create({
+      data: {
+        idReserva: reservaPendente.id,
+        tipo: "CANCELAMENTO",
+        valor: 40,
+        statusPagamento: "AGUARDANDO_PAGAMENTO",
+      },
+    });
+
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const bloqueada = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculo.id,
+        idLocatario: locatario.locatarioId,
+        ...futurePeriod(900, 2),
+      });
+    expect(bloqueada.status).toBe(403);
+
+    await prisma.cobrancaReserva.update({
+      where: { id: cobranca.id },
+      data: { statusPagamento: "SUCESSO" },
+    });
+
+    const liberada = await request(app)
+      .post("/api/reserva")
+      .set("Authorization", `Bearer ${locatario.token}`)
+      .send({
+        idVeiculo: veiculo.id,
+        idLocatario: locatario.locatarioId,
+        ...futurePeriod(900, 2),
+      });
+    expect(liberada.status).toBe(201);
   });
 
   // 3. Webhook inválido

@@ -11,6 +11,7 @@ import {
 } from "../shared/pagination.js";
 
 export interface IReservaRepository {
+  hasCobrancaFinanceiraPendente(idLocatario: string): Promise<boolean>;
   /**
    * Registra a cobrança da reserva e marca o pagamento como PROCESSANDO.
    * O valor vem da própria reserva — nunca do cliente.
