@@ -369,7 +369,21 @@ model Reserva {
   notificacoes NotificacaoReserva[]
   // Cobranças avulsas lançadas sobre a reserva (multa de cancelamento — RN04).
   cobrancas    CobrancaReserva[]
+  // Link público opcional da viagem (RF13-B), um ativo por reserva.
+  compartilhamento CompartilhamentoReserva?
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+// Compartilhamento público de uma reserva (RF13-B). O token é aleatório,
+// revogável e separado do ID interno da Reserva.
+model CompartilhamentoReserva {
+  id           String   @id @default(uuid()) @db.Uuid
+  idReserva    String   @unique @db.Uuid
+  reserva      Reserva  @relation(fields: [idReserva], references: [id], onDelete: Cascade)
+  token        String   @unique
+  criadoEm     DateTime @default(now())
+  revogadoEm   DateTime?
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 // Cobrança avulsa registrada sobre uma reserva (RN04): multa de cancelamento

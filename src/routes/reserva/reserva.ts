@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { Cargo } from "@prisma/client";
-import { localizacaoController, reservaController } from "../container.js";
+import { compartilhamentoReservaController, localizacaoController, reservaController } from "../container.js";
 import { authMiddleware } from "../../middlewares/auth-middleware.js";
 import { authorize } from "../../middlewares/authorization-middleware.js";
 
@@ -51,6 +51,18 @@ reservaRouter.post(
   authMiddleware,
   authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.desbloquear,
+);
+reservaRouter.post(
+  "/:id/compartilhamento",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO),
+  compartilhamentoReservaController.criar,
+);
+reservaRouter.delete(
+  "/:id/compartilhamento",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO),
+  compartilhamentoReservaController.revogar,
 );
 // QR Code de desbloqueio (RN03): GET obtém o token assinado; POST desbloqueia
 // resolvendo o QR para o mesmo código textual.

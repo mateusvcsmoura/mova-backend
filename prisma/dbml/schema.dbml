@@ -167,6 +167,17 @@ Table Reserva {
   servicos ReservaServico [not null]
   notificacoes NotificacaoReserva [not null]
   cobrancas CobrancaReserva [not null]
+  compartilhamento CompartilhamentoReserva
+  atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table CompartilhamentoReserva {
+  id String [pk]
+  idReserva String [unique, not null]
+  reserva Reserva [not null]
+  token String [unique, not null]
+  criadoEm DateTime [default: `now()`, not null]
+  revogadoEm DateTime
   atualizadoEm DateTime [default: `now()`, not null]
 }
 
@@ -475,6 +486,8 @@ Ref: Reserva.idLocatario > Locatario.id
 Ref: Reserva.idGaragemRetirada > Garagem.id
 
 Ref: Reserva.idGaragemDevolucao > Garagem.id
+
+Ref: CompartilhamentoReserva.idReserva - Reserva.id [delete: Cascade]
 
 Ref: CobrancaReserva.idReserva > Reserva.id [delete: Cascade]
 

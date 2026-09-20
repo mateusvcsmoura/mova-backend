@@ -91,6 +91,10 @@ import { PreferenciaNotificacaoController } from "../controllers/preferencia-not
 import { env } from "../config/env.js";
 import { CobrancaController } from "../controllers/cobranca.js";
 import { CobrancaService } from "../services/cobranca.js";
+import { ICompartilhamentoReservaRepository } from "../repositories/compartilhamento.repository.js";
+import { PrismaCompartilhamentoReservaRepository } from "../repositories/prisma/prisma.compartilhamento.repository.js";
+import { CompartilhamentoReservaService } from "../services/compartilhamento-reserva.js";
+import { CompartilhamentoReservaController } from "../controllers/compartilhamento-reserva.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
 export const locadorService = new LocadorService(locadorRepository);
@@ -198,6 +202,15 @@ export const pagamentoService = new PagamentoService(reservaRepository, pagament
 export const reservaController = new ReservaController(reservaService, pagamentoService);
 export const cobrancaService = new CobrancaService();
 export const cobrancaController = new CobrancaController(cobrancaService);
+
+export const compartilhamentoReservaRepository: ICompartilhamentoReservaRepository = new PrismaCompartilhamentoReservaRepository();
+export const compartilhamentoReservaService = new CompartilhamentoReservaService(
+  compartilhamentoReservaRepository,
+  reservaRepository,
+);
+export const compartilhamentoReservaController = new CompartilhamentoReservaController(
+  compartilhamentoReservaService,
+);
 
 // LGPD: exportação, anonimização e auditoria de acesso a dados pessoais.
 export const lgpdRepository: ILgpdRepository = new PrismaLgpdRepository();

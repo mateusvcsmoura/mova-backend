@@ -27,6 +27,7 @@ import { webhookRouter } from "./routes/webhook/webhook.js";
 import { lgpdRouter } from "./routes/lgpd/lgpd.js";
 import { notificacaoRouter } from "./routes/notificacao/notificacao.js";
 import { cobrancaRouter } from "./routes/cobranca/cobranca.js";
+import { compartilhamentoRouter } from "./routes/compartilhamento/compartilhamento.js";
 
 const app = express();
 
@@ -93,6 +94,7 @@ app.use("/api/veiculo", veiculoRouter);
 app.use("/api/garagem", garagemRouter);
 app.use("/api/reserva", reservaRouter);
 app.use("/api/cobranca", cobrancaRouter);
+app.use("/api/compartilhamento", compartilhamentoRouter);
 app.use("/api/servico", servicoOpcionalRouter);
 app.use("/api/localizacao", localizacaoRouter);
 app.use("/api/avaliacao", avaliacaoRouter);
