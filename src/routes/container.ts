@@ -89,6 +89,8 @@ import { PrismaPreferenciaNotificacaoRepository } from "../repositories/prisma/p
 import { PreferenciaNotificacaoService } from "../services/preferencia-notificacao.js";
 import { PreferenciaNotificacaoController } from "../controllers/preferencia-notificacao.js";
 import { env } from "../config/env.js";
+import { CobrancaController } from "../controllers/cobranca.js";
+import { CobrancaService } from "../services/cobranca.js";
 
 export const locadorRepository: ILocadorRepository = new PrismaLocadorRepository();
 export const locadorService = new LocadorService(locadorRepository);
@@ -194,6 +196,8 @@ export const pagamentoWebhookController = new PagamentoWebhookController(pagamen
 // com assinatura — não existe caminho paralelo para confirmar pagamento.
 export const pagamentoService = new PagamentoService(reservaRepository, pagamentoWebhookService);
 export const reservaController = new ReservaController(reservaService, pagamentoService);
+export const cobrancaService = new CobrancaService();
+export const cobrancaController = new CobrancaController(cobrancaService);
 
 // LGPD: exportação, anonimização e auditoria de acesso a dados pessoais.
 export const lgpdRepository: ILgpdRepository = new PrismaLgpdRepository();

@@ -473,7 +473,7 @@ export class PrismaReservaRepository implements IReservaRepository {
         valor: { gt: 0 },
         tipo: { in: [TipoCobranca.CANCELAMENTO, TipoCobranca.ATRASO_DEVOLUCAO] },
         statusPagamento: {
-          in: [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.PROCESSANDO],
+          in: [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.PROCESSANDO, StatusPagamento.FALHA],
         },
       },
     });

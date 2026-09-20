@@ -26,6 +26,7 @@ import { dashboardRouter } from "./routes/dashboard/dashboard.js";
 import { webhookRouter } from "./routes/webhook/webhook.js";
 import { lgpdRouter } from "./routes/lgpd/lgpd.js";
 import { notificacaoRouter } from "./routes/notificacao/notificacao.js";
+import { cobrancaRouter } from "./routes/cobranca/cobranca.js";
 
 const app = express();
 
@@ -91,6 +92,7 @@ app.use("/api/locatario", locatarioRouter);
 app.use("/api/veiculo", veiculoRouter);
 app.use("/api/garagem", garagemRouter);
 app.use("/api/reserva", reservaRouter);
+app.use("/api/cobranca", cobrancaRouter);
 app.use("/api/servico", servicoOpcionalRouter);
 app.use("/api/localizacao", localizacaoRouter);
 app.use("/api/avaliacao", avaliacaoRouter);

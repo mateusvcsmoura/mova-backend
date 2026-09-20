@@ -76,6 +76,13 @@ const arredondar2 = (v: number): number => Math.round(v * 100) / 100;
 const MULTA_ATRASO = 0.1;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
+// RN06: valorDiaria Ã— (atraso / 24h) Ã— 1,10. A unidade intermediÃ¡ria Ã©
+// centavo para evitar propagaÃ§Ã£o de ponto flutuante antes do arredondamento.
+const calcularCobrancaAtraso = (valorDiaria: number, atrasoMs: number): number => {
+  const diariaCentavos = Math.round(valorDiaria * 100);
+  return Math.round((diariaCentavos * atrasoMs * (1 + MULTA_ATRASO)) / UM_DIA_MS) / 100;
+};
+
 export class ReservaService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
@@ -743,17 +750,11 @@ export class ReservaService {
     const devolvidoEm = new Date();
     let cobranca = 0;
     if (devolvidoEm > reserva.dataHoraFim) {
-      const diasAtraso = Math.ceil(
-        (devolvidoEm.getTime() - reserva.dataHoraFim.getTime()) / UM_DIA_MS,
+      const atrasoMs = devolvidoEm.getTime() - reserva.dataHoraFim.getTime();
+      cobranca = calcularCobrancaAtraso(
+        reserva.veiculo.modeloVeiculo.valorDiaria,
+        atrasoMs,
       );
-      const duracaoDias =
-        (reserva.dataHoraFim.getTime() - reserva.dataHoraInicio.getTime()) /
-        UM_DIA_MS;
-      const valorDiaria =
-        duracaoDias > 0 ? reserva.valorTotal / duracaoDias : reserva.valorTotal;
-      const taxaAtraso = diasAtraso * valorDiaria;
-      // Arredonda para 2 casas (coluna Decimal(10,2)).
-      cobranca = Math.round(taxaAtraso * (1 + MULTA_ATRASO) * 100) / 100;
     }
 
     return this.reservaRepository.devolver(id, devolvidoEm, cobranca);

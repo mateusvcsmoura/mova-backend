@@ -1378,7 +1378,6 @@ describe("Reserva — devolução e atraso (RN06)", () => {
   });
 
   it("devolução com atraso: cobrança = diária proporcional + 10%, REALIZADA", async () => {
-    const valorTotal = 100 * DIARIAS; // 300
     const id = await reservaDevolvivel(100);
 
     // fim há 1h (atraso < 1 dia -> 1 diária); duração exata de 1 dia, logo a
@@ -1394,11 +1393,11 @@ describe("Reserva — devolução e atraso (RN06)", () => {
     const res = await devolver(id, locatario.token);
     expect(res.status).toBe(200);
     expect(res.body.result.status).toBe("REALIZADA");
-    expect(res.body.result.cobrancaAtraso).toBe(valorTotal * 1.1);
+    expect(res.body.result.cobrancaAtraso).toBe(4.58);
 
     const cobrancas = await cobrancasAtraso(id);
     expect(cobrancas).toHaveLength(1);
-    expect(Number(cobrancas[0].valor)).toBe(valorTotal * 1.1);
+    expect(Number(cobrancas[0].valor)).toBe(4.58);
     expect(cobrancas[0].statusPagamento).toBe("AGUARDANDO_PAGAMENTO");
     await prisma.cobrancaReserva.update({
       where: { id: cobrancas[0].id },
@@ -1407,7 +1406,6 @@ describe("Reserva — devolução e atraso (RN06)", () => {
   });
 
   it("borda: minutos após o fim contam como 1 diária de atraso", async () => {
-    const valorTotal = 200 * DIARIAS; // 600
     const id = await reservaDevolvivel(200);
 
     // fim há 5 min -> ainda 1 diária de atraso; duração 1 dia, logo a diária
@@ -1424,7 +1422,7 @@ describe("Reserva — devolução e atraso (RN06)", () => {
 
     const cobrancas = await cobrancasAtraso(id);
     expect(cobrancas).toHaveLength(1);
-    expect(Number(cobrancas[0].valor)).toBe(valorTotal * 1.1);
+    expect(Number(cobrancas[0].valor)).toBe(0.76);
     await prisma.cobrancaReserva.update({
       where: { id: cobrancas[0].id },
       data: { statusPagamento: "SUCESSO" },
@@ -1432,6 +1430,34 @@ describe("Reserva — devolução e atraso (RN06)", () => {
   });
 
   it("devolver reserva não desbloqueada: 409", async () => {
+  });
+
+  it.each([
+    [1, 0.18],
+    [5, 0.92],
+    [30, 5.5],
+    [60, 11],
+    [12 * 60, 132],
+    [24 * 60, 264],
+    [25 * 60, 275],
+  ])("RN06 proporcional: %i minutos com diÃ¡ria de R$ 240 gera R$ %d", async (minutos, esperado) => {
+    const id = await reservaDevolvivel(240);
+    const fim = new Date(Date.now() - minutos * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id },
+      data: { dataHoraInicio: new Date(fim.getTime() - 24 * 60 * 60 * 1000), dataHoraFim: fim },
+    });
+
+    expect((await devolver(id, locatario.token)).status).toBe(200);
+    const [cobranca] = await cobrancasAtraso(id);
+    expect(Number(cobranca.valor)).toBe(esperado);
+    await prisma.cobrancaReserva.update({
+      where: { id: cobranca.id },
+      data: { statusPagamento: "SUCESSO" },
+    });
+  });
+
+  it("devolver sem desbloqueio: 409", async () => {
     const id = await reservaDevolvivel(100, false); // sem desbloqueio
 
     const res = await devolver(id, locatario.token);
