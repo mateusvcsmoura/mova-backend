@@ -310,12 +310,12 @@ describe("Localizacao — autorização de acesso (ownership)", () => {
     expect(response.status).toBe(403);
   });
 
-  it("locatário com reserva no veículo vê a localização", async () => {
+  it("locatário com reserva no veículo não usa a leitura genérica", async () => {
     const response = await request(app)
       .get(`/api/localizacao/veiculo/${veiculoId}/ultima`)
       .set("Authorization", `Bearer ${locatarioComReserva.token}`);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(403);
   });
 
   it("locatário SEM reserva no veículo NÃO vê a localização (403)", async () => {

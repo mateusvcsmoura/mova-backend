@@ -58,4 +58,20 @@ export class LocalizacaoController {
       next(error);
     }
   };
+
+  ultimaDaReserva: Handler = async (req, res, next) => {
+    try {
+      const result = z.string().uuid().safeParse(req.params.id);
+      if (!result.success) throw new HttpError(400, "ID inválido");
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const rastreamento = await this.localizacaoService.findUltimaDaReserva(
+        result.data,
+        req.user,
+      );
+      return res.status(200).json({ result: rastreamento });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

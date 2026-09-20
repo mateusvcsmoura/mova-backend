@@ -16,3 +16,16 @@ export interface LocalizacaoResponse {
   dataHora: Date;
   atualizadoEm: Date;
 }
+
+export interface RastreamentoReservaResponse {
+  reservaId: string;
+  veiculo: {
+    id: string;
+    placa: string;
+    nome: string;
+  };
+  localizacao: Pick<
+    LocalizacaoResponse,
+    "latitude" | "longitude" | "dataHora"
+  > | null;
+}

@@ -1,8 +1,9 @@
-import { Cargo } from "@prisma/client";
+import { Cargo, StatusReserva } from "@prisma/client";
 import { HttpError } from "../errors/HttpError.js";
 import {
   CreateLocalizacaoRequest,
   LocalizacaoResponse,
+  RastreamentoReservaResponse,
 } from "../repositories/contracts/localizacao.contract.js";
 import { ILocalizacaoRepository } from "../repositories/localizacao.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
@@ -59,14 +60,6 @@ export class LocalizacaoService {
       throw new HttpError(403, "Acesso negado");
     }
 
-    if (requester.cargo === Cargo.LOCATARIO) {
-      const reservas = await this.reservaRepository.search(
-        { idVeiculo: veiculo.id, idLocatario: requester.id },
-        { page: 1, limit: 1 },
-      );
-      if (reservas.total > 0) return;
-    }
-
     throw new HttpError(403, "Acesso negado");
   }
 
@@ -121,5 +114,54 @@ export class LocalizacaoService {
       );
     }
     return ultima;
+  };
+
+  // RF14: o Locatário nunca consulta um veículo diretamente. A reserva do
+  // próprio token define veículo, estado e janela temporal permitidos.
+  findUltimaDaReserva = async (
+    idReserva: string,
+    requester: LocalizacaoRequester,
+  ): Promise<RastreamentoReservaResponse> => {
+    if (requester.cargo !== Cargo.LOCATARIO) {
+      throw new HttpError(403, "Acesso negado");
+    }
+
+    const reserva = await this.reservaRepository.findById(idReserva);
+    if (!reserva) {
+      throw new HttpError(404, "Reserva não encontrada");
+    }
+    if (reserva.idLocatario !== requester.id) {
+      throw new HttpError(403, "Acesso negado");
+    }
+
+    const agora = new Date();
+    const statusPermitido =
+      reserva.status === StatusReserva.CONFIRMADA ||
+      reserva.status === StatusReserva.EM_ANDAMENTO;
+    if (
+      !statusPermitido ||
+      agora < reserva.dataHoraInicio ||
+      agora > reserva.dataHoraFim
+    ) {
+      throw new HttpError(409, "Rastreamento indisponível para esta reserva");
+    }
+
+    const ultima = await this.localizacaoRepository.findLatestByVeiculoId(
+      reserva.idVeiculo,
+    );
+    const modelo = reserva.veiculo.modeloVeiculo;
+    const nome = `${modelo.marca} ${modelo.modelo}`.trim() || "Veículo";
+
+    return {
+      reservaId: reserva.id,
+      veiculo: { id: reserva.veiculo.id, placa: reserva.veiculo.placa, nome },
+      localizacao: ultima
+        ? {
+            latitude: ultima.latitude,
+            longitude: ultima.longitude,
+            dataHora: ultima.dataHora,
+          }
+        : null,
+    };
   };
 }
