@@ -1,4 +1,4 @@
-import { StatusVeiculo } from "@prisma/client";
+import { Cargo, StatusVeiculo } from "@prisma/client";
 
 import { ILocalizacaoRepository } from "../repositories/localizacao.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
@@ -122,7 +122,7 @@ export class LocalizacaoSimulador {
             idVeiculo: veiculo.id,
             latitude,
             longitude,
-          });
+          }, { id: veiculo.idLocador, cargo: Cargo.LOCADOR });
           return true;
         } catch (error) {
           // Falha em um veículo não derruba a rodada inteira.

@@ -15,8 +15,8 @@ export class LocalizacaoController {
   registrar: Handler = async (req, res, next) => {
     try {
       const result = createLocalizacaoSchema.parse(req.body);
-
-      const localizacao = await this.localizacaoService.registrar(result);
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const localizacao = await this.localizacaoService.registrar(result, req.user);
       return res.status(201).json({ result: localizacao });
     } catch (error) {
       next(error);

@@ -84,8 +84,12 @@ export class LocalizacaoService {
   // Registra um novo ponto no histórico. Nunca sobrescreve registros anteriores.
   registrar = async (
     data: CreateLocalizacaoRequest,
+    requester: LocalizacaoRequester,
   ): Promise<LocalizacaoResponse> => {
-    await this.assertVeiculoExiste(data.idVeiculo);
+    const veiculo = await this.getVeiculoOrThrow(data.idVeiculo);
+    if (requester.cargo !== Cargo.ADMIN && veiculo.idLocador !== requester.id) {
+      throw new HttpError(403, "Acesso negado");
+    }
     this.assertCoordenadasValidas(data.latitude, data.longitude);
     return this.localizacaoRepository.create(data);
   };

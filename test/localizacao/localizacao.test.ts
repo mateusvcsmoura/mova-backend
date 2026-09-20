@@ -1,4 +1,5 @@
 import request from "supertest";
+import { prisma } from "../../src/database/prisma";
 import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
 import {
@@ -215,6 +216,51 @@ describe("Localizacao API", () => {
 
       expect(response.status).toBe(401);
     });
+  });
+});
+
+describe("Localizacao — integridade da escrita", () => {
+  let dono: LocadorContext;
+  let invasor: LocadorContext;
+  let locatario: LocatarioContext;
+  let admin: Account;
+  let veiculoDono: string;
+
+  beforeAll(async () => {
+    dono = await createLocador();
+    invasor = await createLocador();
+    locatario = await createLocatario();
+    admin = await createAccount("ADMIN");
+    veiculoDono = (await createVeiculo(dono.token, dono.locadorId)).id;
+  });
+
+  it("bloqueia escrita alheia sem criar ponto nem alterar referência legítima", async () => {
+    const legitima = await request(app).post("/api/localizacao")
+      .set("Authorization", `Bearer ${dono.token}`)
+      .send({ idVeiculo: veiculoDono, latitude: -23.55, longitude: -46.63 });
+    expect(legitima.status).toBe(201);
+
+    const antes = await prisma.localizacao.count({ where: { idVeiculo: veiculoDono } });
+    const proibida = await request(app).post("/api/localizacao")
+      .set("Authorization", `Bearer ${invasor.token}`)
+      .send({ idVeiculo: veiculoDono, latitude: 0, longitude: 0 });
+    const depois = await prisma.localizacao.count({ where: { idVeiculo: veiculoDono } });
+    const ultima = await request(app).get(`/api/localizacao/veiculo/${veiculoDono}/ultima`)
+      .set("Authorization", `Bearer ${dono.token}`);
+
+    expect(proibida.status).toBe(403);
+    expect(depois).toBe(antes);
+    expect(ultima.body.result).toMatchObject({ latitude: -23.55, longitude: -46.63 });
+  });
+
+  it("mantém RBAC e operação administrativa", async () => {
+    const [semToken, invalido, locatarioRes, adminRes] = await Promise.all([
+      request(app).post("/api/localizacao").send({ idVeiculo: veiculoDono, latitude: 1, longitude: 1 }),
+      request(app).post("/api/localizacao").set("Authorization", "Bearer inválido").send({ idVeiculo: veiculoDono, latitude: 1, longitude: 1 }),
+      request(app).post("/api/localizacao").set("Authorization", `Bearer ${locatario.token}`).send({ idVeiculo: veiculoDono, latitude: 1, longitude: 1 }),
+      request(app).post("/api/localizacao").set("Authorization", `Bearer ${admin.token}`).send({ idVeiculo: veiculoDono, latitude: -23.56, longitude: -46.64 }),
+    ]);
+    expect([semToken.status, invalido.status, locatarioRes.status, adminRes.status]).toEqual([401, 401, 403, 201]);
   });
 });
 
