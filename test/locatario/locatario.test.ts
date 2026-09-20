@@ -79,6 +79,29 @@ describe("Locatario API", () => {
   });
 
   describe("leitura privada", () => {
+    it("recusa todas as operações privadas sem token", async () => {
+      const payload = {
+        cpf: uniqueCpf(), cnh: uniqueCnh(), rg: uniqueRg(), dataNascimento: DEFAULT_DATA_NASCIMENTO,
+      };
+      const [list, search, read, create, update, remove] = await Promise.all([
+        request(app).get("/api/locatario/all"),
+        request(app).get("/api/locatario/search").query({ cpf: titular.cpf }),
+        request(app).get(`/api/locatario/${titular.id}`),
+        request(app).post("/api/locatario").send(payload),
+        request(app).put(`/api/locatario/${titular.id}`).send({ cnh: uniqueCnh() }),
+        request(app).delete(`/api/locatario/${titular.id}`),
+      ]);
+      expect([list.status, search.status, read.status, create.status, update.status, remove.status])
+        .toEqual([401, 401, 401, 401, 401, 401]);
+    });
+
+    it("retorna 404 para titular autenticado sem perfil", async () => {
+      const account = await createAccount("LOCATARIO");
+      const response = await request(app)
+        .get(`/api/locatario/${account.conta.id}`)
+        .set("Authorization", `Bearer ${account.token}`);
+      expect(response.status).toBe(404);
+    });
     it("recusa leitura sem token", async () => {
       const response = await request(app).get(`/api/locatario/${titular.id}`);
       expect(response.status).toBe(401);

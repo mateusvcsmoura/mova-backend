@@ -796,7 +796,8 @@ describe("Reserva — veículos adaptados (PCD)", () => {
     // A deficiência informada deve ter sido associada ao locatário.
     const locatario = await request(app).get(
       `/api/locatario/${outroSemDeficiencia.locatarioId}`,
-    );
+    ).set("Authorization", `Bearer ${outroSemDeficiencia.token}`);
+    expect(locatario.status).toBe(200);
     expect(locatario.body.result.deficienciaId).toBe(deficienciaId);
   });
 
@@ -851,7 +852,8 @@ describe("Reserva — veículos adaptados (PCD)", () => {
 
     const perfil = await request(app).get(
       `/api/locatario/${locatario.locatarioId}`,
-    );
+    ).set("Authorization", `Bearer ${locatario.token}`);
+    expect(perfil.status).toBe(200);
     expect(perfil.body.result.deficienciaId).toBe(deficienciaId);
   });
 
@@ -893,7 +895,8 @@ describe("Reserva — veículos adaptados (PCD)", () => {
     // Reserva não criada -> perfil do locatário permanece sem deficiência.
     const perfil = await request(app).get(
       `/api/locatario/${semDef.locatarioId}`,
-    );
+    ).set("Authorization", `Bearer ${semDef.token}`);
+    expect(perfil.status).toBe(200);
     expect(perfil.body.result.deficienciaId).toBeNull();
   });
 });
