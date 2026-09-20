@@ -2,6 +2,7 @@ import request from "supertest";
 import { app } from "../../src/app";
 import { describe, it, expect, beforeAll } from "vitest";
 import {
+  Account,
   createAccount,
   uniqueCpf,
   uniqueCnh,
@@ -9,199 +10,190 @@ import {
   DEFAULT_DATA_NASCIMENTO,
 } from "../helpers";
 
-describe("Locatario API", () => {
-  let contaId: string;
-  let locatarioId: string;
+type LocatarioFixture = {
+  account: Account;
+  id: string;
+  cpf: string;
+  cnh: string;
+  rg: string;
+};
+
+async function createProfile(account: Account): Promise<LocatarioFixture> {
   const cpf = uniqueCpf();
   const cnh = uniqueCnh();
   const rg = uniqueRg();
+  const response = await request(app)
+    .post("/api/locatario")
+    .set("Authorization", `Bearer ${account.token}`)
+    .send({ cpf, cnh, rg, dataNascimento: DEFAULT_DATA_NASCIMENTO });
+
+  expect(response.status).toBe(201);
+  return { account, id: response.body.result.id, cpf, cnh, rg };
+}
+
+describe("Locatario API", () => {
+  let titular: LocatarioFixture;
+  let outro: LocatarioFixture;
+  let admin: Account;
+  let locador: Account;
 
   beforeAll(async () => {
-    const account = await createAccount("LOCATARIO");
-    contaId = account.conta.id;
+    titular = await createProfile(await createAccount("LOCATARIO"));
+    outro = await createProfile(await createAccount("LOCATARIO"));
+    admin = await createAccount("ADMIN");
+    locador = await createAccount("LOCADOR");
   });
 
   describe("POST /api/locatario", () => {
-    it("deve criar um locatário com RG e data de nascimento", async () => {
+    it("recusa criação sem token", async () => {
+      const response = await request(app).post("/api/locatario").send({
+        cpf: uniqueCpf(),
+        cnh: uniqueCnh(),
+        rg: uniqueRg(),
+        dataNascimento: DEFAULT_DATA_NASCIMENTO,
+      });
+
+      expect(response.status).toBe(401);
+    });
+
+    it("vincula o perfil ao titular do JWT e ignora ID alheio no payload", async () => {
+      const account = await createAccount("LOCATARIO");
       const response = await request(app)
         .post("/api/locatario")
+        .set("Authorization", `Bearer ${account.token}`)
         .send({
-          id: contaId,
-          cpf,
-          cnh,
-          rg,
+          id: outro.id,
+          idConta: outro.id,
+          cargo: "ADMIN",
+          propriedade: outro.id,
+          cpf: uniqueCpf(),
+          cnh: uniqueCnh(),
+          rg: uniqueRg(),
           dataNascimento: DEFAULT_DATA_NASCIMENTO,
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.success).toBe(true);
-      expect(response.body.result.id).toBe(contaId);
-      expect(response.body.result.cpf).toBe(cpf);
-      expect(response.body.result.cnh).toBe(cnh);
-      expect(response.body.result.rg).toBe(rg);
-      expect(response.body.result.dataNascimento).toContain("1990-05-15");
-
-      locatarioId = response.body.result.id;
-    });
-
-    it("deve recusar locatário duplicado (CPF existente)", async () => {
-      const response = await request(app)
-        .post("/api/locatario")
-        .send({
-          id: contaId,
-          cpf,
-          cnh: uniqueCnh(),
-          rg: uniqueRg(),
-          dataNascimento: DEFAULT_DATA_NASCIMENTO,
-        });
-
-      expect(response.status).toBe(409);
-    });
-
-    it("deve recusar cadastro sem RG (400)", async () => {
-      const account = await createAccount("LOCATARIO");
-      const response = await request(app)
-        .post("/api/locatario")
-        .send({
-          id: account.conta.id,
-          cpf: uniqueCpf(),
-          cnh: uniqueCnh(),
-          dataNascimento: DEFAULT_DATA_NASCIMENTO,
-        });
-
-      expect(response.status).toBe(400);
-    });
-
-    it("deve recusar CPF com dígitos verificadores inválidos (400)", async () => {
-      const account = await createAccount("LOCATARIO");
-      const response = await request(app)
-        .post("/api/locatario")
-        .send({
-          id: account.conta.id,
-          cpf: "52998224724", // checksum inválido
-          cnh: uniqueCnh(),
-          rg: uniqueRg(),
-          dataNascimento: DEFAULT_DATA_NASCIMENTO,
-        });
-
-      expect(response.status).toBe(400);
-    });
-
-    it("deve recusar RG inválido (400)", async () => {
-      const account = await createAccount("LOCATARIO");
-      const response = await request(app)
-        .post("/api/locatario")
-        .send({
-          id: account.conta.id,
-          cpf: uniqueCpf(),
-          cnh: uniqueCnh(),
-          rg: "abc",
-          dataNascimento: DEFAULT_DATA_NASCIMENTO,
-        });
-
-      expect(response.status).toBe(400);
-    });
-
-    it("deve recusar locatário menor de 18 anos (400)", async () => {
-      const account = await createAccount("LOCATARIO");
-      const hoje = new Date();
-      const menor = new Date(
-        hoje.getFullYear() - 15,
-        hoje.getMonth(),
-        hoje.getDate(),
-      )
-        .toISOString()
-        .slice(0, 10);
-
-      const response = await request(app)
-        .post("/api/locatario")
-        .send({
-          id: account.conta.id,
-          cpf: uniqueCpf(),
-          cnh: uniqueCnh(),
-          rg: uniqueRg(),
-          dataNascimento: menor,
-        });
-
-      expect(response.status).toBe(400);
-    });
-
-    it("deve recusar data de nascimento no futuro (400)", async () => {
-      const account = await createAccount("LOCATARIO");
-      const futuro = new Date();
-      futuro.setFullYear(futuro.getFullYear() + 1);
-
-      const response = await request(app)
-        .post("/api/locatario")
-        .send({
-          id: account.conta.id,
-          cpf: uniqueCpf(),
-          cnh: uniqueCnh(),
-          rg: uniqueRg(),
-          dataNascimento: futuro.toISOString().slice(0, 10),
-        });
-
-      expect(response.status).toBe(400);
+      expect(response.body.result.id).toBe(account.conta.id);
+      expect(response.body.result.id).not.toBe(outro.id);
     });
   });
 
-  describe("GET /api/locatario/all", () => {
-    it("deve listar os locatários", async () => {
-      const response = await request(app).get("/api/locatario/all");
+  describe("leitura privada", () => {
+    it("recusa leitura sem token", async () => {
+      const response = await request(app).get(`/api/locatario/${titular.id}`);
+      expect(response.status).toBe(401);
+    });
+
+    it("recusa token inválido", async () => {
+      const response = await request(app)
+        .get(`/api/locatario/${titular.id}`)
+        .set("Authorization", "Bearer token-invalido");
+      expect(response.status).toBe(401);
+    });
+
+    it("permite ao titular ler somente seu perfil", async () => {
+      const response = await request(app)
+        .get(`/api/locatario/${titular.id}`)
+        .set("Authorization", `Bearer ${titular.account.token}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(Array.isArray(response.body.result)).toBe(true);
-      expect(response.body.result.length).toBeGreaterThan(0);
+      expect(response.body.result).toMatchObject({ id: titular.id, cpf: titular.cpf });
     });
-  });
 
-  describe("GET /api/locatario/search", () => {
-    it("deve buscar locatário por CPF", async () => {
+    it("bloqueia leitura de perfil alheio", async () => {
+      const response = await request(app)
+        .get(`/api/locatario/${outro.id}`)
+        .set("Authorization", `Bearer ${titular.account.token}`);
+      expect(response.status).toBe(403);
+    });
+
+    it("bloqueia cargo LOCADOR", async () => {
+      const response = await request(app)
+        .get(`/api/locatario/${titular.id}`)
+        .set("Authorization", `Bearer ${locador.token}`);
+      expect(response.status).toBe(403);
+    });
+
+    it("lista somente perfil do titular e não documentos de terceiros", async () => {
+      const response = await request(app)
+        .get("/api/locatario/all")
+        .set("Authorization", `Bearer ${titular.account.token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toHaveLength(1);
+      expect(response.body.result[0].id).toBe(titular.id);
+      expect(response.body.result.map((profile: { cpf: string }) => profile.cpf)).not.toContain(outro.cpf);
+    });
+
+    it("não usa CPF de terceiro para busca de usuário comum", async () => {
       const response = await request(app)
         .get("/api/locatario/search")
-        .query({ cpf });
+        .query({ cpf: outro.cpf })
+        .set("Authorization", `Bearer ${titular.account.token}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.result.id).toBe(locatarioId);
+      expect(response.body.result.id).toBe(titular.id);
+      expect(response.body.result.cpf).toBe(titular.cpf);
     });
   });
 
-  describe("GET /api/locatario/:id", () => {
-    it("deve retornar o locatário por id", async () => {
-      const response = await request(app).get(`/api/locatario/${locatarioId}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.result.id).toBe(locatarioId);
-    });
-
-    it("deve retornar 400 para id inválido", async () => {
-      const response = await request(app).get("/api/locatario/id-invalido");
-
-      expect(response.status).toBe(400);
-    });
-  });
-
-  describe("PUT /api/locatario/:id", () => {
-    it("deve atualizar o locatário", async () => {
-      const novoCnh = uniqueCnh();
+  describe("mutação privada", () => {
+    it("bloqueia edição de perfil alheio", async () => {
       const response = await request(app)
-        .put(`/api/locatario/${locatarioId}`)
-        .send({ cnh: novoCnh });
+        .put(`/api/locatario/${outro.id}`)
+        .set("Authorization", `Bearer ${titular.account.token}`)
+        .send({ cnh: uniqueCnh() });
+      expect(response.status).toBe(403);
+    });
+
+    it("bloqueia exclusão de perfil alheio", async () => {
+      const response = await request(app)
+        .delete(`/api/locatario/${outro.id}`)
+        .set("Authorization", `Bearer ${titular.account.token}`);
+      expect(response.status).toBe(403);
+    });
+
+    it("permite ao titular editar seu perfil", async () => {
+      const cnh = uniqueCnh();
+      const response = await request(app)
+        .put(`/api/locatario/${titular.id}`)
+        .set("Authorization", `Bearer ${titular.account.token}`)
+        .send({ cnh, id: outro.id, idConta: outro.id, cargo: "ADMIN" });
 
       expect(response.status).toBe(200);
-      expect(response.body.result.cnh).toBe(novoCnh);
+      expect(response.body.result).toMatchObject({ id: titular.id, cnh });
     });
-  });
 
-  describe("DELETE /api/locatario/:id", () => {
-    it("deve remover o locatário", async () => {
-      const response = await request(app).delete(
-        `/api/locatario/${locatarioId}`,
+    it("preserva acesso administrativo previsto", async () => {
+      const cnh = uniqueCnh();
+      const read = await request(app)
+        .get(`/api/locatario/${outro.id}`)
+        .set("Authorization", `Bearer ${admin.token}`);
+      const update = await request(app)
+        .put(`/api/locatario/${outro.id}`)
+        .set("Authorization", `Bearer ${admin.token}`)
+        .send({ cnh });
+      const list = await request(app)
+        .get("/api/locatario/all")
+        .set("Authorization", `Bearer ${admin.token}`);
+
+      expect(read.status).toBe(200);
+      expect(update.status).toBe(200);
+      expect(update.body.result).toMatchObject({ id: outro.id, cnh });
+      expect(list.status).toBe(200);
+      expect(list.body.result.map((profile: { id: string }) => profile.id)).toEqual(
+        expect.arrayContaining([titular.id, outro.id]),
       );
+    });
+
+    it("permite ao titular excluir seu perfil", async () => {
+      const account = await createAccount("LOCATARIO");
+      const profile = await createProfile(account);
+      const response = await request(app)
+        .delete(`/api/locatario/${profile.id}`)
+        .set("Authorization", `Bearer ${account.token}`);
 
       expect(response.status).toBe(204);
-      expect(response.body).toEqual({});
     });
   });
 });

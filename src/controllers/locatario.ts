@@ -1,23 +1,18 @@
-import { LocatarioService } from "../services/locatario.js";
 import { Handler, NextFunction } from "express";
-import { HttpError } from "../errors/HttpError.js";
-import {
-  createLocatarioSchema,
-  updateLocatarioSchema,
-} from "../schemas/locatario.schema.js";
 import { z } from "zod";
-import {
-  getPaginationParams,
-  toPaginationMeta,
-} from "../shared/pagination.js";
+import { HttpError } from "../errors/HttpError.js";
+import { createLocatarioSchema, updateLocatarioSchema } from "../schemas/locatario.schema.js";
+import { LocatarioService } from "../services/locatario.js";
+import { getPaginationParams, toPaginationMeta } from "../shared/pagination.js";
 
 export class LocatarioController {
   constructor(private readonly locatarioService: LocatarioService) {}
 
   index: Handler = async (req, res, next: NextFunction) => {
     try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       const pagination = getPaginationParams(req.query);
-      const locatarios = await this.locatarioService.findAll(pagination);
+      const locatarios = await this.locatarioService.findAll(pagination, req.user);
 
       return res.status(200).json({
         result: locatarios.data,
@@ -29,17 +24,12 @@ export class LocatarioController {
   };
 
   findById: Handler = async (req, res, next: NextFunction) => {
-    if (!req.params) throw new HttpError(400, "Parâmetros de rota ausentes");
-
     try {
       const result = z.string().uuid().safeParse(req.params.id);
+      if (!result.success) throw new HttpError(400, "ID inválido");
+      if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      if (!result.success) {
-        throw new HttpError(400, "ID inválido");
-      }
-
-      const locatario = await this.locatarioService.findById(result.data);
-
+      const locatario = await this.locatarioService.findById(result.data, req.user);
       return res.status(200).json({ result: locatario });
     } catch (error) {
       next(error);
@@ -47,26 +37,25 @@ export class LocatarioController {
   };
 
   findByCpfOrCnh: Handler = async (req, res, next: NextFunction) => {
-    if (!req.query) throw new HttpError(400, "Parâmetros de consulta ausentes");
-
     try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
       const { cpf, cnh } = req.query;
 
       if (cpf && typeof cpf === "string") {
-        const locatario = await this.locatarioService.findByCpf(cpf);
+        const locatario = await this.locatarioService.findByCpf(cpf, req.user);
         return res.status(200).json({ result: locatario });
       }
 
       if (cnh && typeof cnh === "string") {
-        const locatario = await this.locatarioService.findByCnh(cnh);
+        const locatario = await this.locatarioService.findByCnh(cnh, req.user);
         return res.status(200).json({ result: locatario });
       }
 
       const pagination = getPaginationParams(req.query);
-      const locadarios = await this.locatarioService.findAll(pagination);
+      const locatarios = await this.locatarioService.findAll(pagination, req.user);
       return res.status(200).json({
-        result: locadarios.data,
-        pagination: toPaginationMeta(locadarios),
+        result: locatarios.data,
+        pagination: toPaginationMeta(locatarios),
       });
     } catch (error) {
       next(error);
@@ -75,11 +64,9 @@ export class LocatarioController {
 
   create: Handler = async (req, res, next: NextFunction) => {
     try {
-      const result = createLocatarioSchema.parse(req.body);
-
-      const data = result;
-      const locatario = await this.locatarioService.create(data);
-
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const data = createLocatarioSchema.parse(req.body);
+      const locatario = await this.locatarioService.create(data, req.user);
       return res.status(201).json({ result: locatario });
     } catch (error) {
       next(error);
@@ -87,23 +74,13 @@ export class LocatarioController {
   };
 
   update: Handler = async (req, res, next: NextFunction) => {
-    if (!req.params || !req.body)
-      throw new HttpError(400, "Parâmetros ou corpo da requisição ausentes");
-
     try {
       const parsedId = z.string().uuid().safeParse(req.params.id);
+      if (!parsedId.success) throw new HttpError(400, "ID inválido");
+      if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      if (!parsedId.success) {
-        throw new HttpError(400, "ID inválido");
-      }
-
-      const id = parsedId.data;
-
-      const result = updateLocatarioSchema.parse(req.body);
-
-      const data = result;
-      const locatario = await this.locatarioService.update(id, data);
-
+      const data = updateLocatarioSchema.parse(req.body);
+      const locatario = await this.locatarioService.update(parsedId.data, data, req.user);
       return res.status(200).json({ result: locatario });
     } catch (error) {
       next(error);
@@ -113,13 +90,10 @@ export class LocatarioController {
   delete: Handler = async (req, res, next: NextFunction) => {
     try {
       const result = z.string().uuid().safeParse(req.params.id);
+      if (!result.success) throw new HttpError(400, "ID inválido");
+      if (!req.user) throw new HttpError(401, "Não autenticado");
 
-      if (!result.success) {
-        throw new HttpError(400, "ID inválido");
-      }
-
-      await this.locatarioService.delete(result.data);
-
+      await this.locatarioService.delete(result.data, req.user);
       return res.status(204).send();
     } catch (error) {
       next(error);

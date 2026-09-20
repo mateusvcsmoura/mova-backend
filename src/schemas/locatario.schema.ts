@@ -53,7 +53,7 @@ const dataNascimentoSchema = z.coerce
   );
 
 export const createLocatarioSchema = z.object({
-  id: z.string().uuid("ID deve ser um UUID válido"),
+  id: z.string().uuid("ID deve ser um UUID válido").optional(),
   cpf: cpfSchema,
   cnh: cnhSchema,
   rg: rgSchema,

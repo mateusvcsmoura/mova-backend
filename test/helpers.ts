@@ -166,8 +166,8 @@ export async function createLocatario(
 
   const res = await request(app)
     .post("/api/locatario")
+    .set("Authorization", `Bearer ${account.token}`)
     .send({
-      id: account.conta.id,
       cpf,
       cnh,
       rg: uniqueRg(),
