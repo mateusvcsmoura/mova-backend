@@ -8,7 +8,7 @@ enum Cargo {
 
 // Política de senha robusta: mín. 8 caracteres com minúscula, maiúscula,
 // número e caractere especial.
-const senhaForteSchema = z
+export const senhaForteSchema = z
   .string()
   .min(8, "Senha deve ter no mínimo 8 caracteres")
   .max(100)
@@ -43,6 +43,19 @@ export const loginSchema = z.object({
 
 export const changePasswordSchema = z.object({
   senhaAtual: z.string(),
+  novaSenha: senhaForteSchema,
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Email inválido").max(255),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z
+    .string()
+    .min(40, "Token inválido ou expirado")
+    .max(200, "Token inválido ou expirado")
+    .regex(/^[A-Za-z0-9_-]+$/, "Token inválido ou expirado"),
   novaSenha: senhaForteSchema,
 });
 

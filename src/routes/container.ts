@@ -91,6 +91,10 @@ import { PreferenciaNotificacaoController } from "../controllers/preferencia-not
 import { env } from "../config/env.js";
 import { CobrancaController } from "../controllers/cobranca.js";
 import { CobrancaService } from "../services/cobranca.js";
+import { IRecuperacaoSenhaRepository } from "../repositories/recuperacao-senha.repository.js";
+import { PrismaRecuperacaoSenhaRepository } from "../repositories/prisma/prisma.recuperacao-senha.repository.js";
+import { RecuperacaoSenhaService } from "../services/recuperacao-senha.js";
+import { RecuperacaoSenhaController } from "../controllers/recuperacao-senha.js";
 import { ICompartilhamentoReservaRepository } from "../repositories/compartilhamento.repository.js";
 import { PrismaCompartilhamentoReservaRepository } from "../repositories/prisma/prisma.compartilhamento.repository.js";
 import { CompartilhamentoReservaService } from "../services/compartilhamento-reserva.js";
@@ -207,6 +211,16 @@ export const compartilhamentoReservaRepository: ICompartilhamentoReservaReposito
 export const compartilhamentoReservaService = new CompartilhamentoReservaService(
   compartilhamentoReservaRepository,
   reservaRepository,
+);
+
+export const recuperacaoSenhaRepository: IRecuperacaoSenhaRepository = new PrismaRecuperacaoSenhaRepository();
+export const recuperacaoSenhaService = new RecuperacaoSenhaService(
+  contaRepository,
+  recuperacaoSenhaRepository,
+  mailProvider,
+);
+export const recuperacaoSenhaController = new RecuperacaoSenhaController(
+  recuperacaoSenhaService,
 );
 export const compartilhamentoReservaController = new CompartilhamentoReservaController(
   compartilhamentoReservaService,
