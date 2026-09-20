@@ -5,6 +5,7 @@ import { prisma } from "../../src/database/prisma";
 import {
   createLocador,
   createLocatario,
+  createAccount,
   createVeiculo,
   type LocadorContext,
   type LocatarioContext,
@@ -125,6 +126,87 @@ describe("Dashboard do locador (RF17/RF18)", () => {
       expect(res.body.result.confirmadas).toBe(1);
     });
 
+    it("retorna itens paginados com veículo e período, sem dados pessoais", async () => {
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .query({ status: "CONFIRMADA", page: 1, limit: 1 })
+        .set(auth(locadorA.token));
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.reservas).toHaveLength(1);
+      expect(res.body.result.pagination).toMatchObject({ page: 1, limit: 1, total: 1 });
+      expect(res.body.result.reservas[0]).toMatchObject({
+        idVeiculo: v2,
+        status: "CONFIRMADA",
+        statusPagamento: "SUCESSO",
+        valorTotal: 300,
+        veiculo: { placa: expect.any(String), modelo: expect.any(String) },
+      });
+      expect(res.body.result.reservas[0]).not.toHaveProperty("idLocatario");
+    });
+
+    it("aplica veículo/período e ignora idLocador arbitrário", async () => {
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .query({
+          idVeiculo: v1,
+          dataInicio: "2026-01-01",
+          dataFim: "2026-01-01",
+          idLocador: locadorB.locadorId,
+        })
+        .set(auth(locadorA.token));
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.pagination.total).toBe(2);
+      expect(res.body.result.reservas).toHaveLength(2);
+      expect(res.body.result.reservas.every((r: any) => r.idVeiculo === v1)).toBe(true);
+    });
+
+    it("Locador B recebe somente as reservas da própria frota", async () => {
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .set(auth(locadorB.token));
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.total).toBe(1);
+      expect(res.body.result.reservas).toHaveLength(1);
+      expect([v1, v2, v3]).not.toContain(res.body.result.reservas[0].idVeiculo);
+    });
+
+    it("retorna lista vazia para período sem reservas", async () => {
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .query({ dataInicio: "2027-01-01", dataFim: "2027-01-01" })
+        .set(auth(locadorA.token));
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.reservas).toEqual([]);
+      expect(res.body.result.pagination.total).toBe(0);
+    });
+
+    it("recusa token inválido", async () => {
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .set(auth("token-invalido"));
+      expect(res.status).toBe(401);
+    });
+
+    it("valida a ordem do período", async () => {
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .query({ dataInicio: "2026-02-01", dataFim: "2026-01-01" })
+        .set(auth(locadorA.token));
+      expect(res.status).toBe(400);
+    });
+
+    it("preserva o comportamento administrativo previsto", async () => {
+      const admin = await createAccount("ADMIN");
+      const res = await request(app)
+        .get("/api/dashboard/reservas")
+        .set(auth(admin.token));
+      expect(res.status).toBe(403);
+    });
+
     it("recusa locatário (403)", async () => {
       const res = await request(app)
         .get("/api/dashboard/reservas")
@@ -135,6 +217,13 @@ describe("Dashboard do locador (RF17/RF18)", () => {
     it("recusa sem autenticação (401)", async () => {
       const res = await request(app).get("/api/dashboard/reservas");
       expect(res.status).toBe(401);
+    });
+
+    it("protege os demais relatórios contra acesso não autenticado", async () => {
+      for (const endpoint of ["financeiro", "utilizacao"]) {
+        const res = await request(app).get(`/api/dashboard/${endpoint}`);
+        expect(res.status).toBe(401);
+      }
     });
   });
 
@@ -149,6 +238,33 @@ describe("Dashboard do locador (RF17/RF18)", () => {
       expect(res.body.result.faturamentoBruto).toBe(600);
       expect(res.body.result.porVeiculo.length).toBe(2);
       expect(res.body.result.porPeriodo.length).toBeGreaterThan(0);
+    });
+
+    it("não trata reserva cancelada paga nem cobrança avulsa como receita nova", async () => {
+      const canceladaPaga = await seedReserva(v2, locatario.locatarioId, {
+        status: "CANCELADA",
+        statusPagamento: "SUCESSO",
+        valorTotal: 777,
+      });
+      await prisma.cobrancaReserva.create({
+        data: {
+          idReserva: canceladaPaga.id,
+          tipo: "PAGAMENTO_RESERVA",
+          valor: 777,
+          statusPagamento: "SUCESSO",
+        },
+      });
+
+      try {
+        const res = await request(app)
+          .get("/api/dashboard/financeiro")
+          .set(auth(locadorA.token));
+
+        expect(res.status).toBe(200);
+        expect(res.body.result.faturamentoBruto).toBe(600);
+      } finally {
+        await prisma.reserva.delete({ where: { id: canceladaPaga.id } });
+      }
     });
 
     it("não vaza faturamento entre locadores", async () => {

@@ -176,6 +176,9 @@ function makeNotificacaoInteresseRepo() {
     findByInteresse: vi.fn(async (idInteresse) =>
       records.filter((r) => r.idInteresse === idInteresse),
     ),
+    findByLocatarioId: vi.fn(async () =>
+      buildPaginatedResult([], 0, { page: 1, limit: 10 }),
+    ),
   };
   return { repo, records };
 }
@@ -468,11 +471,11 @@ describe("NotificacaoVeiculoDisponivelService", () => {
     expect(records[1].status).toBe("NOTIFICADO");
   });
 
-  it("não envia nem registra quando o provedor está desabilitado", async () => {
+  it("registra aviso interno quando o provedor de e-mail está desabilitado", async () => {
     const send = vi.fn();
     const provider: IMailProvider = { isEnabled: () => false, send };
-    const { repo: interesseRepo } = makeInteresseRepo();
-    const { repo: notifRepo } = makeNotificacaoInteresseRepo();
+    const { repo: interesseRepo, records } = makeInteresseRepo();
+    const { repo: notifRepo, records: envios } = makeNotificacaoInteresseRepo();
 
     await interesseRepo.create({
       idLocatario: LOCATARIO_A,
@@ -483,7 +486,10 @@ describe("NotificacaoVeiculoDisponivelService", () => {
     await dispatcher.notificarVeiculoDisponivel(makeVeiculo());
 
     expect(send).not.toHaveBeenCalled();
-    expect(notifRepo.registrar).not.toHaveBeenCalled();
+    expect(notifRepo.registrar).toHaveBeenCalledTimes(1);
+    expect(envios[0].canal).toBe("INTERNA");
+    expect(envios[0].status).toBe("ENVIADA");
+    expect(records[0].status).toBe("NOTIFICADO");
   });
 
   it("RN11: sem preferência definida, o interessado recebe (opt-in padrão)", async () => {

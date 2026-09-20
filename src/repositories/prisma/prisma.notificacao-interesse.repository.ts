@@ -8,6 +8,12 @@ import {
   RegistrarNotificacaoInteresseRequest,
 } from "../contracts/notificacao-interesse.contract.js";
 import { NotificacaoInteresseMapper } from "../mappers/notificacao-interesse.mapper.js";
+import {
+  buildPaginatedResult,
+  PaginatedResult,
+  PaginationParams,
+  toSkipTake,
+} from "../../shared/pagination.js";
 
 export class PrismaNotificacaoInteresseRepository
   implements INotificacaoInteresseRepository
@@ -72,5 +78,27 @@ export class PrismaNotificacaoInteresseRepository
       orderBy: { criadaEm: "desc" },
     });
     return NotificacaoInteresseMapper.toManyResponse(notificacoes);
+  }
+
+  async findByLocatarioId(
+    idLocatario: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<NotificacaoInteresseResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where = { interesse: { idLocatario } };
+    const [data, total] = await prisma.$transaction([
+      prisma.notificacaoInteresse.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { criadaEm: "desc" },
+      }),
+      prisma.notificacaoInteresse.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      NotificacaoInteresseMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
   }
 }

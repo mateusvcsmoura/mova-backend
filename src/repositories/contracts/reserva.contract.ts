@@ -12,6 +12,9 @@ import { VeiculoResponse } from "./veiculo.contract.js";
 export interface ReservaServicoInput {
   idServico: string;
   valor: number;
+  nome?: string;
+  descricao?: string;
+  detalhesCobertura?: string | null;
 }
 
 export interface CreateReservaRequest {
@@ -80,6 +83,7 @@ export interface ReservaServicoResponse {
   idServico: string;
   nome: string;
   descricao: string;
+  detalhesCobertura?: string | null;
   valor: number;
 }
 

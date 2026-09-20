@@ -429,6 +429,8 @@ model ServicoOpcional {
   id        String  @id @default(uuid()) @db.Uuid
   nome      String  @unique
   descricao String
+  // Detalhes funcionais da cobertura/entrega simulada, quando aplicável.
+  detalhesCobertura String?
   valor     Decimal @db.Decimal(10, 2)
 
   // Serviço fora do catálogo deixa de poder ser contratado, mas o histórico
@@ -456,6 +458,10 @@ model ReservaServico {
 
   // Snapshot do valor do serviço no momento da contratação.
   valor Decimal @db.Decimal(10, 2)
+  // Snapshots descritivos: histórico não muda quando o catálogo é editado.
+  nome              String?
+  descricao         String?
+  detalhesCobertura String?
 
   criadoEm DateTime @default(now())
 

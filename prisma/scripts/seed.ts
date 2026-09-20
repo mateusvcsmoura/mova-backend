@@ -93,7 +93,9 @@ const disabilityDescriptions = [
 const servicosOpcionais = [
   {
     nome: "Seguro adicional",
-    descricao: "Serviço opcional de seguro para a reserva.",
+    descricao: "Proteção simulada opcional para a reserva.",
+    detalhesCobertura:
+      "Cobertura simulada do produto: danos ao veículo, furto/roubo e assistência prevista. Não é uma apólice de seguradora real.",
     valor: 49.9,
   },
   {

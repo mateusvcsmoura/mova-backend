@@ -638,3 +638,150 @@ describe("Veiculo — categorias (RF07/RF16)", () => {
     expect(response.body.result.categoria).toBe("ECONOMICO");
   });
 });
+
+describe("Veiculo — catálogo RF07 completo", () => {
+  let locador: LocadorContext;
+  let locatario: LocatarioContext;
+  let economico: any;
+  let espacoso: any;
+  let executivo: any;
+  let adaptado: any;
+  let manutencao: any;
+  let inativo: any;
+  let garagemInativa: any;
+  let garagemInativaVehicle: any;
+
+  beforeAll(async () => {
+    locador = await createLocador();
+    locatario = await createLocatario();
+
+    economico = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "ECONOMICO",
+      marca: "Fiat",
+      modelo: "Economico RF07",
+    });
+    espacoso = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "ESPACOSO",
+      capacidade: 7,
+      marca: "Fiat",
+      modelo: "Espacoso RF07",
+    });
+    executivo = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "EXECUTIVO",
+      cambio: "Automatico",
+      eletrico: true,
+      marca: "Tesla",
+      modelo: "Executivo RF07",
+    });
+    adaptado = await createVeiculo(locador.token, locador.locadorId, {
+      adaptado: true,
+      marca: "Volkswagen",
+      modelo: "Adaptado RF07",
+    });
+    manutencao = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "ESPACOSO",
+      status: "MANUTENCAO",
+    });
+    inativo = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "ECONOMICO",
+      status: "INATIVO",
+    });
+
+    garagemInativa = await createGaragem(locador.token, locador.locadorId, {
+      status: "INATIVA",
+    });
+    garagemInativaVehicle = await createVeiculo(
+      locador.token,
+      locador.locadorId,
+      { categoria: "EXECUTIVO" },
+    );
+    await request(app)
+      .post(`/api/garagem/${garagemInativa.id}/veiculos/${garagemInativaVehicle.id}`)
+      .set(auth(locador.token));
+  }, 60_000);
+
+  it.each([
+    ["ECONOMICO", () => economico.id],
+    ["ESPACOSO", () => espacoso.id],
+    ["EXECUTIVO", () => executivo.id],
+  ])("filtra categoria %s pela consulta real", async (categoria, idEsperado) => {
+    const response = await request(app)
+      .get("/api/veiculo")
+      .query({ categoria })
+      .set(auth(locatario.token));
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.length).toBeGreaterThan(0);
+    expect(response.body.result.every((v: any) => v.modeloVeiculo.categoria === categoria)).toBe(true);
+    expect(response.body.result.some((v: any) => v.id === idEsperado())).toBe(true);
+  });
+
+  it("filtra adaptados PCD por adaptado=true", async () => {
+    const response = await request(app)
+      .get("/api/veiculo")
+      .query({ adaptado: "true" })
+      .set(auth(locatario.token));
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.some((v: any) => v.id === adaptado.id)).toBe(true);
+    expect(response.body.result.every((v: any) => v.modeloVeiculo.adaptado === true)).toBe(true);
+  });
+
+  it("combina categoria com câmbio, elétrico e capacidade por interseção", async () => {
+    const response = await request(app)
+      .get("/api/veiculo")
+      .query({ categoria: "EXECUTIVO", cambio: "Automatico", eletrico: "true", capacidade: 5 })
+      .set(auth(locatario.token));
+
+    expect(response.status).toBe(200);
+    expect(response.body.result.some((v: any) => v.id === executivo.id)).toBe(true);
+    expect(response.body.result.every((v: any) => (
+      v.modeloVeiculo.categoria === "EXECUTIVO" &&
+      v.modeloVeiculo.cambio === "Automatico" &&
+      v.modeloVeiculo.eletrico === true &&
+      v.modeloVeiculo.capacidade === 5
+    ))).toBe(true);
+  });
+
+  it("mantém disponibilidade: manutenção, inativo e garagem inativa ficam fora", async () => {
+    const response = await request(app)
+      .get("/api/veiculo")
+      .set(auth(locatario.token));
+    const ids = response.body.result.map((v: any) => v.id);
+
+    expect(response.status).toBe(200);
+    expect(ids).not.toContain(manutencao.id);
+    expect(ids).not.toContain(inativo.id);
+    expect(ids).not.toContain(garagemInativaVehicle.id);
+  });
+
+  it("mantém paginação e aceita categoria inválida com o comportamento definido", async () => {
+    const paginado = await request(app)
+      .get("/api/veiculo")
+      .query({ categoria: "ECONOMICO", page: 1, limit: 1 })
+      .set(auth(locatario.token));
+    expect(paginado.status).toBe(200);
+    expect(paginado.body.result).toHaveLength(1);
+    expect(paginado.body.pagination).toMatchObject({ page: 1, limit: 1 });
+
+    const invalido = await request(app)
+      .get("/api/veiculo")
+      .query({ categoria: "LUXO" })
+      .set(auth(locatario.token));
+    expect(invalido.status).toBe(200);
+  });
+
+  it("não permite contornar RN01 usando o filtro PCD", async () => {
+    const response = await request(app)
+      .post("/api/reserva")
+      .set(auth(locatario.token))
+      .send({
+        idVeiculo: adaptado.id,
+        idLocatario: locatario.locatarioId,
+        ...futurePeriod(740, 1),
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toMatch(/necessidade especial/i);
+  });
+});

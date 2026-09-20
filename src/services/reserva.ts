@@ -180,6 +180,9 @@ export class ReservaService {
     const servicos = encontrados.map((s) => ({
       idServico: s.id,
       valor: s.valor,
+      nome: s.nome,
+      descricao: s.descricao,
+      detalhesCobertura: s.detalhesCobertura ?? null,
     }));
     const valorServicos = encontrados.reduce((acc, s) => acc + s.valor, 0);
 

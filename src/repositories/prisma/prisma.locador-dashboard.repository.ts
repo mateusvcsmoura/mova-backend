@@ -1,4 +1,4 @@
-import { StatusReserva, StatusVeiculo } from "@prisma/client";
+import { Prisma, StatusReserva, StatusVeiculo } from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
 import { ILocadorDashboardRepository } from "../locador-dashboard.repository.js";
@@ -7,6 +7,7 @@ import {
   FrotaDashboard,
   RelatorioFinanceiro,
   RelatorioReservas,
+  RelatorioReservasFiltros,
   RelatorioUtilizacao,
   UtilizacaoVeiculo,
 } from "../contracts/locador-dashboard.contract.js";
@@ -16,12 +17,83 @@ const MS_POR_HORA = 1000 * 60 * 60;
 export class PrismaLocadorDashboardRepository
   implements ILocadorDashboardRepository
 {
-  async relatorioReservas(idLocador: string): Promise<RelatorioReservas> {
+  async relatorioReservas(
+    idLocador: string,
+    filtros: RelatorioReservasFiltros,
+  ): Promise<RelatorioReservas> {
+    const inicio = filtros.dataInicio
+      ? new Date(
+          Date.UTC(
+            filtros.dataInicio.getUTCFullYear(),
+            filtros.dataInicio.getUTCMonth(),
+            filtros.dataInicio.getUTCDate(),
+          ),
+        )
+      : undefined;
+    const fim = filtros.dataFim
+      ? new Date(
+          Date.UTC(
+            filtros.dataFim.getUTCFullYear(),
+            filtros.dataFim.getUTCMonth(),
+            filtros.dataFim.getUTCDate(),
+            23,
+            59,
+            59,
+            999,
+          ),
+        )
+      : undefined;
+
+    const where: Prisma.ReservaWhereInput = {
+      veiculo: {
+        idLocador,
+        ...(filtros.idVeiculo ? { id: filtros.idVeiculo } : {}),
+      },
+      ...(filtros.status ? { status: filtros.status } : {}),
+      ...(inicio || fim
+        ? {
+            dataHoraInicio: {
+              ...(inicio ? { gte: inicio } : {}),
+              ...(fim ? { lte: fim } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const { skip, take } = {
+      skip: (filtros.page - 1) * filtros.limit,
+      take: filtros.limit,
+    };
     const grupos = await prisma.reserva.groupBy({
       by: ["status"],
-      where: { veiculo: { idLocador } },
+      where,
+      orderBy: { status: "asc" },
       _count: { _all: true },
     });
+    const [reservas, total] = await Promise.all([
+      prisma.reserva.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { dataHoraInicio: "desc" },
+        select: {
+          id: true,
+          idVeiculo: true,
+          dataHoraInicio: true,
+          dataHoraFim: true,
+          status: true,
+          statusPagamento: true,
+          valorTotal: true,
+          veiculo: {
+            select: {
+              placa: true,
+              modeloVeiculo: { select: { marca: true, modelo: true } },
+            },
+          },
+        },
+      }),
+      prisma.reserva.count({ where }),
+    ]);
 
     const contagem = (status: StatusReserva) =>
       grupos.find((g) => g.status === status)?._count._all ?? 0;
@@ -33,6 +105,26 @@ export class PrismaLocadorDashboardRepository
       emAndamento: contagem(StatusReserva.EM_ANDAMENTO),
       concluidas: contagem(StatusReserva.REALIZADA),
       canceladas: contagem(StatusReserva.CANCELADA),
+      reservas: reservas.map((reserva) => ({
+        id: reserva.id,
+        idVeiculo: reserva.idVeiculo,
+        dataHoraInicio: reserva.dataHoraInicio,
+        dataHoraFim: reserva.dataHoraFim,
+        status: reserva.status,
+        statusPagamento: reserva.statusPagamento,
+        valorTotal: Number(reserva.valorTotal),
+        veiculo: {
+          placa: reserva.veiculo.placa,
+          marca: reserva.veiculo.modeloVeiculo.marca,
+          modelo: reserva.veiculo.modeloVeiculo.modelo,
+        },
+      })),
+      pagination: {
+        total,
+        page: filtros.page,
+        limit: filtros.limit,
+        totalPages: filtros.limit > 0 ? Math.ceil(total / filtros.limit) : 0,
+      },
     };
   }
 
@@ -41,6 +133,7 @@ export class PrismaLocadorDashboardRepository
     const reservas = await prisma.reserva.findMany({
       where: {
         statusPagamento: "SUCESSO",
+        status: { not: StatusReserva.CANCELADA },
         veiculo: { idLocador },
       },
       select: {

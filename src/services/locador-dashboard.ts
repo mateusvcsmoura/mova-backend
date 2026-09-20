@@ -1,4 +1,5 @@
 import { ILocadorDashboardRepository } from "../repositories/locador-dashboard.repository.js";
+import { RelatorioReservasFiltros } from "../repositories/contracts/locador-dashboard.contract.js";
 
 // Dashboard do locador (RF17/RF18). Serviço fino: a autorização (LOCADOR) é
 // feita na rota e o idLocador vem sempre do token, garantindo que o locador
@@ -6,8 +7,10 @@ import { ILocadorDashboardRepository } from "../repositories/locador-dashboard.r
 export class LocadorDashboardService {
   constructor(private readonly repository: ILocadorDashboardRepository) {}
 
-  relatorioReservas = (idLocador: string) =>
-    this.repository.relatorioReservas(idLocador);
+  relatorioReservas = (
+    idLocador: string,
+    filtros: RelatorioReservasFiltros,
+  ) => this.repository.relatorioReservas(idLocador, filtros);
 
   relatorioFinanceiro = (idLocador: string) =>
     this.repository.relatorioFinanceiro(idLocador);

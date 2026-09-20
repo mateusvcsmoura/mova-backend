@@ -1,4 +1,4 @@
-import { StatusGaragem, StatusInteresse } from "@prisma/client";
+import { StatusGaragem, StatusInteresse, StatusVeiculo } from "@prisma/client";
 import { VeiculoResponse } from "./veiculo.contract.js";
 
 export interface CreateInteresseRequest {
@@ -41,6 +41,30 @@ export interface InteresseResponse {
   veiculo: InteresseVeiculoDetalheResponse;
   criadoEm: Date;
   atualizadoEm: Date;
+}
+
+// Shape público mínimo para descoberta de veículos que podem voltar a ficar
+// disponíveis. Não expõe placa, idLocador ou outros dados administrativos.
+export interface InteresseVeiculoDescobertaResponse {
+  id: string;
+  status: StatusVeiculo;
+  modeloVeiculo: {
+    id: string;
+    marca: string;
+    modelo: string;
+    ano: number;
+    cambio: string;
+    capacidade: number;
+    eletrico: boolean;
+    adaptado: boolean;
+    categoria: VeiculoResponse["modeloVeiculo"]["categoria"];
+    valorDiaria: number;
+  };
+  garagem: {
+    id: string;
+    nome: string;
+    status: StatusGaragem;
+  } | null;
 }
 
 // Inscrição ativa + destinatário resolvido em uma única consulta (JOIN com

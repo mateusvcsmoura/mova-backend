@@ -2,6 +2,7 @@ import {
   NotificacaoInteresseResponse,
   RegistrarNotificacaoInteresseRequest,
 } from "./contracts/notificacao-interesse.contract.js";
+import { PaginatedResult, PaginationParams } from "../shared/pagination.js";
 
 export interface INotificacaoInteresseRepository {
   registrar(
@@ -17,4 +18,8 @@ export interface INotificacaoInteresseRepository {
   ): Promise<NotificacaoInteresseResponse>;
   // Histórico de envios de uma inscrição (auditoria).
   findByInteresse(idInteresse: string): Promise<NotificacaoInteresseResponse[]>;
+  findByLocatarioId(
+    idLocatario: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<NotificacaoInteresseResponse>>;
 }

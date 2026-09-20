@@ -28,6 +28,9 @@ export interface IVeiculoRepository {
     filters: VeiculoFilters,
     pagination: PaginationParams,
   ): Promise<PaginatedResult<VeiculoResponse>>;
+  findForInteresse(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>>;
   create(data: CreateVeiculoRequest): Promise<VeiculoResponse>;
   createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]>;
   update(id: string, data: UpdateVeiculoRequest): Promise<VeiculoResponse>;

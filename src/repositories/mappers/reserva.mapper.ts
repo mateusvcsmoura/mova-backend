@@ -51,8 +51,9 @@ export class ReservaMapper {
         .reduce((total, cobranca) => total + Number(cobranca.valor), 0),
       servicos: (reserva.servicos ?? []).map((rs) => ({
         idServico: rs.idServico,
-        nome: rs.servico.nome,
-        descricao: rs.servico.descricao,
+        nome: rs.nome ?? rs.servico.nome,
+        descricao: rs.descricao ?? rs.servico.descricao,
+        detalhesCobertura: rs.detalhesCobertura ?? rs.servico.detalhesCobertura ?? null,
         // valor contratado (snapshot), não o valor atual do catálogo
         valor: Number(rs.valor),
       })),

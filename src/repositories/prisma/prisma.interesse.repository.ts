@@ -32,14 +32,21 @@ export class PrismaInteresseVeiculoRepository
   implements IInteresseVeiculoRepository
 {
   async create(data: CreateInteresseRequest): Promise<InteresseResponse> {
-    const interesse = await prisma.interesseVeiculo.create({
-      data: {
-        idLocatario: data.idLocatario,
-        idVeiculo: data.idVeiculo,
-      },
-      include: INTERESSE_INCLUDE,
-    });
-    return InteresseMapper.toResponse(interesse);
+    try {
+      const interesse = await prisma.interesseVeiculo.create({
+        data: {
+          idLocatario: data.idLocatario,
+          idVeiculo: data.idVeiculo,
+        },
+        include: INTERESSE_INCLUDE,
+      });
+      return InteresseMapper.toResponse(interesse);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new HttpError(409, "Você já possui uma inscrição para este veículo.");
+      }
+      throw error;
+    }
   }
 
   async reativar(id: string): Promise<InteresseResponse> {

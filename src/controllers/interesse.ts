@@ -64,4 +64,35 @@ export class InteresseController {
       next(error);
     }
   };
+
+  descoberta: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const pagination = getPaginationParams(req.query);
+      const veiculos = await this.interesseService.descobrir(pagination);
+      return res.status(200).json({
+        result: veiculos.data,
+        pagination: toPaginationMeta(veiculos),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  notificacoes: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+      const pagination = getPaginationParams(req.query);
+      const notificacoes = await this.interesseService.listarNotificacoes(
+        req.user.id,
+        pagination,
+      );
+      return res.status(200).json({
+        result: notificacoes.data,
+        pagination: toPaginationMeta(notificacoes),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

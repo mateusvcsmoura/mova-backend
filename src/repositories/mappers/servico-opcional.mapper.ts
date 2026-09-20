@@ -7,6 +7,7 @@ export class ServicoOpcionalMapper {
       id: servico.id,
       nome: servico.nome,
       descricao: servico.descricao,
+      detalhesCobertura: servico.detalhesCobertura ?? null,
       // Prisma.Decimal -> number para a resposta da API
       valor: Number(servico.valor),
       ativo: servico.ativo,

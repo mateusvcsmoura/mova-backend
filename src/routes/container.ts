@@ -178,7 +178,7 @@ export const monitoramentoScheduler = new MonitoramentoScheduler(
 export const veiculoService = new VeiculoService(veiculoRepository, notificacaoVeiculoDisponivelService, monitoramentoRepository);
 export const veiculoController = new VeiculoController(veiculoService);
 
-export const interesseService = new InteresseVeiculoService(interesseRepository, veiculoRepository, locatarioRepository);
+export const interesseService = new InteresseVeiculoService(interesseRepository, veiculoRepository, locatarioRepository, notificacaoInteresseRepository);
 export const interesseController = new InteresseController(interesseService);
 
 export const condutorRepository: ICondutorRepository = new PrismaCondutorRepository();

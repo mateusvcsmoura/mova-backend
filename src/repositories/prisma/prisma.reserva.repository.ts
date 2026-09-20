@@ -233,6 +233,9 @@ export class PrismaReservaRepository implements IReservaRepository {
                   create: data.servicos.map((s) => ({
                     idServico: s.idServico,
                     valor: s.valor,
+                    nome: s.nome,
+                    descricao: s.descricao,
+                    detalhesCobertura: s.detalhesCobertura ?? null,
                   })),
                 },
               }

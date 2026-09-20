@@ -179,6 +179,32 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     );
   }
 
+  async findForInteresse(
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<VeiculoResponse>> {
+    const { skip, take } = toSkipTake(pagination);
+    const where: Prisma.VeiculoWhereInput = {
+      // RESERVADO e MANUTENCAO são indisponíveis agora, mas podem voltar a
+      // DISPONIVEL. INATIVO é desativação administrativa e não entra aqui.
+      status: { in: [StatusVeiculo.RESERVADO, StatusVeiculo.MANUTENCAO] },
+    };
+    const [data, total] = await prisma.$transaction([
+      prisma.veiculo.findMany({
+        where,
+        skip,
+        take,
+        include: withModelo,
+        orderBy: { criadoEm: "desc" },
+      }),
+      prisma.veiculo.count({ where }),
+    ]);
+    return buildPaginatedResult(
+      VeiculoMapper.toManyResponse(data),
+      total,
+      pagination,
+    );
+  }
+
   async create(data: CreateVeiculoRequest): Promise<VeiculoResponse> {
     const modelo = await this.upsertModelo(data);
 

@@ -2,6 +2,7 @@ import { Handler } from "express";
 
 import { LocadorDashboardService } from "../services/locador-dashboard.js";
 import { HttpError } from "../errors/HttpError.js";
+import { relatorioReservasQuerySchema } from "../schemas/locador-dashboard.schema.js";
 
 export class LocadorDashboardController {
   constructor(private readonly service: LocadorDashboardService) {}
@@ -10,7 +11,8 @@ export class LocadorDashboardController {
   reservas: Handler = async (req, res, next) => {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");
-      const result = await this.service.relatorioReservas(req.user.id);
+      const filtros = relatorioReservasQuerySchema.parse(req.query);
+      const result = await this.service.relatorioReservas(req.user.id, filtros);
       return res.status(200).json({ result });
     } catch (error) {
       next(error);

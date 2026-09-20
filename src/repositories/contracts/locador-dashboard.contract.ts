@@ -1,7 +1,33 @@
+import { StatusReserva } from "@prisma/client";
+
 // DTOs do dashboard do locador (RF17/RF18). Todos os dados são escopados aos
 // veículos do locador autenticado (idLocador vem do token).
 
 // ── Relatório de reservas (RF17) ────────────────────────────────────────────
+export interface RelatorioReservaItem {
+  id: string;
+  idVeiculo: string;
+  dataHoraInicio: Date;
+  dataHoraFim: Date;
+  status: string;
+  statusPagamento: string;
+  valorTotal: number;
+  veiculo: {
+    placa: string;
+    marca: string;
+    modelo: string;
+  };
+}
+
+export interface RelatorioReservasFiltros {
+  idVeiculo?: string;
+  status?: StatusReserva;
+  dataInicio?: Date;
+  dataFim?: Date;
+  page: number;
+  limit: number;
+}
+
 export interface RelatorioReservas {
   total: number;
   aguardandoPagamento: number;
@@ -9,6 +35,13 @@ export interface RelatorioReservas {
   emAndamento: number;
   concluidas: number; // StatusReserva.REALIZADA
   canceladas: number;
+  reservas: RelatorioReservaItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 // ── Relatório financeiro (RF17) ─────────────────────────────────────────────
@@ -24,7 +57,8 @@ export interface FaturamentoPorPeriodo {
 }
 
 export interface RelatorioFinanceiro {
-  // Considera apenas pagamentos confirmados (statusPagamento = SUCESSO).
+  // Considera pagamentos confirmados de reservas não canceladas; cobranças
+  // avulsas não são somadas novamente para evitar double count.
   faturamentoBruto: number;
   porPeriodo: FaturamentoPorPeriodo[];
   porVeiculo: FaturamentoPorVeiculo[];

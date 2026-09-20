@@ -13,8 +13,10 @@ import {
   InteresseLocadorResponse,
   InteresseResponse,
   InteresseVeiculoDetalheResponse,
+  InteresseVeiculoDescobertaResponse,
 } from "../contracts/interesse.contract.js";
 import { VeiculoMapper } from "./veiculo.mapper.js";
+import { VeiculoResponse } from "../contracts/veiculo.contract.js";
 
 type VeiculoComRelacoes = Veiculo & {
   modeloVeiculo: ModeloVeiculo;
@@ -79,6 +81,34 @@ export class InteresseMapper {
     interesses: InteresseComVeiculo[],
   ): InteresseResponse[] {
     return interesses.map((i) => this.toResponse(i));
+  }
+
+  static toDescobertaResponse(
+    veiculo: VeiculoResponse,
+  ): InteresseVeiculoDescobertaResponse {
+    return {
+      id: veiculo.id,
+      status: veiculo.status,
+      modeloVeiculo: {
+        id: veiculo.modeloVeiculo.id,
+        marca: veiculo.modeloVeiculo.marca,
+        modelo: veiculo.modeloVeiculo.modelo,
+        ano: veiculo.modeloVeiculo.ano,
+        cambio: veiculo.modeloVeiculo.cambio,
+        capacidade: veiculo.modeloVeiculo.capacidade,
+        eletrico: veiculo.modeloVeiculo.eletrico,
+        adaptado: veiculo.modeloVeiculo.adaptado,
+        categoria: veiculo.modeloVeiculo.categoria,
+        valorDiaria: veiculo.modeloVeiculo.valorDiaria,
+      },
+      garagem: veiculo.garagem
+        ? {
+            id: veiculo.garagem.id,
+            nome: veiculo.garagem.nome,
+            status: veiculo.garagem.status,
+          }
+        : null,
+    };
   }
 
   static toInteressadoResponse(

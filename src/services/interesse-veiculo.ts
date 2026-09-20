@@ -1,14 +1,21 @@
-import { StatusInteresse } from "@prisma/client";
+import { StatusInteresse, StatusVeiculo } from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
 import { InteresseResponse } from "../repositories/contracts/interesse.contract.js";
+import {
+  InteresseVeiculoDescobertaResponse,
+} from "../repositories/contracts/interesse.contract.js";
+import { NotificacaoInteresseResponse } from "../repositories/contracts/notificacao-interesse.contract.js";
 import { IInteresseVeiculoRepository } from "../repositories/interesse.repository.js";
+import { INotificacaoInteresseRepository } from "../repositories/notificacao-interesse.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
 import {
+  buildPaginatedResult,
   PaginatedResult,
   PaginationParams,
 } from "../shared/pagination.js";
+import { InteresseMapper } from "../repositories/mappers/interesse.mapper.js";
 
 // Watchlist de disponibilidade: regra de negócio das inscrições de interesse.
 //
@@ -20,6 +27,7 @@ export class InteresseVeiculoService {
     private readonly interesseRepository: IInteresseVeiculoRepository,
     private readonly veiculoRepository: IVeiculoRepository,
     private readonly locatarioRepository: ILocatarioRepository,
+    private readonly notificacaoRepository?: INotificacaoInteresseRepository,
   ) {}
 
   // Conta LOCATARIO pode existir sem o registro de Locatario (cadastro em duas
@@ -31,10 +39,13 @@ export class InteresseVeiculoService {
     }
   }
 
-  private async assertVeiculoExiste(idVeiculo: string): Promise<void> {
+  private async assertVeiculoElegivel(idVeiculo: string): Promise<void> {
     const veiculo = await this.veiculoRepository.findById(idVeiculo);
     if (!veiculo) {
       throw new HttpError(404, "Veículo não encontrado");
+    }
+    if (veiculo.status === StatusVeiculo.INATIVO) {
+      throw new HttpError(409, "Veículo inativo não aceita interesse de disponibilidade");
     }
   }
 
@@ -46,7 +57,7 @@ export class InteresseVeiculoService {
     idVeiculo: string,
   ): Promise<InteresseResponse> => {
     await this.assertLocatarioExiste(idLocatario);
-    await this.assertVeiculoExiste(idVeiculo);
+    await this.assertVeiculoElegivel(idVeiculo);
 
     const existente = await this.interesseRepository.findByLocatarioAndVeiculo(
       idLocatario,
@@ -93,5 +104,26 @@ export class InteresseVeiculoService {
       idLocatario,
       pagination,
     );
+  };
+
+  descobrir = async (
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<InteresseVeiculoDescobertaResponse>> => {
+    const veiculos = await this.veiculoRepository.findForInteresse(pagination);
+    return buildPaginatedResult(
+      veiculos.data.map((veiculo) => InteresseMapper.toDescobertaResponse(veiculo)),
+      veiculos.total,
+      pagination,
+    );
+  };
+
+  listarNotificacoes = async (
+    idLocatario: string,
+    pagination: PaginationParams,
+  ): Promise<PaginatedResult<NotificacaoInteresseResponse>> => {
+    if (!this.notificacaoRepository) {
+      return buildPaginatedResult([], 0, pagination);
+    }
+    return this.notificacaoRepository.findByLocatarioId(idLocatario, pagination);
   };
 }

@@ -9,6 +9,18 @@ const interesseRouter = Router();
 // Inscrições de interesse pertencem exclusivamente ao locatário autenticado
 // (req.user.id) — nenhuma rota aceita id de locatário como parâmetro.
 interesseRouter.get(
+  "/veiculos",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO),
+  interesseController.descoberta,
+);
+interesseRouter.get(
+  "/notificacoes",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO),
+  interesseController.notificacoes,
+);
+interesseRouter.get(
   "/",
   authMiddleware,
   authorize(Cargo.LOCATARIO),

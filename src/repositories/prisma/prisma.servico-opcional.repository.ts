@@ -78,6 +78,7 @@ export class PrismaServicoOpcionalRepository
       data: {
         nome: data.nome,
         descricao: data.descricao,
+        detalhesCobertura: data.detalhesCobertura ?? undefined,
         valor: data.valor,
         ativo: data.ativo ?? undefined,
       },
@@ -95,6 +96,10 @@ export class PrismaServicoOpcionalRepository
         data: {
           nome: data.nome ?? undefined,
           descricao: data.descricao ?? undefined,
+          detalhesCobertura:
+            data.detalhesCobertura !== undefined
+              ? data.detalhesCobertura
+              : undefined,
           valor: data.valor ?? undefined,
           ativo: data.ativo ?? undefined,
         },

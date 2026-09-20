@@ -42,14 +42,6 @@ export class NotificacaoVeiculoDisponivelService
   ) {}
 
   async notificarVeiculoDisponivel(veiculo: VeiculoResponse): Promise<void> {
-    // Sem provedor configurado (dev/testes): não tenta enviar nem registra.
-    if (!this.mailProvider.isEnabled()) {
-      console.info(
-        `[interesse] envio desabilitado (SMTP não configurado) — veículo ${veiculo.id}`,
-      );
-      return;
-    }
-
     try {
       const interessados = await this.interesseRepository.findAtivosByVeiculo(
         veiculo.id,
@@ -81,6 +73,14 @@ export class NotificacaoVeiculoDisponivelService
       };
 
       for (const interessado of interessados) {
+        if (!this.mailProvider.isEnabled()) {
+          await this.notificarInternamente(base, interessado.id, {
+            nome: interessado.locatario.nome,
+            email: interessado.locatario.email,
+          });
+          continue;
+        }
+
         // RN11: opt-out de um locatário pula apenas aquele destinatário; os
         // demais continuam recebendo. A inscrição permanece ATIVA.
         if (
@@ -108,6 +108,32 @@ export class NotificacaoVeiculoDisponivelService
       const mensagem = error instanceof Error ? error.message : String(error);
       console.error(
         `[interesse] erro ao processar notificações — veículo ${veiculo.id}: ${mensagem}`,
+      );
+    }
+  }
+
+  private async notificarInternamente(
+    base: Omit<VeiculoDisponivelPayload, "locatario">,
+    idInteresse: string,
+    locatario: { nome: string; email: string },
+  ): Promise<void> {
+    try {
+      const content = renderVeiculoDisponivel({ ...base, locatario });
+      const registro = await this.notificacaoInteresseRepository.registrar({
+        idInteresse,
+        destinatario: locatario.email,
+        assunto: content.subject,
+        canal: "INTERNA",
+      });
+      await this.notificacaoInteresseRepository.marcarEnviada(
+        registro.id,
+        new Date(),
+      );
+      await this.interesseRepository.marcarNotificado(idInteresse, new Date());
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[interesse] erro ao registrar aviso interno — inscrição ${idInteresse}: ${mensagem}`,
       );
     }
   }

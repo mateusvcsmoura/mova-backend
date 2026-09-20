@@ -200,6 +200,7 @@ Table ServicoOpcional {
   id String [pk]
   nome String [unique, not null]
   descricao String [not null]
+  detalhesCobertura String
   valor Decimal [not null]
   ativo Boolean [not null, default: true]
   criadoEm DateTime [default: `now()`, not null]
@@ -213,6 +214,9 @@ Table ReservaServico {
   idServico String [not null]
   servico ServicoOpcional [not null]
   valor Decimal [not null]
+  nome String
+  descricao String
+  detalhesCobertura String
   criadoEm DateTime [default: `now()`, not null]
 
   indexes {
