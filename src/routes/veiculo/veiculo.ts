@@ -14,6 +14,9 @@ const gerencia = [authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN)];
 // Não expõem veículos INATIVO; listagem por locador retorna só DISPONIVEL
 // (regra aplicada no VeiculoService).
 veiculoRouter.get("/locador/:id_locador", veiculoController.findByLocadorId);
+// Gestão de frota: proprietário é derivado do JWT. Nunca aceitar idLocador
+// arbitrário do cliente neste contexto.
+veiculoRouter.get("/meus", ...gerencia, veiculoController.frota);
 veiculoRouter.get("/:id", veiculoController.findById);
 
 // ── Escrita (protegida) ──────────────────────────────────────────────────

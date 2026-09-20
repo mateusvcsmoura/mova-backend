@@ -93,6 +93,21 @@ export class VeiculoService {
     }
   };
 
+  /** Gestão privada da frota. LOCADOR vê apenas seus veículos em qualquer
+   * status; ADMIN mantém acesso global administrativo. */
+  listFrota = async (
+    requester: VeiculoRequester,
+    pagination: PaginationParams,
+  ) => {
+    if (requester.cargo === Cargo.ADMIN) {
+      return this.veiculoRepository.findAll(pagination);
+    }
+    if (requester.cargo !== Cargo.LOCADOR) {
+      throw new HttpError(403, "Acesso negado");
+    }
+    return this.veiculoRepository.findByLocadorId(requester.id, pagination);
+  };
+
   // Consulta pública da frota de um locador (catálogo). Usa search(), que
   // filtra status = DISPONIVEL — não expõe INATIVO/RESERVADO/MANUTENCAO ao
   // público. A listagem completa (todos os status) é feita pelo locador dono

@@ -67,6 +67,22 @@ export class VeiculoController {
     }
   };
 
+  frota: Handler = async (req, res, next) => {
+    try {
+      if (!req.user) throw new HttpError(401, "Não autenticado");
+
+      const pagination = getPaginationParams(req.query);
+      const veiculos = await this.veiculoService.listFrota(req.user, pagination);
+
+      return res.status(200).json({
+        result: veiculos.data,
+        pagination: toPaginationMeta(veiculos),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   findById: Handler = async (req, res, next) => {
     try {
       const result = z.string().uuid().safeParse(req.params.id);
