@@ -42,6 +42,7 @@ async function resetDatabase() {
   await prisma.localizacao.deleteMany();
   await prisma.reservaServico.deleteMany();
   await prisma.cobrancaReserva.deleteMany();
+  await prisma.recuperacaoSenha.deleteMany();
   await prisma.notificacaoReserva.deleteMany();
   await prisma.reserva.deleteMany();
   await prisma.servicoOpcional.deleteMany();

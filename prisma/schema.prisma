@@ -145,7 +145,22 @@ model Conta {
   acessosComoAutor   AcessoDadoPessoal[] @relation("AcessoAutor")
   // Preferências de notificação (canal x tipo, opt-in/opt-out).
   preferenciasNotificacao PreferenciaNotificacao[]
+  recuperacoesSenha       RecuperacaoSenha[]
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+// Token temporário de recuperação de senha. O valor bruto nunca é persistido:
+// tokenHash guarda somente SHA-256 do token enviado pelo provider de e-mail.
+model RecuperacaoSenha {
+  id        String   @id @default(uuid()) @db.Uuid
+  idConta   String   @db.Uuid
+  conta     Conta    @relation(fields: [idConta], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime @default(now())
+
+  @@index([idConta])
 }
 
 // Canais de entrega de notificação. Preparado para múltiplos meios; hoje só

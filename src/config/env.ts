@@ -12,6 +12,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1),
 
   JWT_EXPIRES_IN: z.string().min(1),
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(30),
+  FRONTEND_URL: z.string().url().optional(),
 
   // Segurança HTTP (hardening RNF05).
   // Origens permitidas pelo CORS, separadas por vírgula (ex.:

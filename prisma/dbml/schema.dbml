@@ -18,7 +18,18 @@ Table Conta {
   acessosComoTitular AcessoDadoPessoal [not null]
   acessosComoAutor AcessoDadoPessoal [not null]
   preferenciasNotificacao PreferenciaNotificacao [not null]
+  recuperacoesSenha RecuperacaoSenha [not null]
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table RecuperacaoSenha {
+  id String [pk]
+  idConta String [not null]
+  conta Conta [not null]
+  tokenHash String [unique, not null]
+  expiraEm DateTime [not null]
+  usadoEm DateTime
+  criadoEm DateTime [default: `now()`, not null]
 }
 
 Table PreferenciaNotificacao {
@@ -456,6 +467,8 @@ Enum AcaoLgpd {
   ANONIMIZAR
   CONSULTAR
 }
+
+Ref: RecuperacaoSenha.idConta > Conta.id [delete: Cascade]
 
 Ref: PreferenciaNotificacao.idConta > Conta.id [delete: Cascade]
 
