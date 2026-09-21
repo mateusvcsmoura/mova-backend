@@ -277,7 +277,9 @@ describe("Veiculo API", () => {
     });
 
     it("retorna garagem nula quando veículo não está alocado", async () => {
-      const semGaragem = await createVeiculo(locador.token, locador.locadorId);
+      const semGaragem = await createVeiculo(locador.token, locador.locadorId, {
+        garagemId: null,
+      });
 
       const response = await request(app)
         .get("/api/veiculo")
@@ -568,19 +570,24 @@ describe("Veículo em MANUTENCAO não entra em novas reservas", () => {
 describe("Veiculo — categorias (RF07/RF16)", () => {
   let locador: LocadorContext;
   let locatario: LocatarioContext;
+  let garagem: any;
   let veiculoExecutivoId: string;
   let modeloExecutivoId: string;
 
   beforeAll(async () => {
     locador = await createLocador();
     locatario = await createLocatario();
+    garagem = await createGaragem(locador.token, locador.locadorId);
   });
 
   it("locador cadastra veículo com categoria (RF16)", async () => {
     const response = await request(app)
       .post("/api/veiculo")
       .set(auth(locador.token))
-      .send(veiculoPayload(locador.locadorId, { categoria: "EXECUTIVO" }));
+      .send(veiculoPayload(locador.locadorId, {
+        categoria: "EXECUTIVO",
+        garagemId: garagem.id,
+      }));
 
     expect(response.status).toBe(201);
     expect(response.body.result.modeloVeiculo.categoria).toBe("EXECUTIVO");
@@ -693,7 +700,7 @@ describe("Veiculo — catálogo RF07 completo", () => {
     garagemInativaVehicle = await createVeiculo(
       locador.token,
       locador.locadorId,
-      { categoria: "EXECUTIVO" },
+      { categoria: "EXECUTIVO", garagemId: null },
     );
     await request(app)
       .post(`/api/garagem/${garagemInativa.id}/veiculos/${garagemInativaVehicle.id}`)

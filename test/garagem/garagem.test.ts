@@ -15,7 +15,9 @@ describe("Garagem API", () => {
 
   beforeAll(async () => {
     locador = await createLocador();
-    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+      garagemId: null,
+    });
     veiculoId = veiculo.id;
   });
 

@@ -154,7 +154,9 @@ describe("Garagens na jornada de reserva", () => {
     it("persiste retirada (garagem do veículo) e devolução escolhida", async () => {
       const retirada = await createGaragem(locador.token, locador.locadorId);
       const devolucao = await createGaragem(locador.token, locador.locadorId);
-      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+        garagemId: null,
+      });
       await alocarVeiculo(locador.token, retirada.id, veiculo.id);
 
       const res = await request(app)
@@ -195,7 +197,9 @@ describe("Garagens na jornada de reserva", () => {
 
     it("devolução em garagem inexistente responde 404", async () => {
       const retirada = await createGaragem(locador.token, locador.locadorId);
-      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+        garagemId: null,
+      });
       await alocarVeiculo(locador.token, retirada.id, veiculo.id);
 
       const res = await request(app)
@@ -213,9 +217,11 @@ describe("Garagens na jornada de reserva", () => {
       expect(res.body.message).toMatch(/devolução não encontrada/i);
     });
 
-    it("veículo sem garagem alocada cria reserva sem local de retirada", async () => {
+    it("veículo sem garagem alocada rejeita nova reserva sem local de retirada", async () => {
       const devolucao = await createGaragem(locador.token, locador.locadorId);
-      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const veiculo = await createVeiculo(locador.token, locador.locadorId, {
+        garagemId: null,
+      });
 
       const res = await request(app)
         .post("/api/reserva")
@@ -228,9 +234,13 @@ describe("Garagens na jornada de reserva", () => {
           ...futurePeriod(220, 2),
         });
 
-      expect(res.status).toBe(201);
-      expect(res.body.result.idGaragemRetirada).toBeNull();
-      expect(res.body.result.idGaragemDevolucao).toBe(devolucao.id);
+      expect(res.status).toBe(409);
+      expect(res.body.message).toMatch(/garagem|retirada|local/i);
+
+      const reserva = await prisma.reserva.findFirst({
+        where: { idVeiculo: veiculo.id, idLocatario: locatario.locatarioId },
+      });
+      expect(reserva).toBeNull();
     });
   });
 });

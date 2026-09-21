@@ -80,13 +80,12 @@ export class PagamentoService {
 
     // Registra a cobrança e coloca a reserva em PROCESSANDO. O valor vem da
     // reserva (calculado na criação), nunca do cliente.
-    const valorCobrado = Number(reserva.valorTotal);
     const emProcessamento =
       await this.reservaRepository.registrarPagamentoIniciado(
         idReserva,
-        valorCobrado,
         dados.metodoPagamento,
       );
+    const valorCobrado = Number(emProcessamento.valorTotal);
 
     const provider = env.PAGAMENTO_SANDBOX_PROVIDER;
 

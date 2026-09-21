@@ -19,6 +19,11 @@ import {
   PaginationParams,
   toSkipTake,
 } from "../../shared/pagination.js";
+import {
+  assertGarageCapacityUpdate,
+  desalocarVehicleInTransaction,
+  moveVehicleInTransaction,
+} from "./vehicle-garage-allocation.js";
 
 type GaragemComLocadorEVeiculos = Prisma.GaragemGetPayload<{
   include: {
@@ -218,19 +223,27 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     }
 
     try {
-      const garagem = await prisma.garagem.update({
-        where: { id },
-        data: {
-          nome: data.nome ?? undefined,
-          endereco: data.endereco ?? undefined,
-          capacidade: data.capacidade ?? undefined,
-          acessibilidade: data.acessibilidade ?? undefined,
-          status: data.status ?? undefined,
-        },
+      const garagem = await prisma.$transaction(async (tx) => {
+        // Toda edição serializa com alocações/movimentações na mesma linha da
+        // garagem. Assim uma troca para MANUTENCAO/INATIVA não corre em
+        // paralelo com uma alocação que ainda enxerga o status anterior.
+        await assertGarageCapacityUpdate(tx, id, data.capacidade);
+
+        return tx.garagem.update({
+          where: { id },
+          data: {
+            nome: data.nome ?? undefined,
+            endereco: data.endereco ?? undefined,
+            capacidade: data.capacidade ?? undefined,
+            acessibilidade: data.acessibilidade ?? undefined,
+            status: data.status ?? undefined,
+          },
+        });
       });
 
       return this.toBaseResponse(garagem);
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
       return null;
     }
   }
@@ -251,106 +264,13 @@ export class PrismaGaragemRepository implements IGaragemRepository {
 
   async alocarVeiculo(garagemId: string, veiculoId: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      const garagem = await tx.garagem.findUnique({
-        where: { id: garagemId },
-        select: {
-          id: true,
-          capacidade: true,
-          veiculosAlocados: true,
-        },
-      });
-
-      if (!garagem) {
-        throw new HttpError(404, "Garagem não encontrada.");
-      }
-
-      if (garagem.veiculosAlocados >= garagem.capacidade) {
-        throw new HttpError(409, "A garagem já atingiu sua capacidade máxima.");
-      }
-
-      const veiculo = await tx.veiculo.findUnique({
-        where: { id: veiculoId },
-        select: {
-          id: true,
-          garagemId: true,
-        },
-      });
-
-      if (!veiculo) {
-        throw new HttpError(404, "Veículo não encontrado.");
-      }
-
-      if (veiculo.garagemId !== null && veiculo.garagemId !== garagemId) {
-        throw new HttpError(409, "O veículo já está alocado em outra garagem.");
-      }
-
-      if (veiculo.garagemId === garagemId) {
-        throw new HttpError(409, "O veículo já está alocado nesta garagem.");
-      }
-
-      await tx.veiculo.update({
-        where: { id: veiculoId },
-        data: {
-          garagemId,
-        },
-      });
-
-      await tx.garagem.update({
-        where: { id: garagemId },
-        data: {
-          veiculosAlocados: {
-            increment: 1,
-          },
-        },
-      });
+      await moveVehicleInTransaction(tx, veiculoId, garagemId);
     });
   }
 
   async desalocarVeiculo(garagemId: string, veiculoId: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      const garagem = await tx.garagem.findUnique({
-        where: { id: garagemId },
-        select: {
-          id: true,
-          veiculosAlocados: true,
-        },
-      });
-
-      if (!garagem) {
-        throw new HttpError(404, "Garagem não encontrada.");
-      }
-
-      const veiculo = await tx.veiculo.findUnique({
-        where: { id: veiculoId },
-        select: {
-          id: true,
-          garagemId: true,
-        },
-      });
-
-      if (!veiculo) {
-        throw new HttpError(404, "Veículo não encontrado.");
-      }
-
-      if (veiculo.garagemId !== garagemId) {
-        throw new HttpError(409, "O veículo não está alocado nesta garagem.");
-      }
-
-      await tx.veiculo.update({
-        where: { id: veiculoId },
-        data: {
-          garagemId: null,
-        },
-      });
-
-      await tx.garagem.update({
-        where: { id: garagemId },
-        data: {
-          veiculosAlocados: {
-            decrement: 1,
-          },
-        },
-      });
+      await desalocarVehicleInTransaction(tx, garagemId, veiculoId);
     });
   }
 }

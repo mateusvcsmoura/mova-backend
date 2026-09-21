@@ -5,7 +5,9 @@ import {
   changePasswordSchema,
   createContaSchema,
   loginSchema,
+  registerContaSchema,
   updateContaSchema,
+  updateOwnContaSchema,
 } from "../schemas/conta.schema.js";
 import {
   getPaginationParams,
@@ -83,7 +85,7 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = createContaSchema.parse(req.body);
+      const result = registerContaSchema.parse(req.body);
 
       const data = result;
 
@@ -114,7 +116,7 @@ export class ContaController {
     if (!req.body) throw new HttpError(400, "Corpo da requisição ausente");
 
     try {
-      const result = updateContaSchema.parse(req.body);
+      const result = updateOwnContaSchema.parse(req.body);
 
       const data = result;
 

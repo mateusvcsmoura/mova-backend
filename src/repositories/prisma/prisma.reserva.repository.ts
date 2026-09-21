@@ -13,6 +13,7 @@ import {
   CreateReservaRequest,
   ReservaFilters,
   ReservaResponse,
+  ReservaVeiculoResponse,
   UpdateReservaRequest,
 } from "../contracts/reserva.contract.js";
 import { ReservaMapper } from "../mappers/reserva.mapper.js";
@@ -38,6 +39,37 @@ const RESERVA_INCLUDE = {
   // sem uma segunda chamada por item de lista.
   veiculo: { include: { modeloVeiculo: true } },
 } satisfies Prisma.ReservaInclude;
+
+// Projeção específica da listagem por veículo. A credencial de desbloqueio
+// não sai da query desse caso de uso; os fluxos do locatário continuam usando
+// RESERVA_INCLUDE para obter o código quando isso é necessário para RF15.
+const RESERVA_VEICULO_SELECT = {
+  id: true,
+  idVeiculo: true,
+  idLocatario: true,
+  idGaragemRetirada: true,
+  idGaragemDevolucao: true,
+  dataHoraInicio: true,
+  dataHoraFim: true,
+  criadaEm: true,
+  valorTotal: true,
+  status: true,
+  statusPagamento: true,
+  metodoPagamento: true,
+  codigoGeradoEm: true,
+  codigoUsadoEm: true,
+  devolvidoEm: true,
+  atualizadoEm: true,
+  servicos: { include: { servico: true } },
+  cobrancas: true,
+  garagemRetirada: {
+    select: { id: true, nome: true, endereco: true, status: true },
+  },
+  garagemDevolucao: {
+    select: { id: true, nome: true, endereco: true, status: true },
+  },
+  veiculo: { include: { modeloVeiculo: true } },
+} satisfies Prisma.ReservaSelect;
 
 export class PrismaReservaRepository implements IReservaRepository {
   // Colisão clássica de intervalos para um veículo: inicio_existente < fim_novo
@@ -128,7 +160,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   async findByVeiculoId(
     idVeiculo: string,
     pagination: PaginationParams,
-  ): Promise<PaginatedResult<ReservaResponse>> {
+  ): Promise<PaginatedResult<ReservaVeiculoResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const where = { idVeiculo };
     const [data, total] = await prisma.$transaction([
@@ -137,12 +169,12 @@ export class PrismaReservaRepository implements IReservaRepository {
         skip,
         take,
         orderBy: { criadaEm: "desc" },
-        include: RESERVA_INCLUDE,
+        select: RESERVA_VEICULO_SELECT,
       }),
       prisma.reserva.count({ where }),
     ]);
     return buildPaginatedResult(
-      ReservaMapper.toManyResponse(data),
+      ReservaMapper.toManyVeiculoResponse(data),
       total,
       pagination,
     );
@@ -257,7 +289,53 @@ export class PrismaReservaRepository implements IReservaRepository {
     }
 
     try {
-      const atualizacao = await prisma.reserva.updateMany({
+      return await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
+        const atual = await tx.reserva.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            idVeiculo: true,
+            status: true,
+            statusPagamento: true,
+            dataHoraInicio: true,
+            dataHoraFim: true,
+          },
+        });
+        if (!atual) throw new HttpError(404, "Reserva não encontrada.");
+        if (atual.status === StatusReserva.CANCELADA) {
+          throw new HttpError(409, "Reserva cancelada.");
+        }
+
+        const inicioFinal = data.dataHoraInicio ?? atual.dataHoraInicio;
+        const fimFinal = data.dataHoraFim ?? atual.dataHoraFim;
+        const alteracaoPeriodo =
+          inicioFinal.getTime() !== atual.dataHoraInicio.getTime() ||
+          fimFinal.getTime() !== atual.dataHoraFim.getTime();
+        if (
+          alteracaoPeriodo &&
+          (atual.statusPagamento === StatusPagamento.SUCESSO ||
+            atual.statusPagamento === StatusPagamento.PROCESSANDO)
+        ) {
+          throw new HttpError(
+            409,
+            "Não é possível alterar o período de uma reserva já paga.",
+          );
+        }
+
+        if (alteracaoPeriodo) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${atual.idVeiculo}, 0))`;
+          const conflitos = await tx.reserva.count({
+            where: this.overlapWhere(atual.idVeiculo, inicioFinal, fimFinal, id),
+          });
+          if (conflitos > 0) {
+            throw new HttpError(
+              409,
+              "O veículo já possui uma reserva nesse período.",
+            );
+          }
+        }
+      const atualizacao = await tx.reserva.updateMany({
         // Campos de domínio ficam fora desta operação pública; apenas uma
         // reserva não cancelada pode alterar os dados editáveis.
         where: { id, status: { not: StatusReserva.CANCELADA } },
@@ -266,18 +344,22 @@ export class PrismaReservaRepository implements IReservaRepository {
           dataHoraInicio: data.dataHoraInicio ?? undefined,
           dataHoraFim: data.dataHoraFim ?? undefined,
           metodoPagamento: data.metodoPagamento ?? undefined,
+          ...(data.valorTotalCalculado !== undefined
+            ? { valorTotal: data.valorTotalCalculado }
+            : {}),
         },
       });
       if (atualizacao.count !== 1) {
-        const existente = await prisma.reserva.findUnique({ where: { id } });
+        const existente = await tx.reserva.findUnique({ where: { id } });
         if (!existente) throw new HttpError(404, "Reserva não encontrada.");
         throw new HttpError(409, "Código de desbloqueio já utilizado ou reserva inválida.");
       }
-      const reserva = await prisma.reserva.findUniqueOrThrow({
+      const reserva = await tx.reserva.findUniqueOrThrow({
         where: { id },
         include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
+      });
     } catch (error) {
       if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Reserva não encontrada.");
@@ -290,7 +372,23 @@ export class PrismaReservaRepository implements IReservaRepository {
     metodoPagamento?: MetodoPagamento,
   ): Promise<ReservaResponse> {
     try {
-      const atualizacao = await prisma.reserva.updateMany({
+      return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
+      const estadoAtual = await tx.reserva.findUnique({
+        where: { id },
+        include: RESERVA_INCLUDE,
+      });
+      if (!estadoAtual) throw new HttpError(404, "Reserva não encontrada.");
+      if (estadoAtual.status === StatusReserva.CANCELADA) {
+        throw new HttpError(409, "Reserva cancelada.");
+      }
+      if (
+        estadoAtual.statusPagamento === StatusPagamento.SUCESSO &&
+        statusPagamento !== StatusPagamento.SUCESSO
+      ) {
+        return ReservaMapper.toResponse(estadoAtual);
+      }
+      const atualizacao = await tx.reserva.updateMany({
         where: { id, status: { not: StatusReserva.CANCELADA } },
         data: {
           statusPagamento,
@@ -298,11 +396,11 @@ export class PrismaReservaRepository implements IReservaRepository {
         },
       });
       if (atualizacao.count !== 1) {
-        const existente = await prisma.reserva.findUnique({ where: { id } });
+        const existente = await tx.reserva.findUnique({ where: { id } });
         if (!existente) throw new HttpError(404, "Reserva não encontrada.");
         throw new HttpError(409, "Reserva cancelada.");
       }
-      await prisma.cobrancaReserva.updateMany({
+      await tx.cobrancaReserva.updateMany({
         where: {
           idReserva: id,
           tipo: TipoCobranca.PAGAMENTO_RESERVA,
@@ -310,11 +408,12 @@ export class PrismaReservaRepository implements IReservaRepository {
         },
         data: { statusPagamento, metodoPagamento: metodoPagamento ?? undefined },
       });
-      const reserva = await prisma.reserva.findUniqueOrThrow({
+      const reserva = await tx.reserva.findUniqueOrThrow({
         where: { id },
         include: RESERVA_INCLUDE,
       });
       return ReservaMapper.toResponse(reserva);
+      });
     } catch (error) {
       if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Reserva não encontrada.");
@@ -433,12 +532,18 @@ export class PrismaReservaRepository implements IReservaRepository {
 
   async registrarPagamentoIniciado(
     idReserva: string,
-    valor: number,
     metodoPagamento: MetodoPagamento,
   ): Promise<ReservaResponse> {
     // Cobrança + mudança de estado na mesma transação: ou registra e marca
     // PROCESSANDO, ou não faz nem uma coisa nem outra.
     return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idReserva}, 0))`;
+      const atual = await tx.reserva.findUnique({
+        where: { id: idReserva },
+        select: { id: true, valorTotal: true },
+      });
+      if (!atual) throw new HttpError(404, "Reserva não encontrada.");
+
       const atualizacao = await tx.reserva.updateMany({
         where: {
           id: idReserva,
@@ -454,7 +559,8 @@ export class PrismaReservaRepository implements IReservaRepository {
         data: {
           idReserva,
           tipo: TipoCobranca.PAGAMENTO_RESERVA,
-          valor,
+          // O valor é lido dentro da transação, sob o lock da reserva.
+          valor: atual.valorTotal,
           statusPagamento: StatusPagamento.PROCESSANDO,
           metodoPagamento,
         },

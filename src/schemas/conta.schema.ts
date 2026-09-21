@@ -36,6 +36,26 @@ export const createContaSchema = z.object({
   }),
 });
 
+// Registro é público. ADMIN só pode ser provisionado por fluxo administrativo.
+export const registerContaSchema = z.object({
+  nome: z.string().min(3, "Nome deve ter no mínimo 3 caracteres").max(255),
+
+  email: z.string().email("Email inválido").max(255),
+
+  telefone: z
+    .string()
+    .regex(/^\d{10,15}$/, "Telefone deve ter entre 10 e 15 números")
+    .optional(),
+
+  senha: senhaForteSchema,
+
+  cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP deve estar no formato 12345-678 ou 12345678"),
+  endereco: z.string().min(3, "Endereço deve ter no mínimo 3 caracteres").max(255),
+  cargo: z.enum([Cargo.LOCATARIO, Cargo.LOCADOR], {
+    message: "Cargo deve ser LOCATARIO ou LOCADOR",
+  }),
+});
+
 export const loginSchema = z.object({
   email: z.string().email("Email inválido").max(255),
   senha: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(100),
@@ -75,6 +95,27 @@ export const updateContaSchema = z
       message: "Cargo deve ser LOCATARIO, LOCADOR ou ADMIN",
     }).optional(),
   })
+  .refine(
+    (data) => Object.keys(data).length > 0,
+    "Envie pelo menos um campo para atualização",
+  );
+
+// Contrato exclusivo do titular: rejeita inclusive campos administrativos,
+// em vez de descartá-los silenciosamente.
+export const updateOwnContaSchema = z
+  .object({
+    nome: z.string().min(3).max(255).optional(),
+
+    email: z.string().email().max(255).optional(),
+
+    telefone: z
+      .string()
+      .regex(/^\d{10,15}$/, "Telefone deve ter entre 10 e 15 números")
+      .optional(),
+    cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP deve estar no formato 12345-678 ou 12345678").optional(),
+    endereco: z.string().min(3, "Endereço deve ter no mínimo 3 caracteres").max(255).optional(),
+  })
+  .strict()
   .refine(
     (data) => Object.keys(data).length > 0,
     "Envie pelo menos um campo para atualização",

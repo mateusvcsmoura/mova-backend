@@ -56,10 +56,9 @@ export interface UpdateReservaRequest {
   idGaragemDevolucao?: string;
   dataHoraInicio?: Date;
   dataHoraFim?: Date;
-  valorTotal?: number;
-  status?: StatusReserva;
-  statusPagamento?: StatusPagamento;
   metodoPagamento?: MetodoPagamento;
+  // Interno: preenchido pelo service depois do recálculo; nunca vem do HTTP.
+  valorTotalCalculado?: number;
 }
 
 export interface ReservaFilters {
@@ -125,3 +124,8 @@ export interface ReservaResponse {
   veiculo: VeiculoResponse;
   atualizadoEm: Date;
 }
+
+// Projeção usada em consultas de gestão da frota. O código de desbloqueio é
+// uma credencial do locatário e não faz parte do contrato de leitura do
+// locador/admin por veículo.
+export type ReservaVeiculoResponse = Omit<ReservaResponse, "codigoDesbloqueio">;

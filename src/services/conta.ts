@@ -10,6 +10,7 @@ import { ILocadorRepository } from "../repositories/locador.repository.js";
 import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { PaginationParams } from "../shared/pagination.js";
 import { env } from "../config/env.js";
+import { Cargo } from "@prisma/client";
 
 export class ContaService {
   constructor(
@@ -70,6 +71,11 @@ export class ContaService {
   }
 
   async register(data: CreateContaRequest) {
+    // Defesa em profundidade: o controller já limita o schema público.
+    if (data.cargo === Cargo.ADMIN) {
+      throw new HttpError(400, "Cargo ADMIN não pode ser usado no cadastro público");
+    }
+
     const contaExistente = await this.contaRepository.findByEmail(data.email);
 
     if (contaExistente) {

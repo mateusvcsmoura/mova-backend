@@ -18,7 +18,11 @@ import {
   PaginationParams,
   toSkipTake,
 } from "../../shared/pagination.js";
-import { Prisma, StatusGaragem, StatusVeiculo } from "@prisma/client";
+import { Prisma, PrismaClient, StatusGaragem, StatusVeiculo } from "@prisma/client";
+import {
+  moveVehicleInTransaction,
+  reserveGarageCapacityForNewVehicles,
+} from "./vehicle-garage-allocation.js";
 
 // A listagem do catálogo precisa identificar a garagem efetiva do veículo.
 // Selecionar esses campos na mesma query evita GET /garagem/:id por card.
@@ -31,8 +35,11 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   // ── Upsert interno do modelo ──────────────────────────────────────────────
   // Busca o modelo pelo unique [idLocador, marca, modelo, ano].
   // Se não existir, cria. Se existir, retorna o existente sem alterar.
-  private async upsertModelo(data: ModeloVeiculoData) {
-    return prisma.modeloVeiculo.upsert({
+  private async upsertModelo(
+    db: PrismaClient | Prisma.TransactionClient,
+    data: ModeloVeiculoData,
+  ) {
+    return db.modeloVeiculo.upsert({
       where: {
         idLocador_marca_modelo_ano: {
           idLocador: data.idLocador,
@@ -145,12 +152,10 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
       idLocador: filters.idLocador,
       garagemId: filters.garagemId,
       status: "DISPONIVEL",
-      // Catálogo reservável: veículo sem garagem continua elegível para a
-      // jornada escolher retirada; garagem vinculada precisa estar ativa.
-      OR: [
-        { garagemId: null },
-        { garagem: { status: StatusGaragem.ATIVA } },
-      ],
+      // Catálogo reservável: só há oferta quando existe um ponto operacional
+      // real e a garagem está ATIVA. Veículo em preparação sem garagem fica
+      // visível apenas na frota privada do locador.
+      garagem: { status: StatusGaragem.ATIVA },
       modeloVeiculo: {
         marca: filters.marca,
         modelo: filters.modelo,
@@ -206,42 +211,68 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   }
 
   async create(data: CreateVeiculoRequest): Promise<VeiculoResponse> {
-    const modelo = await this.upsertModelo(data);
+    const veiculo = await prisma.$transaction(async (tx) => {
+      const modelo = await this.upsertModelo(tx, data);
 
-    const veiculo = await prisma.veiculo.create({
-      data: {
-        idLocador: data.idLocador,
-        idModeloVeiculo: modelo.id,
-        placa: data.placa,
-        garagemId: data.garagemId,
-        // undefined cai no @default(DISPONIVEL) do schema
-        status: data.status ?? undefined,
-      },
-      include: withModelo,
+      if (data.garagemId) {
+        await reserveGarageCapacityForNewVehicles(
+          tx,
+          data.garagemId,
+          data.idLocador,
+        );
+      }
+
+      return tx.veiculo.create({
+        data: {
+          idLocador: data.idLocador,
+          idModeloVeiculo: modelo.id,
+          placa: data.placa,
+          garagemId: data.garagemId ?? null,
+          // undefined cai no @default(DISPONIVEL) do schema
+          status: data.status ?? undefined,
+        },
+        include: withModelo,
+      });
     });
 
     return VeiculoMapper.toResponse(veiculo);
   }
 
   async createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]> {
-    const modelo = await this.upsertModelo(data);
+    const veiculos = await prisma.$transaction(async (tx) => {
+      const modelo = await this.upsertModelo(tx, data);
+      const existentes = await tx.veiculo.findMany({
+        where: { placa: { in: data.placas } },
+        select: { placa: true },
+      });
+      const placasExistentes = new Set(existentes.map((veiculo) => veiculo.placa));
+      const placasNovas = data.placas.filter((placa) => !placasExistentes.has(placa));
 
-    await prisma.veiculo.createMany({
-      data: data.placas.map((placa) => ({
-        idLocador: data.idLocador,
-        idModeloVeiculo: modelo.id,
-        placa,
-        garagemId: data.garagemId ?? null,
-      })),
-      skipDuplicates: true, // placas repetidas na lista são ignoradas silenciosamente
-    });
+      if (data.garagemId && placasNovas.length > 0) {
+        await reserveGarageCapacityForNewVehicles(
+          tx,
+          data.garagemId,
+          data.idLocador,
+          placasNovas.length,
+        );
+      }
 
-    const veiculos = await prisma.veiculo.findMany({
-      where: {
-        placa: { in: data.placas },
-        idLocador: data.idLocador,
-      },
-      include: withModelo,
+      await tx.veiculo.createMany({
+        data: placasNovas.map((placa) => ({
+          idLocador: data.idLocador,
+          idModeloVeiculo: modelo.id,
+          placa,
+          garagemId: data.garagemId ?? null,
+        })),
+      });
+
+      return tx.veiculo.findMany({
+        where: {
+          placa: { in: data.placas },
+          idLocador: data.idLocador,
+        },
+        include: withModelo,
+      });
     });
 
     return VeiculoMapper.toManyResponse(veiculos);
@@ -257,19 +288,98 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     }
 
     try {
-      const veiculo = await prisma.veiculo.update({
-        where: { id },
-        data: {
-          placa: data.placa ?? undefined,
-          status: data.status ?? undefined,
-          // null desvincula da garagem, undefined ignora o campo
-          garagemId: data.garagemId !== undefined ? data.garagemId : undefined,
-        },
-        include: withModelo,
+      const veiculo = await prisma.$transaction(async (tx) => {
+        const atual = await tx.veiculo.findUnique({
+          where: { id },
+          include: { modeloVeiculo: true },
+        });
+        if (!atual) return null;
+
+        let idModeloVeiculo = atual.idModeloVeiculo;
+        if (data.modelo) {
+          const modeloAtual = atual.modeloVeiculo;
+          const modelo = {
+            marca: data.modelo.marca ?? modeloAtual.marca,
+            modelo: data.modelo.modelo ?? modeloAtual.modelo,
+            ano: data.modelo.ano ?? modeloAtual.ano,
+            cambio: data.modelo.cambio ?? modeloAtual.cambio,
+            capacidade: data.modelo.capacidade ?? modeloAtual.capacidade,
+            eletrico: data.modelo.eletrico ?? modeloAtual.eletrico,
+            adaptado: data.modelo.adaptado ?? modeloAtual.adaptado,
+            categoria:
+              data.modelo.categoria !== undefined
+                ? data.modelo.categoria
+                : modeloAtual.categoria,
+            valorDiaria:
+              data.modelo.valorDiaria ?? Number(modeloAtual.valorDiaria),
+          };
+
+          // A identidade do catálogo é única por locador. Se ela mudou,
+          // associa o veículo ao modelo correspondente; se não mudou, o
+          // update explícito mantém a semântica de modelo compartilhado.
+          const atualizado = await tx.modeloVeiculo.upsert({
+            where: {
+              idLocador_marca_modelo_ano: {
+                idLocador: atual.idLocador,
+                marca: modelo.marca,
+                modelo: modelo.modelo,
+                ano: modelo.ano,
+              },
+            },
+            update: {
+              cambio: modelo.cambio,
+              capacidade: modelo.capacidade,
+              eletrico: modelo.eletrico,
+              adaptado: modelo.adaptado,
+              categoria: modelo.categoria,
+              valorDiaria: modelo.valorDiaria,
+            },
+            create: {
+              idLocador: atual.idLocador,
+              marca: modelo.marca,
+              modelo: modelo.modelo,
+              ano: modelo.ano,
+              cambio: modelo.cambio,
+              capacidade: modelo.capacidade,
+              eletrico: modelo.eletrico,
+              adaptado: modelo.adaptado,
+              categoria: modelo.categoria ?? undefined,
+              valorDiaria: modelo.valorDiaria,
+            },
+          });
+          idModeloVeiculo = atualizado.id;
+        }
+
+        if (data.garagemId !== undefined) {
+          await moveVehicleInTransaction(tx, id, data.garagemId);
+        }
+
+        return tx.veiculo.update({
+          where: { id },
+          data: {
+            placa: data.placa ?? undefined,
+            status: data.status ?? undefined,
+            ...(idModeloVeiculo !== atual.idModeloVeiculo
+              ? { idModeloVeiculo }
+              : {}),
+          },
+          include: withModelo,
+        });
       });
+
+      if (!veiculo) throw new HttpError(404, "Veículo não encontrado.");
       return VeiculoMapper.toResponse(veiculo);
-    } catch {
-      throw new HttpError(404, "Veículo não encontrado.");
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+          throw new HttpError(409, "Veículo ou modelo já existe.");
+        }
+        if (error.code === "P2025") {
+          throw new HttpError(404, "Veículo não encontrado.");
+        }
+      }
+      throw error;
     }
   }
 
@@ -300,7 +410,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           eletrico: data.eletrico ?? undefined,
           adaptado: data.adaptado ?? undefined,
           valorDiaria: data.valorDiaria ?? undefined,
-          categoria: data.categoria ?? undefined,
+          categoria: data.categoria !== undefined ? data.categoria : undefined,
           // marca, modelo, ano intencionalmente fora — mudar isso
           // quebraria o @@unique e a identidade do modelo
         },
@@ -315,7 +425,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     idVeiculo: string,
     data: ModeloVeiculoData,
   ): Promise<VeiculoResponse> {
-    const modelo = await this.upsertModelo(data);
+    const modelo = await this.upsertModelo(prisma, data);
 
     try {
       const veiculo = await prisma.veiculo.update({

@@ -22,19 +22,22 @@ export interface ModeloVeiculoData {
 
 export interface CreateVeiculoRequest extends ModeloVeiculoData {
   placa: string;
-  garagemId?: string;
+  garagemId?: string | null;
   status?: StatusVeiculo;
 }
 
 export interface CreateVeiculoLoteRequest extends ModeloVeiculoData {
   placas: string[];
-  garagemId?: string;
+  garagemId?: string | null;
 }
 
 export interface UpdateVeiculoRequest {
   placa?: string;
   status?: StatusVeiculo;
   garagemId?: string | null;
+  // Atualização coordenada do catálogo associada ao veículo. O bloco é
+  // explícito para não confundir campos da instância com os do modelo.
+  modelo?: UpdateModeloVeiculoRequest;
 }
 
 export interface VeiculoFilters {
@@ -87,11 +90,14 @@ export interface VeiculoResponse {
 }
 
 export interface UpdateModeloVeiculoRequest {
+  marca?: string;
+  modelo?: string;
+  ano?: number;
   cambio?: string;
   capacidade?: number;
   eletrico?: boolean;
   adaptado?: boolean;
-  categoria?: CategoriaVeiculo;
+  categoria?: CategoriaVeiculo | null;
   valorDiaria?: number;
 }
 

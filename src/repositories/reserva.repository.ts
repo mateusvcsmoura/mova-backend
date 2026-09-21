@@ -3,6 +3,7 @@ import {
   CreateReservaRequest,
   ReservaFilters,
   ReservaResponse,
+  ReservaVeiculoResponse,
   UpdateReservaRequest,
 } from "./contracts/reserva.contract.js";
 import {
@@ -18,7 +19,6 @@ export interface IReservaRepository {
    */
   registrarPagamentoIniciado(
     idReserva: string,
-    valor: number,
     metodoPagamento: MetodoPagamento,
   ): Promise<ReservaResponse>;
 
@@ -33,7 +33,7 @@ export interface IReservaRepository {
   findByVeiculoId(
     idVeiculo: string,
     pagination: PaginationParams,
-  ): Promise<PaginatedResult<ReservaResponse>>;
+  ): Promise<PaginatedResult<ReservaVeiculoResponse>>;
   search(
     filters: ReservaFilters,
     pagination: PaginationParams,

@@ -1,5 +1,6 @@
 import { Handler } from "express";
 import { z } from "zod";
+import { Cargo } from "@prisma/client";
 
 import { ReservaService } from "../services/reserva.js";
 import { HttpError } from "../errors/HttpError.js";
@@ -13,6 +14,8 @@ import {
 import { createCondutorSchema } from "../schemas/condutor.schema.js";
 import { iniciarPagamentoSchema } from "../schemas/pagamento.schema.js";
 import { PagamentoService } from "../services/pagamento.js";
+import { ReservaMapper } from "../repositories/mappers/reserva.mapper.js";
+import { ReservaResponse } from "../repositories/contracts/reserva.contract.js";
 import { ReservaFilters } from "../repositories/contracts/reserva.contract.js";
 import {
   getPaginationParams,
@@ -24,6 +27,15 @@ export class ReservaController {
     private reservaService: ReservaService,
     private pagamentoService: PagamentoService,
   ) {}
+
+  private respostaParaRequester(
+    reserva: ReservaResponse,
+    cargo: Cargo,
+  ): ReservaResponse | Omit<ReservaResponse, "codigoDesbloqueio"> {
+    return cargo === Cargo.LOCADOR
+      ? ReservaMapper.toLocadorResponse(reserva)
+      : reserva;
+  }
 
   /**
    * POST /api/reserva/:id/pagamento — inicia o pagamento.
@@ -82,7 +94,12 @@ export class ReservaController {
       });
 
       return res.status(200).json({
-        result: reservas.data,
+        result:
+          cargo === Cargo.LOCADOR
+            ? reservas.data.map((reserva) =>
+                ReservaMapper.toLocadorResponse(reserva),
+              )
+            : reservas.data,
         pagination: toPaginationMeta(reservas),
       });
     } catch (error) {
@@ -98,7 +115,9 @@ export class ReservaController {
       if (!result.success) throw new HttpError(400, "ID inválido");
 
       const reserva = await this.reservaService.findById(result.data, req.user);
-      return res.status(200).json({ result: reserva });
+      return res.status(200).json({
+        result: this.respostaParaRequester(reserva, req.user.cargo),
+      });
     } catch (error) {
       next(error);
     }
@@ -133,6 +152,7 @@ export class ReservaController {
       const reservas = await this.reservaService.findByVeiculoId(
         result.data,
         pagination,
+        req.user!,
       );
       return res.status(200).json({
         result: reservas.data,
@@ -181,7 +201,9 @@ export class ReservaController {
         result,
         req.user,
       );
-      return res.status(200).json({ result: reserva });
+      return res.status(200).json({
+        result: this.respostaParaRequester(reserva, req.user.cargo),
+      });
     } catch (error) {
       next(error);
     }
@@ -198,7 +220,9 @@ export class ReservaController {
         parsedId.data,
         req.user,
       );
-      return res.status(200).json({ result: reserva });
+      return res.status(200).json({
+        result: this.respostaParaRequester(reserva, req.user.cargo),
+      });
     } catch (error) {
       next(error);
     }
@@ -215,7 +239,9 @@ export class ReservaController {
         parsedId.data,
         req.user,
       );
-      return res.status(200).json({ result: reserva });
+      return res.status(200).json({
+        result: this.respostaParaRequester(reserva, req.user.cargo),
+      });
     } catch (error) {
       next(error);
     }

@@ -8,7 +8,10 @@ import {
   Veiculo,
   Garagem,
 } from "@prisma/client";
-import { ReservaResponse } from "../contracts/reserva.contract.js";
+import {
+  ReservaResponse,
+  ReservaVeiculoResponse,
+} from "../contracts/reserva.contract.js";
 import { VeiculoMapper } from "./veiculo.mapper.js";
 
 // Reserva carregada com a junção de serviços (servicos -> servico do catálogo)
@@ -21,8 +24,15 @@ export type ReservaComServicos = Reserva & {
   garagemDevolucao?: Pick<Garagem, "id" | "nome" | "endereco" | "status"> | null;
 };
 
+export type ReservaComServicosSemCodigo = Omit<
+  ReservaComServicos,
+  "codigoDesbloqueio"
+>;
+
 export class ReservaMapper {
-  static toResponse(reserva: ReservaComServicos): ReservaResponse {
+  private static toResponseSemCodigo(
+    reserva: ReservaComServicosSemCodigo,
+  ): ReservaVeiculoResponse {
     return {
       id: reserva.id,
       idVeiculo: reserva.idVeiculo,
@@ -39,7 +49,6 @@ export class ReservaMapper {
       status: reserva.status,
       statusPagamento: reserva.statusPagamento,
       metodoPagamento: reserva.metodoPagamento,
-      codigoDesbloqueio: reserva.codigoDesbloqueio,
       codigoGeradoEm: reserva.codigoGeradoEm,
       codigoUsadoEm: reserva.codigoUsadoEm,
       devolvidoEm: reserva.devolvidoEm,
@@ -62,7 +71,36 @@ export class ReservaMapper {
     };
   }
 
+  static toResponse(reserva: ReservaComServicos): ReservaResponse {
+    return {
+      ...this.toResponseSemCodigo(reserva),
+      codigoDesbloqueio: reserva.codigoDesbloqueio,
+    };
+  }
+
+  static toVeiculoResponse(
+    reserva: ReservaComServicosSemCodigo,
+  ): ReservaVeiculoResponse {
+    return this.toResponseSemCodigo(reserva);
+  }
+
+  // Projeção para respostas HTTP de gestão do locador. O objeto já foi
+  // carregado por outro caso de uso, mas o contrato de saída continua sem a
+  // credencial de desbloqueio.
+  static toLocadorResponse(
+    reserva: ReservaResponse,
+  ): ReservaVeiculoResponse {
+    const { codigoDesbloqueio: _codigoDesbloqueio, ...semCodigo } = reserva;
+    return semCodigo;
+  }
+
   static toManyResponse(reservas: ReservaComServicos[]): ReservaResponse[] {
     return reservas.map((r) => this.toResponse(r));
+  }
+
+  static toManyVeiculoResponse(
+    reservas: ReservaComServicosSemCodigo[],
+  ): ReservaVeiculoResponse[] {
+    return reservas.map((r) => this.toVeiculoResponse(r));
   }
 }

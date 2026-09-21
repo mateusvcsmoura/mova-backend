@@ -17,6 +17,7 @@ import {
   ListReservasRequest,
   ReservaFilters,
   ReservaResponse,
+  ReservaVeiculoResponse,
   UpdateReservaRequest,
 } from "../repositories/contracts/reserva.contract.js";
 import { IReservaRepository } from "../repositories/reserva.repository.js";
@@ -333,7 +334,7 @@ export class ReservaService {
   private resolverGaragemRetirada(
     garagemAtualVeiculo: string | null,
     idGaragemRetiradaInformada?: string,
-  ): string | undefined {
+  ): string {
     if (
       idGaragemRetiradaInformada !== undefined &&
       idGaragemRetiradaInformada !== garagemAtualVeiculo
@@ -343,7 +344,15 @@ export class ReservaService {
         "O local de retirada deve corresponder à garagem onde o veículo está atualmente alocado.",
       );
     }
-    return garagemAtualVeiculo ?? undefined;
+
+    if (!garagemAtualVeiculo) {
+      throw new HttpError(
+        409,
+        "O veículo não possui uma garagem de retirada operacional.",
+      );
+    }
+
+    return garagemAtualVeiculo;
   }
 
   // Veículo adaptado (PCD) só pode ser reservado por locatário com deficiência.
@@ -497,7 +506,20 @@ export class ReservaService {
   findByVeiculoId = async (
     idVeiculo: string,
     pagination: PaginationParams,
-  ): Promise<PaginatedResult<ReservaResponse>> => {
+    requester: ReservaAccessContext,
+  ): Promise<PaginatedResult<ReservaVeiculoResponse>> => {
+    const veiculo = await this.veiculoRepository.findById(idVeiculo);
+    if (!veiculo) {
+      throw new HttpError(404, "Veículo não encontrado");
+    }
+
+    if (
+      requester.cargo !== Cargo.ADMIN &&
+      (requester.cargo !== Cargo.LOCADOR || veiculo.idLocador !== requester.id)
+    ) {
+      throw new HttpError(403, "Acesso negado");
+    }
+
     const reservas = await this.reservaRepository.findByVeiculoId(
       idVeiculo,
       pagination,
@@ -650,13 +672,44 @@ export class ReservaService {
     await this.assertReservaAccess(requester, reserva);
 
     // Se mexeu em qualquer das datas, revalida o período usando os valores finais.
-    if (data.dataHoraInicio !== undefined || data.dataHoraFim !== undefined) {
+    const inicioFinal = data.dataHoraInicio ?? reserva.dataHoraInicio;
+    const fimFinal = data.dataHoraFim ?? reserva.dataHoraFim;
+    const alteracaoPeriodo =
+      inicioFinal.getTime() !== reserva.dataHoraInicio.getTime() ||
+      fimFinal.getTime() !== reserva.dataHoraFim.getTime();
+
+    if (
+      alteracaoPeriodo &&
+      (reserva.statusPagamento === StatusPagamento.SUCESSO ||
+        reserva.statusPagamento === StatusPagamento.PROCESSANDO)
+    ) {
+      throw new HttpError(
+        409,
+        "Não é possível alterar o período de uma reserva já paga.",
+      );
+    }
+
+    if (alteracaoPeriodo) {
       await this.assertPeriodoValido(
         reserva.idVeiculo,
-        data.dataHoraInicio ?? reserva.dataHoraInicio,
-        data.dataHoraFim ?? reserva.dataHoraFim,
+        inicioFinal,
+        fimFinal,
         id,
       );
+    }
+
+    let valorTotalCalculado: number | undefined;
+    if (alteracaoPeriodo) {
+      const valorBase = ReservaService.calcularValorBase(
+        reserva.veiculo.modeloVeiculo.valorDiaria,
+        inicioFinal,
+        fimFinal,
+      );
+      const valorServicos = reserva.servicos.reduce(
+        (total, servico) => total + servico.valor,
+        0,
+      );
+      valorTotalCalculado = arredondar2(valorBase + valorServicos);
     }
 
     // Novo local de devolução deve pertencer ao locador dono do veículo.
@@ -674,7 +727,13 @@ export class ReservaService {
     // statusPagamento não vem mais do cliente (removido do schema): o resultado
     // do pagamento só muda por confirmarPagamento, acionado pelo webhook
     // assinado do gateway. O PUT trata apenas datas/status/devolução.
-    return this.reservaRepository.update(id, data);
+    return this.reservaRepository.update(id, {
+      idGaragemDevolucao: data.idGaragemDevolucao,
+      dataHoraInicio: data.dataHoraInicio,
+      dataHoraFim: data.dataHoraFim,
+      metodoPagamento: data.metodoPagamento,
+      ...(valorTotalCalculado !== undefined ? { valorTotalCalculado } : {}),
+    });
   };
 
   // RN04: cancelamento como ação de domínio. Grátis até 2h antes da retirada;

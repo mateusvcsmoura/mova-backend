@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
+import bcrypt from "bcrypt";
 import request from "supertest";
 import { app } from "../src/app";
 import { prisma } from "../src/database/prisma";
 import { env } from "../src/config/env";
 import { isValidCnh } from "../src/shared/documentos";
-import { StatusReserva } from "@prisma/client";
+import { StatusGaragem, StatusReserva } from "@prisma/client";
 import { ReservaMapper } from "../src/repositories/mappers/reserva.mapper";
 
 type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
@@ -98,6 +99,10 @@ export async function createAccount(
   cargo: Cargo,
   overrides: Record<string, unknown> = {},
 ): Promise<Account> {
+  if (cargo === "ADMIN") {
+    return createAdminAccount(overrides);
+  }
+
   const email = uniqueEmail(cargo.toLowerCase());
   const payload = {
     nome: `Conta ${cargo} ${seq()}`,
@@ -114,6 +119,42 @@ export async function createAccount(
     .send(payload);
 
   const conta = register.body.result.conta;
+
+  const login = await request(app)
+    .post("/api/conta/auth/login")
+    .send({ email, senha: DEFAULT_SENHA });
+
+  return { conta, token: login.body.result.token, email, senha: DEFAULT_SENHA };
+}
+
+// Provisionamento de teste: ADMIN nunca passa pela rota pública. O token vem
+// do login real para manter JWT e middleware sob teste.
+export async function createAdminAccount(
+  overrides: Record<string, unknown> = {},
+): Promise<Account> {
+  const email = uniqueEmail("admin");
+  const senhaHash = await bcrypt.hash(DEFAULT_SENHA, 10);
+  const conta = await prisma.conta.create({
+    data: {
+      nome: `Conta ADMIN ${seq()}`,
+      email,
+      senhaHash,
+      cep: "12345-678",
+      endereco: "Rua de Teste, 123",
+      cargo: "ADMIN",
+      ...overrides,
+    },
+    select: {
+      id: true,
+      nome: true,
+      email: true,
+      telefone: true,
+      criadaEm: true,
+      cep: true,
+      endereco: true,
+      cargo: true,
+    },
+  });
 
   const login = await request(app)
     .post("/api/conta/auth/login")
@@ -197,8 +238,12 @@ export async function createVeiculo(
   idLocador: string,
   overrides: Record<string, unknown> = {},
 ) {
+  const garagemId = Object.prototype.hasOwnProperty.call(overrides, "garagemId")
+    ? overrides.garagemId
+    : (await createGaragem(token, idLocador)).id;
   const payload = {
     idLocador,
+    garagemId,
     valorDiaria: VALOR_DIARIA_PADRAO,
     placa: uniquePlaca(),
     marca: "Fiat",
@@ -303,6 +348,39 @@ export function futurePeriod(startInDays = 1, durationInDays = 2) {
   };
 }
 
+// A partir do H-04, uma nova reserva exige ponto operacional de retirada.
+// Muitos testes de domínios não relacionados criam apenas o veículo porque,
+// antes dessa regra, a garagem era opcional para o cenário. Provisionamos uma
+// garagem de fixture somente quando o teste não escolheu explicitamente um
+// ponto de retirada; os testes adversariais de veículo sem garagem continuam
+// chamando a API diretamente e, portanto, preservam a cobertura da rejeição.
+async function ensureOperationalGarageForReservation(idVeiculo: string) {
+  const veiculo = await prisma.veiculo.findUnique({
+    where: { id: idVeiculo },
+    select: { garagemId: true, idLocador: true },
+  });
+
+  if (!veiculo || veiculo.garagemId) return;
+
+  await prisma.$transaction(async (tx) => {
+    const garagem = await tx.garagem.create({
+      data: {
+        idLocador: veiculo.idLocador,
+        nome: `Garagem fixture reserva ${seq()}`,
+        endereco: "Avenida das Garagens, 500",
+        capacidade: 10_000,
+        veiculosAlocados: 1,
+        status: StatusGaragem.ATIVA,
+      },
+    });
+
+    await tx.veiculo.update({
+      where: { id: idVeiculo },
+      data: { garagemId: garagem.id },
+    });
+  });
+}
+
 export async function createReserva(
   token: string,
   idVeiculo: string,
@@ -316,6 +394,9 @@ export async function createReserva(
   const { status, ...resto } = overrides as { status?: StatusReserva };
   // valorTotal NÃO é mais enviado: o backend calcula a partir da valorDiaria
   // do modelo do veículo.
+  if (!Object.prototype.hasOwnProperty.call(resto, "idGaragemRetirada")) {
+    await ensureOperationalGarageForReservation(idVeiculo);
+  }
   const payload = {
     idVeiculo,
     idLocatario,
