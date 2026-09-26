@@ -12,3 +12,4 @@ allure-results/
 /engineering
 /tasks
 .worktrees/
+.superpowers/
