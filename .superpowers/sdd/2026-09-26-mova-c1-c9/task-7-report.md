@@ -31,3 +31,22 @@ Status: complete.
 ## Notes
 
 The default Vite/Vitest esbuild config loader tried to access a parent directory outside the workspace and failed with `Access is denied`. The runner config loader worked for both the focused frontend tests and production build; repository configuration was not changed.
+
+## Round 1 reviewer follow-up
+
+Status: Important finding fixed.
+
+- Auth and authorization rejections now pass through the shared error handler, which returns `{ code, message, requestId }` and the matching `X-Request-Id` header.
+- Missing authentication keeps HTTP 401 / `UNAUTHENTICATED`; malformed, invalid-signature, and expired JWTs keep HTTP 401 and now consistently return `INVALID_TOKEN`. Role and ownership denials keep HTTP 403 / `FORBIDDEN`; a missing owner parameter keeps HTTP 400 and now returns `VALIDATION_ERROR`.
+- No session-revocation logic was changed.
+
+### RED / GREEN
+
+- RED: `npm.cmd test -- --maxWorkers=1 test/security/auth-envelope.test.ts` — 7 expected failures for missing envelopes and invalid-token code.
+- GREEN: `npm.cmd test -- --maxWorkers=1 test/security/auth-envelope.test.ts test/security/jwt.test.ts test/security/error-handler.test.ts test/health/observability.test.ts test/health/health.test.ts test/lgpd/lgpd.test.ts` — 6 files passed, 30/30 tests.
+- Compile: `npm.cmd run compile` — passed.
+- `git diff --cached --check` — passed before implementation commit.
+
+### Follow-up commit
+
+- Backend (`main`): `6ad992d`
