@@ -1,6 +1,8 @@
 import { Cargo } from "@prisma/client";
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth-middleware.js";
+import { HttpError } from "../errors/HttpError.js";
+import { ErrorCode } from "../i18n/index.js";
 
 /**
  * Middleware de autorização baseado em cargos (RBAC).
@@ -24,7 +26,7 @@ export function authorize(...cargosPermitidos: Cargo[]) {
     const user = req.user;
 
     if (!user) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return next(new HttpError(401, "Não autenticado", ErrorCode.UNAUTHENTICATED));
     }
 
     // Nenhum cargo especificado = qualquer usuário autenticado pode acessar
@@ -33,7 +35,7 @@ export function authorize(...cargosPermitidos: Cargo[]) {
     }
 
     if (!cargosPermitidos.includes(user.cargo)) {
-      return res.status(403).json({ error: "Acesso negado" });
+      return next(new HttpError(403, "Acesso negado", ErrorCode.FORBIDDEN));
     }
 
     return next();
@@ -62,7 +64,7 @@ export function authorizeOwner(paramName = "id") {
     const user = req.user;
 
     if (!user) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return next(new HttpError(401, "Não autenticado", ErrorCode.UNAUTHENTICATED));
     }
 
     if (user.cargo === Cargo.ADMIN) {
@@ -72,13 +74,17 @@ export function authorizeOwner(paramName = "id") {
     const resourceOwnerId = req.params[paramName];
 
     if (!resourceOwnerId) {
-      return res
-        .status(400)
-        .json({ error: `Parâmetro '${paramName}' não encontrado na rota` });
+      return next(
+        new HttpError(
+          400,
+          `Parâmetro '${paramName}' não encontrado na rota`,
+          ErrorCode.VALIDATION_ERROR,
+        ),
+      );
     }
 
     if (user.id !== resourceOwnerId) {
-      return res.status(403).json({ error: "Acesso negado" });
+      return next(new HttpError(403, "Acesso negado", ErrorCode.FORBIDDEN));
     }
 
     return next();

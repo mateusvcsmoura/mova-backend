@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { ErrorCode } from "../i18n/index.js";
+import { HttpError } from "../errors/HttpError.js";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -23,9 +24,7 @@ export function authMiddleware(
   const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
-    return res
-      .status(401)
-      .json({ error: "Não autenticado", code: ErrorCode.UNAUTHENTICATED });
+    return next(new HttpError(401, "Não autenticado", ErrorCode.UNAUTHENTICATED));
   }
 
   try {
@@ -39,9 +38,7 @@ export function authMiddleware(
       typeof (decoded as any).id !== "string" ||
       !isCargo((decoded as any).cargo)
     ) {
-      return res
-        .status(401)
-        .json({ error: "Token inválido", code: ErrorCode.INVALID_TOKEN });
+      return next(new HttpError(401, "Token inválido", ErrorCode.INVALID_TOKEN));
     }
 
     req.user = {
@@ -51,7 +48,7 @@ export function authMiddleware(
 
     next();
   } catch {
-    return res.status(401).json({ error: "Token inválido" });
+    return next(new HttpError(401, "Token inválido", ErrorCode.INVALID_TOKEN));
   }
 }
 
