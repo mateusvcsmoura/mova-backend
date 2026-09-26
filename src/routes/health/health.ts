@@ -34,7 +34,7 @@ export function createHealthRouter(
     } catch (error) {
       logger.error("readiness falhou: banco indisponível", {
         requestId: req.id,
-        error: error instanceof Error ? error.message : String(error),
+        errorType: error instanceof Error ? "Error" : typeof error,
       });
       res.status(503).json({ status: "unavailable", database: "down" });
     }

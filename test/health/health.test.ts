@@ -1,10 +1,11 @@
 import express from "express";
 import request from "supertest";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { app } from "../../src/app";
 import { createHealthRouter } from "../../src/routes/health/health";
 import { observability } from "../../src/middlewares/observability";
+import { logger } from "../../src/shared/logger";
 
 describe("Health & readiness", () => {
   describe("GET /api/health", () => {
@@ -47,6 +48,7 @@ describe("Health & readiness", () => {
     });
 
     it("não vaza o detalhe do erro de banco na resposta", async () => {
+      const logError = vi.spyOn(logger, "error").mockImplementation(() => {});
       const brokenApp = express();
       brokenApp.use(observability);
       const segredo = "connect ECONNREFUSED 10.0.0.5:5432 senha=xyz";
@@ -56,9 +58,16 @@ describe("Health & readiness", () => {
         }),
       );
 
-      const res = await request(brokenApp).get("/ready");
+      const requestId = "task-7-health-error";
+      const res = await request(brokenApp).get("/ready").set("X-Request-Id", requestId);
 
       expect(JSON.stringify(res.body)).not.toContain(segredo);
+      expect(logError).toHaveBeenCalledWith(
+        "readiness falhou: banco indisponível",
+        { requestId, errorType: "Error" },
+      );
+      expect(JSON.stringify(logError.mock.calls)).not.toContain(segredo);
+      logError.mockRestore();
     });
   });
 });

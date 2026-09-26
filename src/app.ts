@@ -28,6 +28,7 @@ import { lgpdRouter } from "./routes/lgpd/lgpd.js";
 import { notificacaoRouter } from "./routes/notificacao/notificacao.js";
 import { cobrancaRouter } from "./routes/cobranca/cobranca.js";
 import { compartilhamentoRouter } from "./routes/compartilhamento/compartilhamento.js";
+import { HttpError } from "./errors/HttpError.js";
 
 const app = express();
 
@@ -103,6 +104,10 @@ app.use("/api/interesse", interesseRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/lgpd", lgpdRouter);
 app.use("/api/notificacao", notificacaoRouter);
+
+app.use("/api", (_req, _res, next) => {
+  next(new HttpError(404, "Rota da API não encontrada.", "NOT_FOUND"));
+});
 
 app.use(errorHandler);
 

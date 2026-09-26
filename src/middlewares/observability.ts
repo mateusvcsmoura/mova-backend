@@ -16,10 +16,19 @@ export function observability(
   next: NextFunction,
 ): void {
   const incoming = req.headers["x-request-id"];
-  const requestId =
-    typeof incoming === "string" && incoming.length > 0
-      ? incoming
-      : randomUUID();
+  const authorization = req.headers.authorization;
+  const bearerToken =
+    typeof authorization === "string"
+      ? authorization.replace(/^Bearer\s+/i, "")
+      : undefined;
+  const validIncoming =
+    typeof incoming === "string" &&
+    incoming.length <= 128 &&
+    /^[A-Za-z0-9._:-]+$/.test(incoming) &&
+    !/^[^.]+\.[^.]+\.[^.]+$/.test(incoming) &&
+    incoming !== authorization &&
+    incoming !== bearerToken;
+  const requestId = validIncoming ? incoming : randomUUID();
 
   req.id = requestId;
   res.setHeader("X-Request-Id", requestId);
@@ -33,7 +42,6 @@ export function observability(
     logger.info("request", {
       requestId,
       method: req.method,
-      url: req.originalUrl,
       status: res.statusCode,
       durationMs,
     });
