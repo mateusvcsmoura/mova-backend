@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ServicoOpcionalService } from "../services/servico-opcional.js";
 import { HttpError } from "../errors/HttpError.js";
 import { servicoOpcionalQuerySchema } from "../schemas/servico-opcional.schema.js";
+import { ServicoOpcionalMapper } from "../repositories/mappers/servico-opcional.mapper.js";
 import {
   getPaginationParams,
   toPaginationMeta,
@@ -18,11 +19,9 @@ export class ServicoOpcionalController {
 
       const pagination = getPaginationParams(req.query);
 
-      // Por padrão lista apenas os serviços disponíveis (ativos). Permite
-      // ?ativo=false para inspeção administrativa do catálogo completo.
-      const filters = {
-        ativo: parsedQuery.ativo ?? true,
-      };
+      // Esta rota é o catálogo público: parâmetros não podem reexpor itens
+      // inativos ou campos de gestão.
+      const filters = { ativo: true };
 
       const servicos = await this.servicoOpcionalService.list(
         filters,
@@ -30,7 +29,9 @@ export class ServicoOpcionalController {
       );
 
       return res.status(200).json({
-        result: servicos.data,
+        result: servicos.data.map((servico) =>
+          ServicoOpcionalMapper.toPublicResponse(servico),
+        ),
         pagination: toPaginationMeta(servicos),
       });
     } catch (error) {
@@ -44,7 +45,9 @@ export class ServicoOpcionalController {
       if (!result.success) throw new HttpError(400, "ID inválido");
 
       const servico = await this.servicoOpcionalService.findById(result.data);
-      return res.status(200).json({ result: servico });
+      return res.status(200).json({
+        result: ServicoOpcionalMapper.toPublicResponse(servico),
+      });
     } catch (error) {
       next(error);
     }

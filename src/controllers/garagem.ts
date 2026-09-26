@@ -1,5 +1,5 @@
 import { Handler } from "express";
-import { StatusVeiculo } from "@prisma/client";
+import { Cargo, StatusVeiculo } from "@prisma/client";
 import { GaragemService } from "../services/garagem.js";
 import { HttpError } from "../errors/HttpError.js";
 import {
@@ -39,19 +39,28 @@ export class GaragemController {
 
   index: Handler = async (req, res, next) => {
     try {
-      if (!req.user) throw new HttpError(401, "Não autenticado");
-
       const filters = this.buildFilters(req.query);
       const pagination = getPaginationParams(req.query);
+      const parsedVeiculoId = z
+        .string()
+        .uuid()
+        .optional()
+        .safeParse(req.query.veiculoId);
+      if (!parsedVeiculoId.success) throw new HttpError(400, "ID do veículo inválido");
 
-      // Só passa filters se ao menos um campo foi informado
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
-
-      const garagens = await this.garagemService.list({
-        requester: req.user,
-        filters: hasFilters ? filters : undefined,
-        pagination,
-      });
+      const catalogoPublico = !req.user || req.user.cargo === Cargo.LOCATARIO;
+      const garagens = catalogoPublico
+        ? await this.garagemService.listPublic(
+            hasFilters ? filters : {},
+            pagination,
+            parsedVeiculoId.data,
+          )
+        : await this.garagemService.list({
+            requester: req.user!,
+            filters: hasFilters ? filters : undefined,
+            pagination,
+          });
 
       return res.status(200).json({
         result: garagens.data,
@@ -64,15 +73,13 @@ export class GaragemController {
 
   findById: Handler = async (req, res, next) => {
     try {
-      if (!req.user) throw new HttpError(401, "Não autenticado");
-
       const result = z.string().uuid().safeParse(req.params.id);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const garagem = await this.garagemService.findById(
-        result.data,
-        req.user,
-      );
+      const garagem =
+        !req.user || req.user.cargo === Cargo.LOCATARIO
+          ? await this.garagemService.findPublicById(result.data)
+          : await this.garagemService.findById(result.data, req.user);
       return res.status(200).json({ result: garagem });
     } catch (error) {
       next(error);

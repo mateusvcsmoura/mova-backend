@@ -67,7 +67,9 @@ describe("FINAL-H-03 — contrato de edição de veículo", () => {
       },
     });
 
-    const refetch = await request(app).get(`/api/veiculo/${veiculo.id}`);
+    const refetch = await request(app)
+      .get(`/api/veiculo/${veiculo.id}`)
+      .set(auth(locador.token));
     const persistido = await prisma.veiculo.findUnique({
       where: { id: veiculo.id },
       include: { modeloVeiculo: true },

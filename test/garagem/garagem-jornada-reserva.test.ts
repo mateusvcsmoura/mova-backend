@@ -50,7 +50,7 @@ describe("Garagens na jornada de reserva", () => {
       expect(ids).toContain(doLocador.id);
       expect(ids).not.toContain(doOutro.id);
       expect(
-        res.body.result.every((g: any) => g.idLocador === locador.locadorId),
+        res.body.result.every((g: any) => !Object.hasOwn(g, "idLocador")),
       ).toBe(true);
     });
 
@@ -134,13 +134,47 @@ describe("Garagens na jornada de reserva", () => {
       ).toBe(true);
     });
 
-    it("sem autenticação não lista (401)", async () => {
+    it("lista garagens ativas anonimamente sem campos de gestão", async () => {
+      const ativa = await createGaragem(locador.token, locador.locadorId);
+      const inativa = await createGaragem(locador.token, locador.locadorId);
+      await prisma.garagem.update({
+        where: { id: inativa.id },
+        data: { status: "INATIVA" },
+      });
+
       const res = await request(app).get("/api/garagem");
-      expect(res.status).toBe(401);
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.map((g: any) => g.id)).toContain(ativa.id);
+      expect(res.body.result.map((g: any) => g.id)).not.toContain(inativa.id);
+      expect(res.body.result.every((g: any) => g.status === "ATIVA")).toBe(true);
+      const item = res.body.result.find((g: any) => g.id === ativa.id);
+      expect(item).not.toHaveProperty("idLocador");
+      expect(item).not.toHaveProperty("criadaEm");
+      expect(item).not.toHaveProperty("atualizadoEm");
+      expect(item).not.toHaveProperty("locador");
+      expect(item).not.toHaveProperty("veiculos");
     });
   });
 
   describe("GET /api/garagem/:id", () => {
+    it("retorna detalhe público somente de garagem ativa, sem dono ou frota", async () => {
+      const ativa = await createGaragem(locador.token, locador.locadorId);
+
+      const res = await request(app).get(`/api/garagem/${ativa.id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.result).toMatchObject({
+        id: ativa.id,
+        nome: ativa.nome,
+        endereco: ativa.endereco,
+        status: "ATIVA",
+      });
+      expect(res.body.result).not.toHaveProperty("idLocador");
+      expect(res.body.result).not.toHaveProperty("locador");
+      expect(res.body.result).not.toHaveProperty("veiculos");
+    });
+
     it("garagem inexistente responde 404 para o locatário", async () => {
       const res = await request(app)
         .get("/api/garagem/11111111-2222-4333-8444-555555555555")

@@ -9,8 +9,12 @@ import {
   updateModeloDoVeiculoSchema,
 } from "../schemas/veiculo.schema.js";
 import { z } from "zod";
-import { CategoriaVeiculo } from "@prisma/client";
-import { VeiculoFilters } from "../repositories/contracts/veiculo.contract.js";
+import { Cargo, CategoriaVeiculo } from "@prisma/client";
+import {
+  PublicVeiculoResponse,
+  VeiculoFilters,
+  VeiculoResponse,
+} from "../repositories/contracts/veiculo.contract.js";
 import {
   getPaginationParams,
   toPaginationMeta,
@@ -18,6 +22,33 @@ import {
 
 export class VeiculoController {
   constructor(private veiculoService: VeiculoService) {}
+
+  private paraCatalogo(veiculo: VeiculoResponse): PublicVeiculoResponse {
+    const modelo = veiculo.modeloVeiculo;
+    return {
+      id: veiculo.id,
+      status: veiculo.status,
+      garagemId: veiculo.garagemId,
+      garagem: veiculo.garagem
+        ? {
+            id: veiculo.garagem.id,
+            nome: veiculo.garagem.nome,
+            status: veiculo.garagem.status,
+          }
+        : null,
+      modeloVeiculo: {
+        marca: modelo.marca,
+        modelo: modelo.modelo,
+        ano: modelo.ano,
+        cambio: modelo.cambio,
+        capacidade: modelo.capacidade,
+        eletrico: modelo.eletrico,
+        adaptado: modelo.adaptado,
+        categoria: modelo.categoria,
+        valorDiaria: modelo.valorDiaria,
+      },
+    };
+  }
 
   // placa removida — não é mais um campo de VeiculoFilters
   private buildFilters(query: any): VeiculoFilters {
@@ -36,30 +67,33 @@ export class VeiculoController {
       categoria: Object.values(CategoriaVeiculo).includes(query.categoria)
         ? (query.categoria as CategoriaVeiculo)
         : undefined,
+      pcd: query.pcd === undefined ? undefined : query.pcd === "true",
       garagemId: query.garagemId,
     };
   }
 
   index: Handler = async (req, res, next) => {
     try {
-      if (!req.user) throw new HttpError(401, "Não autenticado");
-
-      const { id, cargo } = req.user;
       const filters = this.buildFilters(req.query);
       const pagination = getPaginationParams(req.query);
-
-      // Só passa filters se ao menos um campo foi informado
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
-
-      const veiculos = await this.veiculoService.list({
-        id,
-        cargo,
-        filters: hasFilters ? filters : undefined,
-        pagination,
-      });
+      const catalogoPublico = !req.user || req.user.cargo === Cargo.LOCATARIO;
+      const veiculos = catalogoPublico
+        ? await this.veiculoService.listCatalog(
+            hasFilters ? filters : {},
+            pagination,
+          )
+        : await this.veiculoService.list({
+            id: req.user!.id,
+            cargo: req.user!.cargo,
+            filters: hasFilters ? filters : undefined,
+            pagination,
+          });
 
       return res.status(200).json({
-        result: veiculos.data,
+        result: catalogoPublico
+          ? veiculos.data.map((veiculo) => this.paraCatalogo(veiculo))
+          : veiculos.data,
         pagination: toPaginationMeta(veiculos),
       });
     } catch (error) {
@@ -88,8 +122,13 @@ export class VeiculoController {
       const result = z.string().uuid().safeParse(req.params.id);
       if (!result.success) throw new HttpError(400, "ID inválido");
 
-      const veiculo = await this.veiculoService.findById(result.data);
-      return res.status(200).json({ result: veiculo });
+      if (req.user?.cargo === Cargo.LOCADOR || req.user?.cargo === Cargo.ADMIN) {
+        const veiculo = await this.veiculoService.findById(result.data, req.user);
+        return res.status(200).json({ result: veiculo });
+      }
+
+      const veiculo = await this.veiculoService.findCatalogById(result.data);
+      return res.status(200).json({ result: this.paraCatalogo(veiculo) });
     } catch (error) {
       next(error);
     }
@@ -106,7 +145,7 @@ export class VeiculoController {
         pagination,
       );
       return res.status(200).json({
-        result: veiculos.data,
+        result: veiculos.data.map((veiculo) => this.paraCatalogo(veiculo)),
         pagination: toPaginationMeta(veiculos),
       });
     } catch (error) {

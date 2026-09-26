@@ -28,3 +28,8 @@ export interface ServicoOpcionalResponse {
   criadoEm: Date;
   atualizadoEm: Date;
 }
+
+export type PublicServicoOpcionalResponse = Pick<
+  ServicoOpcionalResponse,
+  "id" | "nome" | "descricao" | "detalhesCobertura" | "valor"
+>;

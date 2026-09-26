@@ -50,6 +50,8 @@ export interface VeiculoFilters {
   eletrico?: boolean;
   adaptado?: boolean;
   categoria?: CategoriaVeiculo;
+  /** PCD discovery predicate: category PCD OR adaptation marker true. */
+  pcd?: boolean;
   garagemId?: string;
 }
 
@@ -87,6 +89,25 @@ export interface VeiculoResponse {
   placa: string;
   status: StatusVeiculo;
   criadoEm: Date;
+}
+
+export interface PublicVeiculoResponse {
+  id: string;
+  status: StatusVeiculo;
+  garagemId: string | null;
+  garagem: GaragemVeiculoResponse | null;
+  modeloVeiculo: Pick<
+    ModeloVeiculoResponse,
+    | "marca"
+    | "modelo"
+    | "ano"
+    | "cambio"
+    | "capacidade"
+    | "eletrico"
+    | "adaptado"
+    | "categoria"
+    | "valorDiaria"
+  >;
 }
 
 export interface UpdateModeloVeiculoRequest {

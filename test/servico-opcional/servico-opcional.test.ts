@@ -34,9 +34,7 @@ describe("Servico Opcional API", () => {
 
   describe("GET /api/servico", () => {
     it("deve listar os serviços disponíveis (ativos)", async () => {
-      const response = await request(app)
-        .get("/api/servico")
-        .set("Authorization", `Bearer ${locatario.token}`);
+      const response = await request(app).get("/api/servico");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -67,23 +65,31 @@ describe("Servico Opcional API", () => {
       expect(encontrado).toBeDefined();
       expect(typeof encontrado.valor).toBe("number");
       expect(encontrado.valor).toBe(49.9);
+      expect(encontrado).not.toHaveProperty("ativo");
+      expect(encontrado).not.toHaveProperty("criadoEm");
+      expect(encontrado).not.toHaveProperty("atualizadoEm");
     });
 
-    it("deve recusar listagem sem autenticação", async () => {
+    it("lista apenas serviços ativos sem autenticação", async () => {
       const response = await request(app).get("/api/servico");
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(200);
+      expect(response.body.result.map((s: any) => s.id)).not.toContain(inativo.id);
     });
   });
 
   describe("GET /api/servico/:id", () => {
     it("deve retornar um serviço por id", async () => {
-      const response = await request(app)
-        .get(`/api/servico/${tanque.id}`)
-        .set("Authorization", `Bearer ${locatario.token}`);
+      const response = await request(app).get(`/api/servico/${tanque.id}`);
 
       expect(response.status).toBe(200);
       expect(response.body.result.id).toBe(tanque.id);
       expect(response.body.result.nome).toBe(tanque.nome);
+      expect(response.body.result).not.toHaveProperty("ativo");
+      expect(response.body.result).not.toHaveProperty("criadoEm");
+    });
+
+    it("não expõe serviço inativo pelo detalhe público", async () => {
+      await request(app).get(`/api/servico/${inativo.id}`).expect(404);
     });
 
     it("deve retornar 404 para serviço inexistente", async () => {

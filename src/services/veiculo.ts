@@ -1,4 +1,4 @@
-import { Cargo, StatusVeiculo } from "@prisma/client";
+import { Cargo, StatusGaragem, StatusVeiculo } from "@prisma/client";
 import { HttpError } from "../errors/HttpError.js";
 import {
   CreateVeiculoLoteRequest,
@@ -125,9 +125,22 @@ export class VeiculoService {
 
   // Detalhe público. Veículo INATIVO (desativado) é tratado como inexistente
   // para o público — não deve aparecer no catálogo.
-  findById = async (id: string) => {
+  findById = async (id: string, requester?: VeiculoRequester) => {
     const veiculo = await this.veiculoRepository.findById(id);
     if (!veiculo || veiculo.status === StatusVeiculo.INATIVO) {
+      throw new HttpError(404, "Veículo não encontrado");
+    }
+    if (requester) this.assertPodeGerenciar(requester, veiculo.idLocador);
+    return veiculo;
+  };
+
+  findCatalogById = async (id: string) => {
+    const veiculo = await this.veiculoRepository.findById(id);
+    if (
+      !veiculo ||
+      veiculo.status !== StatusVeiculo.DISPONIVEL ||
+      veiculo.garagem?.status !== StatusGaragem.ATIVA
+    ) {
       throw new HttpError(404, "Veículo não encontrado");
     }
     return veiculo;
@@ -151,6 +164,9 @@ export class VeiculoService {
     }
     return veiculos;
   };
+
+  listCatalog = async (filters: VeiculoFilters, pagination: PaginationParams) =>
+    this.veiculoRepository.search(filters, pagination);
 
   create = async (data: CreateVeiculoRequest, requester: VeiculoRequester) => {
     this.assertPodeGerenciar(requester, data.idLocador);

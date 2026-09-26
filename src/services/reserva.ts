@@ -13,6 +13,7 @@ import {
 import { HttpError } from "../errors/HttpError.js";
 import {
   CreateReservaInput,
+  QuoteReservaInput,
   CreateReservaRequest,
   ListReservasRequest,
   ReservaFilters,
@@ -530,22 +531,27 @@ export class ReservaService {
     return reservas;
   };
 
-  // Cotação sem persistência. Usa a mesma diária e o mesmo catálogo de serviços
+  // Cotação pública sem persistência. Usa a mesma diária e o mesmo catálogo de serviços
   // da criação; a criação recalcula novamente para impedir preço obsoleto ou
   // manipulado entre a visualização e o POST final.
-  precificar = async (
-    data: CreateReservaInput,
-    requester: ReservaAccessContext,
-  ) => {
-    if (requester.cargo !== Cargo.ADMIN && requester.id !== data.idLocatario) {
-      throw new HttpError(403, "Acesso negado");
-    }
+  precificar = async (data: QuoteReservaInput) => {
     const veiculo = await this.veiculoRepository.findById(data.idVeiculo);
     if (!veiculo) throw new HttpError(404, "Veículo não encontrado");
     if (veiculo.status !== StatusVeiculo.DISPONIVEL) {
       throw new HttpError(409, "O veículo não está disponível para reserva.");
     }
     await this.assertPeriodoValido(data.idVeiculo, data.dataHoraInicio, data.dataHoraFim);
+    const idGaragemRetirada = this.resolverGaragemRetirada(
+      veiculo.garagemId,
+      data.idGaragemRetirada,
+    );
+    await this.assertGaragemRetiradaAtiva(idGaragemRetirada);
+    if (data.idGaragemDevolucao) {
+      await this.assertGaragemDevolucao(
+        data.idGaragemDevolucao,
+        veiculo.idLocador,
+      );
+    }
     const { servicos, valorServicos } = await this.resolverServicosOpcionais(data.servicosIds);
     const valorDiaria = Number(veiculo.modeloVeiculo.valorDiaria);
     const valorBase = ReservaService.calcularValorBase(valorDiaria, data.dataHoraInicio, data.dataHoraFim);

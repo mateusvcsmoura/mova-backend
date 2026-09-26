@@ -1,4 +1,4 @@
-import { Cargo, StatusGaragem } from "@prisma/client";
+import { Cargo, StatusGaragem, StatusVeiculo } from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
@@ -8,6 +8,7 @@ import {
   GaragemDetalhadaResponse,
   GaragemFilters,
   GaragemVeiculosFilters,
+  PublicGaragemResponse,
   UpdateGaragemRequest,
 } from "../repositories/contracts/garagem.contract.js";
 import { IVeiculoRepository } from "../repositories/veiculo.repository.js";
@@ -33,6 +34,54 @@ export class GaragemService {
     private readonly garagemRepository: IGaragemRepository,
     private readonly veiculoRepository: IVeiculoRepository,
   ) {}
+
+  private paraCatalogo(garagem: GaragemBaseResponse): PublicGaragemResponse {
+    return {
+      id: garagem.id,
+      nome: garagem.nome,
+      endereco: garagem.endereco,
+      capacidade: garagem.capacidade,
+      veiculosAlocados: garagem.veiculosAlocados,
+      acessibilidade: garagem.acessibilidade,
+      status: garagem.status,
+    };
+  }
+
+  listPublic = async (
+    filters: GaragemFilters,
+    pagination: PaginationParams,
+    veiculoId?: string,
+  ) => {
+    let idLocador = filters.idLocador;
+    if (veiculoId) {
+      const veiculo = await this.veiculoRepository.findById(veiculoId);
+      if (
+        !veiculo ||
+        veiculo.status !== StatusVeiculo.DISPONIVEL ||
+        veiculo.garagem?.status !== StatusGaragem.ATIVA
+      ) {
+        throw new HttpError(404, "Veículo não encontrado");
+      }
+      idLocador = veiculo.idLocador;
+    }
+
+    const resultado = await this.garagemRepository.findAll(
+      { ...filters, idLocador, status: StatusGaragem.ATIVA },
+      pagination,
+    );
+    return {
+      ...resultado,
+      data: resultado.data.map((garagem) => this.paraCatalogo(garagem)),
+    };
+  };
+
+  findPublicById = async (id: string): Promise<PublicGaragemResponse> => {
+    const garagem = await this.garagemRepository.findById(id);
+    if (!garagem || garagem.status !== StatusGaragem.ATIVA) {
+      throw new HttpError(404, "Garagem não encontrada");
+    }
+    return this.paraCatalogo(garagem);
+  };
 
   private assertGaragemAccess(
     requester: GaragemAccessContext,

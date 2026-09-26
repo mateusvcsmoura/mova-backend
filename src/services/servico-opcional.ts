@@ -14,7 +14,7 @@ export class ServicoOpcionalService {
 
   findById = async (id: string) => {
     const servico = await this.servicoOpcionalRepository.findById(id);
-    if (!servico) {
+    if (!servico || !servico.ativo) {
       throw new HttpError(404, "Serviço opcional não encontrado");
     }
     return servico;

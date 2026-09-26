@@ -51,6 +51,25 @@ export const createReservaSchema = z
     { message: MENSAGEM_DURACAO, path: ["dataHoraFim"] },
   );
 
+export const quoteReservaSchema = z
+  .object({
+    idVeiculo: z.string().uuid(),
+    idGaragemRetirada: z.string().uuid().optional(),
+    idGaragemDevolucao: z.string().uuid().optional(),
+    dataHoraInicio: z.coerce.date(),
+    dataHoraFim: z.coerce.date(),
+    servicosIds: z.array(z.string().uuid()).optional(),
+  })
+  .strict()
+  .refine((data) => data.dataHoraFim > data.dataHoraInicio, {
+    message: "A data/hora de término deve ser posterior à de início.",
+    path: ["dataHoraFim"],
+  })
+  .refine(
+    (data) => dentroDaDuracaoPermitida(data.dataHoraInicio, data.dataHoraFim),
+    { message: MENSAGEM_DURACAO, path: ["dataHoraFim"] },
+  );
+
 export const updateReservaSchema = z
   .object({
     idGaragemDevolucao: z.string().uuid().optional(),

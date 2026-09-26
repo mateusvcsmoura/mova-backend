@@ -28,8 +28,6 @@ reservaRouter.get(
 reservaRouter.get("/:id", authMiddleware, reservaController.findById);
 reservaRouter.post(
   "/precificacao",
-  authMiddleware,
-  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.precificar,
 );
 reservaRouter.post(

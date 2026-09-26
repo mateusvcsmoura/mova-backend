@@ -52,6 +52,16 @@ export type CreateReservaInput = Omit<
   "valorTotal" | "servicos" | "deficienciaIdParaAssociar"
 >;
 
+/** Public, read-only quote request. It contains no tenant identity or PII. */
+export interface QuoteReservaInput {
+  idVeiculo: string;
+  idGaragemRetirada?: string;
+  idGaragemDevolucao?: string;
+  dataHoraInicio: Date;
+  dataHoraFim: Date;
+  servicosIds?: string[];
+}
+
 export interface UpdateReservaRequest {
   idGaragemDevolucao?: string;
   dataHoraInicio?: Date;

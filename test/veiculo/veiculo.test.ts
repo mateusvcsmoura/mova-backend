@@ -175,9 +175,44 @@ describe("Veiculo API", () => {
       expect(response.body.result.length).toBeGreaterThan(0);
     });
 
-    it("deve recusar listagem sem autenticação", async () => {
-      const response = await request(app).get("/api/veiculo");
-      expect(response.status).toBe(401);
+    it("lista anonimamente apenas o catálogo reservável e omite campos de gestão", async () => {
+      const marcaPublica = "Catalogo publico MOVA";
+      const garagem = await createGaragem(locador.token, locador.locadorId);
+      const reservavel = await createVeiculo(locador.token, locador.locadorId, {
+        marca: marcaPublica,
+        modelo: "Catalogo publico ativo",
+        garagemId: garagem.id,
+      });
+      await createVeiculo(locador.token, locador.locadorId, {
+        marca: marcaPublica,
+        modelo: "Catalogo publico manutencao",
+        status: "MANUTENCAO",
+      });
+      await createVeiculo(locador.token, locador.locadorId, {
+        marca: marcaPublica,
+        modelo: "Catalogo publico sem garagem",
+        garagemId: null,
+      });
+
+      const response = await request(app)
+        .get("/api/veiculo")
+        .query({ marca: marcaPublica });
+
+      expect(response.status).toBe(200);
+      expect(response.body.result.map((item: any) => item.id)).toEqual([
+        reservavel.id,
+      ]);
+      const item = response.body.result[0];
+      expect(item).toMatchObject({
+        id: reservavel.id,
+        status: "DISPONIVEL",
+        garagem: { id: garagem.id, nome: garagem.nome },
+      });
+      expect(item).not.toHaveProperty("idLocador");
+      expect(item).not.toHaveProperty("idModeloVeiculo");
+      expect(item).not.toHaveProperty("placa");
+      expect(item.modeloVeiculo).not.toHaveProperty("idLocador");
+      expect(item.modeloVeiculo).not.toHaveProperty("criadoEm");
     });
 
     it("inclui o nome da garagem efetiva na resposta do catálogo", async () => {
@@ -272,8 +307,8 @@ describe("Veiculo API", () => {
       const detalheManutencao = await request(app).get(
         `/api/veiculo/${veiculoManutencao.id}`,
       );
-      expect(detalheInativo.body.result.garagem.status).toBe("INATIVA");
-      expect(detalheManutencao.body.result.garagem.status).toBe("MANUTENCAO");
+      expect(detalheInativo.status).toBe(404);
+      expect(detalheManutencao.status).toBe(404);
     });
 
     it("retorna garagem nula quando veículo não está alocado", async () => {
@@ -309,6 +344,10 @@ describe("Veiculo API", () => {
       expect(response.status).toBe(200);
       expect(response.body.result.id).toBe(veiculoId);
       expect(response.body.result.garagem).toMatchObject({ status: "ATIVA" });
+      expect(response.body.result).not.toHaveProperty("idLocador");
+      expect(response.body.result).not.toHaveProperty("idModeloVeiculo");
+      expect(response.body.result).not.toHaveProperty("placa");
+      expect(response.body.result.modeloVeiculo).not.toHaveProperty("idLocador");
     });
 
     it("não deve expor veículo INATIVO (404)", async () => {
@@ -318,6 +357,33 @@ describe("Veiculo API", () => {
 
       const response = await request(app).get(`/api/veiculo/${inativo.id}`);
       expect(response.status).toBe(404);
+    });
+
+    it("não expõe veículo não reservável nem garagem inativa", async () => {
+      const emManutencao = await createVeiculo(
+        locador.token,
+        locador.locadorId,
+        { status: "MANUTENCAO" },
+      );
+      const garagemInativa = await createGaragem(locador.token, locador.locadorId);
+      const garagemInativaVeiculo = await createVeiculo(
+        locador.token,
+        locador.locadorId,
+        { garagemId: null },
+      );
+      await request(app)
+        .post(`/api/garagem/${garagemInativa.id}/veiculos/${garagemInativaVeiculo.id}`)
+        .set(auth(locador.token))
+        .expect(204);
+      await prisma.garagem.update({
+        where: { id: garagemInativa.id },
+        data: { status: "INATIVA" },
+      });
+
+      await request(app).get(`/api/veiculo/${emManutencao.id}`).expect(404);
+      await request(app)
+        .get(`/api/veiculo/${garagemInativaVeiculo.id}`)
+        .expect(404);
     });
   });
 
@@ -673,6 +739,10 @@ describe("Veiculo — catálogo RF07 completo", () => {
   let espacoso: any;
   let executivo: any;
   let adaptado: any;
+  let pcdNaoAdaptado: any;
+  let pcdAdaptado: any;
+  let comumAdaptado: any;
+  let comumNaoAdaptado: any;
   let manutencao: any;
   let inativo: any;
   let garagemInativa: any;
@@ -704,6 +774,34 @@ describe("Veiculo — catálogo RF07 completo", () => {
       adaptado: true,
       marca: "Volkswagen",
       modelo: "Adaptado RF07",
+    });
+    pcdNaoAdaptado = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "PCD",
+      adaptado: false,
+      eletrico: true,
+      marca: "MOVA PCD",
+      modelo: "Categoria PCD sem adaptação",
+    });
+    pcdAdaptado = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "PCD",
+      adaptado: true,
+      eletrico: false,
+      marca: "MOVA PCD",
+      modelo: "Categoria PCD adaptado",
+    });
+    comumAdaptado = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "ECONOMICO",
+      adaptado: true,
+      eletrico: true,
+      marca: "MOVA PCD",
+      modelo: "Categoria comum adaptado",
+    });
+    comumNaoAdaptado = await createVeiculo(locador.token, locador.locadorId, {
+      categoria: "ECONOMICO",
+      adaptado: false,
+      eletrico: true,
+      marca: "MOVA PCD",
+      modelo: "Categoria comum sem adaptação",
     });
     manutencao = await createVeiculo(locador.token, locador.locadorId, {
       categoria: "ESPACOSO",
@@ -752,6 +850,23 @@ describe("Veiculo — catálogo RF07 completo", () => {
     expect(response.status).toBe(200);
     expect(response.body.result.some((v: any) => v.id === adaptado.id)).toBe(true);
     expect(response.body.result.every((v: any) => v.modeloVeiculo.adaptado === true)).toBe(true);
+  });
+
+  it("PCD combina categoria=PCD OU adaptado=true e intersecta filtros independentes", async () => {
+    const resposta = await request(app)
+      .get("/api/veiculo")
+      .query({ pcd: "true", eletrico: "true" });
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.result.map((v: any) => v.id).sort()).toEqual(
+      [pcdNaoAdaptado.id, comumAdaptado.id].sort(),
+    );
+    expect(resposta.body.result.map((v: any) => v.id)).not.toContain(
+      pcdAdaptado.id,
+    );
+    expect(resposta.body.result.map((v: any) => v.id)).not.toContain(
+      comumNaoAdaptado.id,
+    );
   });
 
   it("combina categoria com câmbio, elétrico e capacidade por interseção", async () => {

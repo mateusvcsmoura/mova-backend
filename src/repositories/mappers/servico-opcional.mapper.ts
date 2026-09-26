@@ -1,7 +1,22 @@
 import { ServicoOpcional } from "@prisma/client";
-import { ServicoOpcionalResponse } from "../contracts/servico-opcional.contract.js";
+import {
+  PublicServicoOpcionalResponse,
+  ServicoOpcionalResponse,
+} from "../contracts/servico-opcional.contract.js";
 
 export class ServicoOpcionalMapper {
+  static toPublicResponse(
+    servico: ServicoOpcionalResponse,
+  ): PublicServicoOpcionalResponse {
+    return {
+      id: servico.id,
+      nome: servico.nome,
+      descricao: servico.descricao,
+      detalhesCobertura: servico.detalhesCobertura,
+      valor: servico.valor,
+    };
+  }
+
   static toResponse(servico: ServicoOpcional): ServicoOpcionalResponse {
     return {
       id: servico.id,

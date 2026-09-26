@@ -18,7 +18,7 @@ import {
   PaginationParams,
   toSkipTake,
 } from "../../shared/pagination.js";
-import { Prisma, PrismaClient, StatusGaragem, StatusVeiculo } from "@prisma/client";
+import { CategoriaVeiculo, Prisma, PrismaClient, StatusGaragem, StatusVeiculo } from "@prisma/client";
 import {
   moveVehicleInTransaction,
   reserveGarageCapacityForNewVehicles,
@@ -167,6 +167,16 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         categoria: filters.categoria,
       },
     };
+    if (filters.pcd) {
+      where.AND = [
+        {
+          OR: [
+            { modeloVeiculo: { categoria: CategoriaVeiculo.PCD } },
+            { modeloVeiculo: { adaptado: true } },
+          ],
+        },
+      ];
+    }
     const [data, total] = await prisma.$transaction([
       prisma.veiculo.findMany({
         where,

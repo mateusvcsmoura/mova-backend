@@ -6,6 +6,7 @@ import { ReservaService } from "../services/reserva.js";
 import { HttpError } from "../errors/HttpError.js";
 import {
   createReservaSchema,
+  quoteReservaSchema,
   desbloquearReservaSchema,
   desbloquearQrSchema,
   reservaQuerySchema,
@@ -178,9 +179,8 @@ export class ReservaController {
 
   precificar: Handler = async (req, res, next) => {
     try {
-      if (!req.user) throw new HttpError(401, "Não autenticado");
-      const result = createReservaSchema.parse(req.body);
-      const precificacao = await this.reservaService.precificar(result, req.user);
+      const result = quoteReservaSchema.parse(req.body);
+      const precificacao = await this.reservaService.precificar(result);
       return res.status(200).json({ result: precificacao });
     } catch (error) {
       next(error);

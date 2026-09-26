@@ -16,6 +16,17 @@ export interface GaragemBaseResponse {
   atualizadoEm: Date;
 }
 
+export type PublicGaragemResponse = Pick<
+  GaragemBaseResponse,
+  | "id"
+  | "nome"
+  | "endereco"
+  | "capacidade"
+  | "veiculosAlocados"
+  | "acessibilidade"
+  | "status"
+>;
+
 export interface GaragemDetalhadaResponse extends GaragemBaseResponse {
   locador: LocadorResponse;
   veiculos: VeiculoResponse[];

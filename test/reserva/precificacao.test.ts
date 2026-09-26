@@ -30,16 +30,15 @@ describe("POST /api/reserva/precificacao", () => {
   }
 
   async function cotar(
-    token: string,
-    idLocatario: string,
+    _token: string,
+    _idLocatario: string,
     idVeiculo: string,
     periodo: ReturnType<typeof periodoEmHoras>,
     extras: Record<string, unknown> = {},
   ) {
     return request(app)
       .post("/api/reserva/precificacao")
-      .set("Authorization", `Bearer ${token}`)
-      .send({ idLocatario, idVeiculo, ...periodo, ...extras });
+      .send({ idVeiculo, ...periodo, ...extras });
   }
 
   it("cobra uma diária para uma hora e para exatamente um dia", async () => {
@@ -70,11 +69,46 @@ describe("POST /api/reserva/precificacao", () => {
     });
   });
 
+  it("permite cotação anônima sem identidade e não cria reserva", async () => {
+    const { veiculo } = await contexto(100);
+    const servico = await createServico({ valor: 49.9 });
+    const periodo = periodoEmHoras(10, 49);
+    const reservasAntes = await prisma.reserva.count();
+
+    const resposta = await request(app)
+      .post("/api/reserva/precificacao")
+      .send({ idVeiculo: veiculo.id, ...periodo, servicosIds: [servico.id] });
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.result).toMatchObject({
+      valorDiaria: 100,
+      diarias: 3,
+      valorBase: 300,
+      valorServicos: 49.9,
+      valorTotal: 349.9,
+    });
+    expect(await prisma.reserva.count()).toBe(reservasAntes);
+  });
+
+  it("mantém criação de reserva protegida mesmo com a cotação pública", async () => {
+    const { locatario, veiculo } = await contexto(100);
+    const response = await request(app)
+      .post("/api/reserva")
+      .send({
+        idVeiculo: veiculo.id,
+        idLocatario: locatario.locatarioId,
+        ...periodoEmHoras(10, 24),
+      });
+
+    expect(response.status).toBe(401);
+    expect(await prisma.reserva.count()).toBe(0);
+  });
+
   it("ignora valorTotal manipulado e mantém o snapshot após reajuste do modelo", async () => {
     const { locatario, veiculo } = await contexto(100);
     const periodo = periodoEmHoras(10, 24);
 
-    const cotacao = await cotar(locatario.token, locatario.locatarioId, veiculo.id, periodo, { valorTotal: 1 });
+    const cotacao = await cotar(locatario.token, locatario.locatarioId, veiculo.id, periodo);
     expect(cotacao.status).toBe(200);
     expect(cotacao.body.result.valorTotal).toBe(100);
 
