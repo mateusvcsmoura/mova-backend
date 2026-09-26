@@ -11,3 +11,4 @@ reports/
 allure-results/
 /engineering
 /tasks
+.worktrees/

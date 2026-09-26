@@ -222,6 +222,22 @@ export class PrismaReservaRepository implements IReservaRepository {
     return prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${data.idVeiculo}, 0))`;
 
+      // A movimentação de garagem usa a mesma chave de advisory lock. Assim,
+      // o snapshot de retirada não pode ser calculado antes de uma mudança e
+      // gravado depois dela: quem perdeu a corrida revisa a reserva.
+      const veiculoAtual = await tx.veiculo.findUnique({
+        where: { id: data.idVeiculo },
+        select: { garagemId: true },
+      });
+      if (!veiculoAtual) throw new HttpError(404, "Veículo não encontrado.");
+      if (veiculoAtual.garagemId !== (data.idGaragemRetirada ?? null)) {
+        throw new HttpError(
+          409,
+          "A garagem de retirada foi alterada. Revise a reserva antes de confirmar.",
+          "LOCAL_RETIRADA_ALTERADO",
+        );
+      }
+
       const conflitos = await tx.reserva.count({
         where: this.overlapWhere(
           data.idVeiculo,

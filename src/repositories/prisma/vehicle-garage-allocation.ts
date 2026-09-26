@@ -1,4 +1,4 @@
-import { Prisma, StatusGaragem } from "@prisma/client";
+import { Prisma, StatusGaragem, StatusReserva } from "@prisma/client";
 
 import { HttpError } from "../../errors/HttpError.js";
 
@@ -16,6 +16,26 @@ interface LockedVehicle {
   id: string;
   idLocador: string;
   garagemId: string | null;
+}
+
+interface LockedReservation {
+  id: string;
+  status: StatusReserva;
+}
+
+const RESERVAS_QUE_FIXAM_GARAGEM: StatusReserva[] = [
+  StatusReserva.AGUARDANDO_PAGAMENTO,
+  StatusReserva.CONFIRMADA,
+  StatusReserva.EM_ANDAMENTO,
+];
+
+async function lockVehicleAllocation(
+  tx: Transaction,
+  veiculoId: string,
+): Promise<void> {
+  // Reserva.create usa esta mesma chave. Ela impede que uma reserva obtenha o
+  // snapshot da garagem antes de uma movimentação e seja criada depois dela.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${veiculoId}, 0))`;
 }
 
 async function lockGarage(
@@ -57,6 +77,30 @@ async function lockVehicle(
     throw new HttpError(404, "Veículo não encontrado.");
   }
   return veiculo;
+}
+
+async function assertNoReservationThatPinsGarage(
+  tx: Transaction,
+  veiculoId: string,
+): Promise<void> {
+  // O lock de todas as reservas do veículo serializa a decisão com confirmação,
+  // desbloqueio e cancelamento, que atualizam a mesma linha de Reserva.
+  const reservas = await tx.$queryRaw<LockedReservation[]>(Prisma.sql`
+    SELECT "id", "status"
+    FROM "Reserva"
+    WHERE "idVeiculo" = ${veiculoId}::uuid
+    FOR UPDATE
+  `);
+  const ativa = reservas.find((reserva) =>
+    RESERVAS_QUE_FIXAM_GARAGEM.includes(reserva.status),
+  );
+  if (ativa) {
+    throw new HttpError(
+      409,
+      "Não é possível alterar a garagem de um veículo com reserva pendente, confirmada ou em andamento.",
+      "VEICULO_COM_RESERVA_ATIVA",
+    );
+  }
 }
 
 async function lockGarages(
@@ -148,8 +192,8 @@ export async function moveVehicleInTransaction(
   veiculoId: string,
   destinoGaragemId: string | null,
 ): Promise<void> {
+  await lockVehicleAllocation(tx, veiculoId);
   const veiculo = await lockVehicle(tx, veiculoId);
-  const garagens = await lockGarages(tx, [veiculo.garagemId, destinoGaragemId]);
 
   // Repetir a mesma alocação é um no-op idempotente. Isso também permite
   // manter um veículo histórico numa garagem que foi desativada sem bloquear
@@ -157,6 +201,9 @@ export async function moveVehicleInTransaction(
   if (veiculo.garagemId === destinoGaragemId) {
     return;
   }
+
+  await assertNoReservationThatPinsGarage(tx, veiculoId);
+  const garagens = await lockGarages(tx, [veiculo.garagemId, destinoGaragemId]);
 
   const destino = destinoGaragemId
     ? garagens.get(destinoGaragemId)
@@ -196,10 +243,13 @@ export async function desalocarVehicleInTransaction(
   garagemId: string,
   veiculoId: string,
 ): Promise<void> {
+  await lockVehicleAllocation(tx, veiculoId);
   const veiculo = await lockVehicle(tx, veiculoId);
   if (veiculo.garagemId !== garagemId) {
     throw new HttpError(409, "O veículo não está alocado nesta garagem.");
   }
+
+  await assertNoReservationThatPinsGarage(tx, veiculoId);
 
   const garagem = await lockGarage(tx, garagemId);
   await tx.veiculo.update({

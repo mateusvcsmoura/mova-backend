@@ -237,7 +237,10 @@ export class VeiculoService {
       throw new HttpError(404, "Veículo não encontrado");
     }
     this.assertPodeGerenciar(requester, veiculo.idLocador);
-    return this.veiculoRepository.delete(id);
+    await this.veiculoRepository.delete(id);
+    if (veiculo.status !== StatusVeiculo.INATIVO) {
+      await this.registrarTransicaoStatus(id, StatusVeiculo.INATIVO);
+    }
   };
 
   updateModelo = async (

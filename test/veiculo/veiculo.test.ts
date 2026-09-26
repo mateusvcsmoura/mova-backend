@@ -478,6 +478,26 @@ describe("Veiculo API", () => {
       expect(publico.status).toBe(404);
     });
 
+    it("C7: soft delete registra uma única transição para INATIVO", async () => {
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const antes = await prisma.veiculoStatusHistorico.count({
+        where: { idVeiculo: veiculo.id, status: "INATIVO" },
+      });
+
+      const primeiro = await request(app)
+        .delete(`/api/veiculo/${veiculo.id}`)
+        .set(auth(locador.token));
+      const segundo = await request(app)
+        .delete(`/api/veiculo/${veiculo.id}`)
+        .set(auth(locador.token));
+
+      expect(primeiro.status).toBe(204);
+      expect(segundo.status).toBe(204);
+      expect(await prisma.veiculoStatusHistorico.count({
+        where: { idVeiculo: veiculo.id, status: "INATIVO" },
+      })).toBe(antes + 1);
+    });
+
     it("deve reativar veículo INATIVO para DISPONIVEL", async () => {
       const response = await request(app)
         .put(`/api/veiculo/${veiculoId}`)

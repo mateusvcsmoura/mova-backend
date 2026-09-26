@@ -7,7 +7,9 @@ import {
   createGaragem,
   createLocador,
   createLocatario,
+  createReserva,
   createVeiculo,
+  confirmarPagamentoWebhook,
   futurePeriod,
   LocadorContext,
   LocatarioContext,
@@ -25,6 +27,37 @@ describe("FINAL-H-04 — alocação operacional de veículos", () => {
     locadorB = await createLocador();
     locatario = await createLocatario();
   });
+
+  async function reservaComStatus(
+    veiculoId: string,
+    status: "AGUARDANDO_PAGAMENTO" | "CONFIRMADA" | "EM_ANDAMENTO" | "REALIZADA" | "CANCELADA",
+    idGaragemDevolucao?: string,
+  ) {
+    const reserva = await createReserva(
+      locatario.token,
+      veiculoId,
+      locatario.locatarioId,
+      { ...futurePeriod(100, 2), idGaragemDevolucao },
+    );
+    if (status !== "AGUARDANDO_PAGAMENTO") {
+      await prisma.reserva.update({ where: { id: reserva.id }, data: { status } });
+    }
+    return reserva;
+  }
+
+  async function estadoAlocacao(veiculoId: string, garagemIds: string[]) {
+    const [veiculo, garagens] = await Promise.all([
+      prisma.veiculo.findUniqueOrThrow({
+        where: { id: veiculoId },
+        select: { garagemId: true },
+      }),
+      prisma.garagem.findMany({
+        where: { id: { in: garagemIds } },
+        select: { id: true, veiculosAlocados: true },
+      }),
+    ]);
+    return { veiculo, garagens };
+  }
 
   it("persiste garagemId informado no cadastro do veículo", async () => {
     const garagem = await createGaragem(locadorA.token, locadorA.locadorId);
@@ -296,5 +329,222 @@ describe("FINAL-H-04 — alocação operacional de veículos", () => {
         ...futurePeriod(60, 2),
       });
     expect(reserva.status).toBe(409);
+  });
+
+  it.each(["AGUARDANDO_PAGAMENTO", "CONFIRMADA", "EM_ANDAMENTO"] as const)(
+    "B9: POST bloqueia veículo com reserva %s e preserva locais e contadores",
+    async (status) => {
+      const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+      const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+      const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, {
+        garagemId: origem.id,
+      });
+      const reserva = await reservaComStatus(veiculo.id, status, destino.id);
+
+      const response = await request(app)
+        .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+        .set(auth(locadorA.token));
+
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+      const [estado, reservaPersistida] = await Promise.all([
+        estadoAlocacao(veiculo.id, [origem.id, destino.id]),
+        prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } }),
+      ]);
+      expect(estado.veiculo.garagemId).toBe(origem.id);
+      expect(estado.garagens.find((g) => g.id === origem.id)?.veiculosAlocados).toBe(1);
+      expect(estado.garagens.find((g) => g.id === destino.id)?.veiculosAlocados).toBe(0);
+      expect(reservaPersistida).toMatchObject({
+        idGaragemRetirada: origem.id,
+        idGaragemDevolucao: destino.id,
+      });
+    },
+  );
+
+  it.each(["CONFIRMADA", "EM_ANDAMENTO"] as const)(
+    "B9: PUT e desalocação não contornam reserva %s",
+    async (status) => {
+      const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+      const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+      const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, {
+        garagemId: origem.id,
+      });
+      const reserva = await reservaComStatus(veiculo.id, status, destino.id);
+
+      const viaPut = await request(app)
+        .put(`/api/veiculo/${veiculo.id}`)
+        .set(auth(locadorA.token))
+        .send({ garagemId: destino.id });
+      const viaDelete = await request(app)
+        .delete(`/api/garagem/${origem.id}/veiculos/${veiculo.id}`)
+        .set(auth(locadorA.token));
+
+      expect(viaPut.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+      expect(viaPut.status).toBe(409);
+      expect(viaDelete.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+      expect(viaDelete.status).toBe(409);
+      const [estado, reservaPersistida] = await Promise.all([
+        estadoAlocacao(veiculo.id, [origem.id, destino.id]),
+        prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } }),
+      ]);
+      expect(estado.veiculo.garagemId).toBe(origem.id);
+      expect(reservaPersistida.idGaragemRetirada).toBe(origem.id);
+      expect(reservaPersistida.idGaragemDevolucao).toBe(destino.id);
+    },
+  );
+
+  it.each(["CANCELADA", "REALIZADA"] as const)(
+    "B9: reserva %s encerrada libera movimentação",
+    async (status) => {
+      const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+      const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+      const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, {
+        garagemId: origem.id,
+      });
+      await reservaComStatus(veiculo.id, status);
+
+      const response = await request(app)
+        .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+        .set(auth(locadorA.token));
+
+      expect(response.status).toBe(204);
+      expect((await estadoAlocacao(veiculo.id, [origem.id, destino.id])).veiculo.garagemId).toBe(destino.id);
+    },
+  );
+
+  it("B9: data passada não expira pendência sem transição de domínio", async () => {
+    const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+    const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+    const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, {
+      garagemId: origem.id,
+    });
+    const reserva = await reservaComStatus(veiculo.id, "AGUARDANDO_PAGAMENTO");
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: {
+        dataHoraInicio: new Date(Date.now() - 3 * 86_400_000),
+        dataHoraFim: new Date(Date.now() - 2 * 86_400_000),
+      },
+    });
+
+    const response = await request(app)
+      .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+      .set(auth(locadorA.token));
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("VEICULO_COM_RESERVA_ATIVA");
+  });
+
+  it("B9: mesma garagem é no-op mesmo quando há pendência", async () => {
+    const garagem = await createGaragem(locadorA.token, locadorA.locadorId);
+    const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, { garagemId: garagem.id });
+    await reservaComStatus(veiculo.id, "AGUARDANDO_PAGAMENTO");
+
+    const response = await request(app)
+      .post(`/api/garagem/${garagem.id}/veiculos/${veiculo.id}`)
+      .set(auth(locadorA.token));
+
+    expect(response.status).toBe(204);
+    expect((await estadoAlocacao(veiculo.id, [garagem.id])).garagens[0]?.veiculosAlocados).toBe(1);
+  });
+
+  it("B9: locatário não movimenta veículo antes da regra de domínio", async () => {
+    const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+    const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+    const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, { garagemId: origem.id });
+    await reservaComStatus(veiculo.id, "AGUARDANDO_PAGAMENTO");
+
+    const response = await request(app)
+      .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+      .set(auth(locatario.token));
+
+    expect(response.status).toBe(403);
+  });
+
+  it("B9: confirmação concorrente não move, nem reescreve o local prometido", async () => {
+    const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+    const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+    const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, { garagemId: origem.id });
+    const reserva = await reservaComStatus(veiculo.id, "AGUARDANDO_PAGAMENTO", destino.id);
+
+    const [confirmacao, movimento] = await Promise.all([
+      confirmarPagamentoWebhook(reserva.id),
+      request(app)
+        .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+        .set(auth(locadorA.token)),
+    ]);
+
+    expect(confirmacao.status).toBe(200);
+    expect(movimento.status).toBe(409);
+    const [estado, persistida] = await Promise.all([
+      estadoAlocacao(veiculo.id, [origem.id, destino.id]),
+      prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } }),
+    ]);
+    expect(estado.veiculo.garagemId).toBe(origem.id);
+    expect(persistida).toMatchObject({
+      status: "CONFIRMADA",
+      idGaragemRetirada: origem.id,
+      idGaragemDevolucao: destino.id,
+    });
+  });
+
+  it("B9: criação concorrente não deixa retirada obsoleta", async () => {
+    const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+    const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+    const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, { garagemId: origem.id });
+
+    const [criacao, movimento] = await Promise.all([
+      request(app)
+        .post("/api/reserva")
+        .set(auth(locatario.token))
+        .send({
+          idVeiculo: veiculo.id,
+          idLocatario: locatario.locatarioId,
+          ...futurePeriod(200, 2),
+        }),
+      request(app)
+        .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+        .set(auth(locadorA.token)),
+    ]);
+
+    expect([201, 409]).toContain(criacao.status);
+    expect([204, 409]).toContain(movimento.status);
+    const [estado, reservas] = await Promise.all([
+      estadoAlocacao(veiculo.id, [origem.id, destino.id]),
+      prisma.reserva.findMany({ where: { idVeiculo: veiculo.id } }),
+    ]);
+    expect(reservas).toHaveLength(criacao.status === 201 ? 1 : 0);
+    for (const reserva of reservas) {
+      expect(reserva.idGaragemRetirada).toBe(estado.veiculo.garagemId);
+    }
+  });
+
+  it("B9: cancelamento concorrente resulta em bloqueio conservador ou movimento após cancelamento", async () => {
+    const origem = await createGaragem(locadorA.token, locadorA.locadorId);
+    const destino = await createGaragem(locadorA.token, locadorA.locadorId);
+    const veiculo = await createVeiculo(locadorA.token, locadorA.locadorId, { garagemId: origem.id });
+    const reserva = await reservaComStatus(veiculo.id, "AGUARDANDO_PAGAMENTO", destino.id);
+
+    const [cancelamento, movimento] = await Promise.all([
+      request(app)
+        .post(`/api/reserva/${reserva.id}/cancelar`)
+        .set(auth(locatario.token)),
+      request(app)
+        .post(`/api/garagem/${destino.id}/veiculos/${veiculo.id}`)
+        .set(auth(locadorA.token)),
+    ]);
+
+    expect(cancelamento.status).toBe(200);
+    expect([204, 409]).toContain(movimento.status);
+    const [estado, persistida] = await Promise.all([
+      estadoAlocacao(veiculo.id, [origem.id, destino.id]),
+      prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } }),
+    ]);
+    expect(persistida).toMatchObject({
+      status: "CANCELADA",
+      idGaragemRetirada: origem.id,
+      idGaragemDevolucao: destino.id,
+    });
+    expect(estado.veiculo.garagemId).toBe(movimento.status === 204 ? destino.id : origem.id);
   });
 });
