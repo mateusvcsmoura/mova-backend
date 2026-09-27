@@ -149,6 +149,15 @@ model Conta {
   atualizadoEm DateTime   @default(now()) @updatedAt
 }
 
+// Eventos financeiros exclusivamente do sandbox. São append-only: cada etapa
+// observável é uma linha, sem representar transferência de dinheiro real.
+enum TipoEventoFinanceiroSandbox {
+  PAGAMENTO_RECEBIDO
+  ESTORNO_SOLICITADO
+  ESTORNO_CONCLUIDO
+  ESTORNO_FALHOU
+}
+
 // Token temporário de recuperação de senha. O valor bruto nunca é persistido:
 // tokenHash guarda somente SHA-256 do token enviado pelo provider de e-mail.
 model RecuperacaoSenha {
@@ -384,9 +393,25 @@ model Reserva {
   notificacoes NotificacaoReserva[]
   // Cobranças avulsas lançadas sobre a reserva (multa de cancelamento — RN04).
   cobrancas    CobrancaReserva[]
+  eventosFinanceirosSandbox EventoFinanceiroSandbox[]
   // Link público opcional da viagem (RF13-B), um ativo por reserva.
   compartilhamento CompartilhamentoReserva?
   atualizadoEm DateTime   @default(now()) @updatedAt
+}
+
+model EventoFinanceiroSandbox {
+  id String @id @default(uuid()) @db.Uuid
+
+  idReserva String @db.Uuid
+  reserva   Reserva @relation(fields: [idReserva], references: [id])
+
+  tipo TipoEventoFinanceiroSandbox
+  // Chave determinística por evento/etapa; torna reentregas inofensivas.
+  chaveIdempotencia String @unique
+  provider String
+  criadoEm DateTime @default(now())
+
+  @@index([idReserva, criadoEm])
 }
 
 // Compartilhamento público de uma reserva (RF13-B). O token é aleatório,

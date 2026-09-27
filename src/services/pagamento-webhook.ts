@@ -2,6 +2,7 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { HttpError } from "../errors/HttpError.js";
 import type { PagamentoEvento, PaymentGateway } from "../infra/payment/gateway.js";
+import { SandboxPaymentAudit } from "../infra/payment/sandbox-audit.js";
 import type { ReservaService } from "./reserva.js";
 
 /**
@@ -16,6 +17,7 @@ export class PagamentoWebhookService {
   constructor(
     private readonly gateways: Map<string, PaymentGateway>,
     private readonly reservaService: ReservaService,
+    private readonly sandboxAudit: SandboxPaymentAudit = new SandboxPaymentAudit(),
   ) {}
 
   processar = async (
@@ -34,10 +36,25 @@ export class PagamentoWebhookService {
 
     const evento = gateway.parseEvento(rawBody);
 
-    await this.reservaService.confirmarPagamento(evento.idReserva, {
-      status: evento.status,
-      metodo: evento.metodo,
-    });
+    try {
+      await this.reservaService.confirmarPagamento(evento.idReserva, {
+        status: evento.status,
+        metodo: evento.metodo,
+      });
+    } catch (error) {
+      // Um recebimento assinado para conta bloqueada é reconhecido e estornado
+      // apenas no sandbox. Não propagamos 403 ao gateway, evitando reentregas
+      // infinitas; a reserva continua sem confirmação, código ou início.
+      if (error instanceof HttpError && error.status === 403 && evento.status === "SUCESSO") {
+        await this.sandboxAudit.registrarPagamentoBloqueado(
+          evento.idReserva,
+          provider,
+          rawBody,
+        );
+      } else {
+        throw error;
+      }
+    }
 
     return evento;
   };

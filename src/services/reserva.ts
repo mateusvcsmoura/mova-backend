@@ -850,12 +850,6 @@ export class ReservaService {
       return reserva;
     }
 
-    const atualizada = await this.reservaRepository.atualizarStatusPagamento(
-      idReserva,
-      evento.status,
-      evento.metodo,
-    );
-
     // Pagamento confirmado agora e ainda sem código -> gera o código de
     // desbloqueio e envia o relatório por e-mail (best-effort: o notifier nunca
     // lança). Idempotente: reserva já confirmada mantém o mesmo código.
@@ -868,6 +862,18 @@ export class ReservaService {
       // código pelo webhook. Idempotente: reserva que já tem código não entra
       // aqui (guard acima), então reprocessamento não dispara 403 espúrio.
       await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
+    }
+
+    const atualizada = await this.reservaRepository.atualizarStatusPagamento(
+      idReserva,
+      evento.status,
+      evento.metodo,
+    );
+
+    if (
+      evento.status === StatusPagamento.SUCESSO &&
+      !reserva.codigoDesbloqueio
+    ) {
       const codigo = await this.gerarCodigoUnico();
       const confirmada = await this.reservaRepository.gerarCodigoDesbloqueio(
         idReserva,

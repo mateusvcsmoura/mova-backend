@@ -178,8 +178,19 @@ Table Reserva {
   servicos ReservaServico [not null]
   notificacoes NotificacaoReserva [not null]
   cobrancas CobrancaReserva [not null]
+  eventosFinanceirosSandbox EventoFinanceiroSandbox [not null]
   compartilhamento CompartilhamentoReserva
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table EventoFinanceiroSandbox {
+  id String [pk]
+  idReserva String [not null]
+  reserva Reserva [not null]
+  tipo TipoEventoFinanceiroSandbox [not null]
+  chaveIdempotencia String [unique, not null]
+  provider String [not null]
+  criadoEm DateTime [default: `now()`, not null]
 }
 
 Table CompartilhamentoReserva {
@@ -450,6 +461,13 @@ Enum MotivoBloqueio {
   OUTRO
 }
 
+Enum TipoEventoFinanceiroSandbox {
+  PAGAMENTO_RECEBIDO
+  ESTORNO_SOLICITADO
+  ESTORNO_CONCLUIDO
+  ESTORNO_FALHOU
+}
+
 Enum CanalNotificacao {
   EMAIL
   PUSH
@@ -499,6 +517,8 @@ Ref: Reserva.idLocatario > Locatario.id
 Ref: Reserva.idGaragemRetirada > Garagem.id
 
 Ref: Reserva.idGaragemDevolucao > Garagem.id
+
+Ref: EventoFinanceiroSandbox.idReserva > Reserva.id
 
 Ref: CompartilhamentoReserva.idReserva - Reserva.id [delete: Cascade]
 

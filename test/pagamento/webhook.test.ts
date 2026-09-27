@@ -6,6 +6,8 @@ import { prisma } from "../../src/database/prisma";
 import {
   assinarWebhook,
   confirmarPagamentoWebhook,
+  createAccount,
+  createBloqueio,
   createLocador,
   createLocatario,
   createReserva,
@@ -110,5 +112,42 @@ describe("Webhook de pagamento (assinado)", () => {
     const reserva = await prisma.reserva.findUnique({ where: { id } });
     expect(reserva!.statusPagamento).toBe("FALHA");
     expect(reserva!.codigoDesbloqueio).toBeNull();
+  });
+});
+
+describe("Webhook de pagamento bloqueado — trilha sandbox", () => {
+  it("registra recebimento e estorno simulado uma vez sem confirmar ou liberar a reserva", async () => {
+    const admin = await createAccount("ADMIN");
+    const locador = await createLocador();
+    const locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(220, 2),
+    );
+    await createBloqueio(admin.token, locatario.locatarioId);
+
+    const primeiro = await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" });
+    const repetido = await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" });
+
+    expect(primeiro.status).toBe(200);
+    expect(repetido.status).toBe(200);
+
+    const persistida = await prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } });
+    expect(persistida.status).toBe("AGUARDANDO_PAGAMENTO");
+    expect(persistida.statusPagamento).not.toBe("SUCESSO");
+    expect(persistida.codigoDesbloqueio).toBeNull();
+
+    const trilha = await prisma.$queryRawUnsafe<Array<{ tipo: string }>>(
+      'SELECT "tipo" FROM "EventoFinanceiroSandbox" WHERE "idReserva" = $1 ORDER BY "criadoEm"',
+      reserva.id,
+    );
+    expect(trilha.map((evento) => evento.tipo)).toEqual([
+      "PAGAMENTO_RECEBIDO",
+      "ESTORNO_SOLICITADO",
+      "ESTORNO_CONCLUIDO",
+    ]);
   });
 });
