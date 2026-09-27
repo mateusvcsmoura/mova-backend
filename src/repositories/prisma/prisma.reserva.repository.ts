@@ -508,10 +508,6 @@ export class PrismaReservaRepository implements IReservaRepository {
     }
   }
 
-  async delete(id: string): Promise<void> {
-    await prisma.reserva.delete({ where: { id } });
-  }
-
   async gerarCodigoDesbloqueio(
     id: string,
     codigo: string,

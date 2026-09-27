@@ -247,18 +247,15 @@ export class ReservaController {
     }
   };
 
-  delete: Handler = async (req, res, next) => {
-    try {
-      if (!req.user) throw new HttpError(401, "Não autenticado");
-
-      const result = z.string().uuid().safeParse(req.params.id);
-      if (!result.success) throw new HttpError(400, "ID inválido");
-
-      await this.reservaService.delete(result.data, req.user);
-      return res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
+  delete: Handler = (_req, res, next) => {
+    res.setHeader("Allow", "GET, HEAD, PUT");
+    next(
+      new HttpError(
+        405,
+        "Exclusão definitiva de reserva não é permitida. Use POST /api/reserva/:id/cancelar.",
+        "METHOD_NOT_ALLOWED",
+      ),
+    );
   };
 
   desbloquear: Handler = async (req, res, next) => {

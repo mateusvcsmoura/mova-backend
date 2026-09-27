@@ -275,13 +275,25 @@ describe("Reserva API", () => {
   });
 
   describe("DELETE /api/reserva/:id", () => {
-    it("deve remover a reserva", async () => {
+    it("retorna 405 e preserva a reserva; o cancelamento usa a rota dedicada", async () => {
       const response = await request(app)
         .delete(`/api/reserva/${reservaId}`)
         .set("Authorization", `Bearer ${locatario.token}`);
 
-      expect(response.status).toBe(204);
-      expect(response.body).toEqual({});
+      expect(response.status).toBe(405);
+      expect(response.body).toMatchObject({
+        code: "METHOD_NOT_ALLOWED",
+        message: expect.stringContaining("POST /api/reserva/:id/cancelar"),
+        requestId: expect.any(String),
+      });
+      expect(response.headers["x-request-id"]).toBe(response.body.requestId);
+      expect(response.headers.allow).toBe("GET, HEAD, PUT");
+
+      const persisted = await prisma.reserva.findUnique({
+        where: { id: reservaId },
+      });
+      expect(persisted).not.toBeNull();
+      expect(persisted?.status).toBe("AGUARDANDO_PAGAMENTO");
     });
   });
 });

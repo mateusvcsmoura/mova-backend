@@ -978,20 +978,6 @@ export class ReservaService {
     return this.usarCodigoDesbloqueio(id, payload.codigo, requester, coord);
   };
 
-  delete = async (
-    id: string,
-    requester: ReservaAccessContext,
-  ): Promise<void> => {
-    const reserva = await this.reservaRepository.findById(id);
-    if (!reserva) {
-      throw new HttpError(404, "Reserva não encontrada");
-    }
-
-    await this.assertReservaAccess(requester, reserva);
-
-    return this.reservaRepository.delete(id);
-  };
-
   search = async (
     filters: ReservaFilters,
     pagination: PaginationParams,

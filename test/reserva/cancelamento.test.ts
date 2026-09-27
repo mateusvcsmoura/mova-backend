@@ -161,4 +161,46 @@ describe("Reserva — cancelamento (RN04)", () => {
     });
     expect(persistida!.status).not.toBe("CANCELADA");
   });
+
+  it("DELETE preserva reserva e histórico financeiro, avaliativo e de notificação", async () => {
+    const reserva = await novaReserva({ ...futurePeriod(9, 1) });
+    const cobranca = await prisma.cobrancaReserva.create({
+      data: { idReserva: reserva.id, tipo: "CANCELAMENTO", valor: 10 },
+    });
+    const avaliacao = await prisma.avaliacao.create({
+      data: { idReserva: reserva.id, nota: 5, comentario: "Histórico preservado" },
+    });
+    const notificacao = await prisma.notificacaoReserva.create({
+      data: {
+        idReserva: reserva.id,
+        destinatario: locatario.email,
+        assunto: "Histórico de reserva",
+      },
+    });
+
+    const response = await request(app)
+      .delete(`/api/reserva/${reserva.id}`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(response.status).toBe(405);
+    expect(response.body).toMatchObject({
+      code: "METHOD_NOT_ALLOWED",
+      message: expect.stringContaining("POST /api/reserva/:id/cancelar"),
+      requestId: expect.any(String),
+    });
+    expect(response.headers["x-request-id"]).toBe(response.body.requestId);
+    expect(response.headers.allow).toBe("GET, HEAD, PUT");
+    expect(
+      await prisma.reserva.findUnique({ where: { id: reserva.id } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.cobrancaReserva.findUnique({ where: { id: cobranca.id } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.avaliacao.findUnique({ where: { id: avaliacao.id } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.notificacaoReserva.findUnique({ where: { id: notificacao.id } }),
+    ).not.toBeNull();
+  });
 });

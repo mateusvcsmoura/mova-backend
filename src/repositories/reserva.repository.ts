@@ -46,7 +46,6 @@ export interface IReservaRepository {
     statusPagamento: StatusPagamento,
     metodoPagamento?: MetodoPagamento,
   ): Promise<ReservaResponse>;
-  delete(id: string): Promise<void>;
   // Persiste o código de desbloqueio gerado na confirmação do pagamento.
   gerarCodigoDesbloqueio(
     id: string,
