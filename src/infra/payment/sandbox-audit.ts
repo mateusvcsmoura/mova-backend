@@ -37,6 +37,17 @@ export class SandboxPaymentAudit {
     private readonly refundGateway: SandboxRefundGateway = new SandboxRefundGatewayDeterministico(),
   ) {}
 
+  async jaRegistrouPagamentoBloqueado(
+    provider: string,
+    providerEventId: string,
+  ): Promise<boolean> {
+    const identidade = `${provider.toLowerCase()}:${providerEventId}`;
+    const recebido = await prisma.eventoFinanceiroSandbox.findUnique({
+      where: { chaveIdempotencia: `${identidade}:received` },
+    });
+    return recebido !== null;
+  }
+
   async registrarPagamentoBloqueado(
     idReserva: string,
     provider: string,

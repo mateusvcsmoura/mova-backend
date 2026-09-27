@@ -217,6 +217,50 @@ describe("Webhook de pagamento bloqueado — trilha sandbox", () => {
     ]);
   });
 
+  it("não confirma replay de evento já estornado após liberar o locatário", async () => {
+    const admin = await createAccount("ADMIN");
+    const locador = await createLocador();
+    const locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(230, 2),
+    );
+    const bloqueio = await createBloqueio(admin.token, locatario.locatarioId);
+    const corpo = JSON.stringify({
+      idReserva: reserva.id,
+      evento: "pagamento.sucesso",
+      metodo: "PIX",
+      providerEventId: "evt-estornado-nao-confirma",
+    });
+
+    const entregar = () =>
+      request(app)
+        .post("/api/webhooks/pagamento/stripe")
+        .set("stripe-signature", assinarWebhook("stripe", corpo))
+        .set("Content-Type", "application/json")
+        .send(corpo);
+
+    expect((await entregar()).status).toBe(200);
+    const revogacao = await request(app)
+      .post(`/api/admin/bloqueio/${bloqueio.id}/revogar`)
+      .set("Authorization", `Bearer ${admin.token}`);
+    expect(revogacao.status).toBe(200);
+    expect(revogacao.body.result.revogadoEm).toBeTruthy();
+    expect((await entregar()).status).toBe(200);
+
+    const persistida = await prisma.reserva.findUniqueOrThrow({
+      where: { id: reserva.id },
+    });
+    expect(persistida.statusPagamento).not.toBe("SUCESSO");
+    expect(persistida.codigoDesbloqueio).toBeNull();
+    expect(
+      await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id } }),
+    ).toBe(3);
+  });
+
   it("falha uma vez e conclui o estorno sandbox em retry automático sem duplicar a trilha", async () => {
     const anterior = process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA;
     process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA = "true";

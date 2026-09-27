@@ -36,6 +36,16 @@ export class PagamentoWebhookService {
 
     const evento = gateway.parseEvento(rawBody);
 
+    // A trilha sandbox e imutável. Depois que este evento foi estornado por
+    // bloqueio, qualquer replay assinado precisa continuar reconhecido sem
+    // alcançar a confirmação da reserva, mesmo se o bloqueio já foi revogado.
+    if (
+      evento.status === "SUCESSO" &&
+      await this.sandboxAudit.jaRegistrouPagamentoBloqueado(provider, evento.providerEventId)
+    ) {
+      return evento;
+    }
+
     try {
       await this.reservaService.confirmarPagamento(evento.idReserva, {
         status: evento.status,
