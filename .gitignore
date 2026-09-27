@@ -1,5 +1,9 @@
 .env
 .env.test
+.env.*
+!.env.example
+*.dump
+*.sql.gz
 node_modules/
 dist/
 build/
