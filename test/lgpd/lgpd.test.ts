@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 import { app } from "../../src/app";
 import { env } from "../../src/config/env";
+import { prisma } from "../../src/database/prisma";
 import {
   DEFAULT_SENHA,
   createAccount,
@@ -11,6 +12,7 @@ import {
   createLocatario,
   createReserva,
   createVeiculo,
+  futurePeriod,
   type Account,
   type LocadorContext,
   type LocatarioContext,
@@ -27,6 +29,15 @@ describe("LGPD", () => {
     admin = await createAccount("ADMIN");
     const veiculo = await createVeiculo(locador.token, locador.locadorId);
     await createReserva(locatario.token, veiculo.id, locatario.locatarioId);
+  });
+
+  it("executa os casos destrutivos somente contra mova_test", async () => {
+    expect(process.env.NODE_ENV).toBe("test");
+    expect(process.env.DATABASE_URL_TEST).toContain("mova_test");
+    const [database] = await prisma.$queryRaw<{ current_database: string }[]>`
+      SELECT current_database()
+    `;
+    expect(database.current_database).toBe("mova_test");
   });
 
   describe("Exportação (portabilidade)", () => {
@@ -101,7 +112,7 @@ describe("LGPD", () => {
       expect(anonimizar.status).toBe(200);
 
       const sessaoRevogada = await request(app)
-        .get("/api/conta/auth/me")
+        .get("/api/lgpd/meus-dados")
         .set("Authorization", `Bearer ${tokenAntigo}`);
       expect(sessaoRevogada.status).toBe(401);
       expect(sessaoRevogada.body.code).toBe("SESSION_REVOKED");
@@ -164,6 +175,77 @@ describe("LGPD", () => {
         .set("Authorization", `Bearer ${alvo.token}`);
       expect(reservaPersistida.status).toBe(200);
       expect(reservaPersistida.body.result.id).toBe(reserva.id);
+    });
+
+    it("recusa exclusão de locador com reserva, preserva conta e oferece anonimização", async () => {
+      const dono = await createLocador();
+      const alvo = await createLocatario();
+      const veiculo = await createVeiculo(dono.token, dono.locadorId);
+      const reserva = await createReserva(alvo.token, veiculo.id, alvo.locatarioId);
+
+      const exclusao = await request(app)
+        .delete("/api/conta/auth/delete-account")
+        .set("Authorization", `Bearer ${dono.token}`);
+
+      expect(exclusao.status).toBe(409);
+      expect(exclusao.body).toMatchObject({
+        code: "ACCOUNT_HAS_HISTORY",
+        message: expect.stringMatching(/anonimiz/i),
+        requestId: expect.any(String),
+      });
+
+      const conta = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", `Bearer ${dono.token}`);
+      expect(conta.status).toBe(200);
+      expect(conta.body.result.conta.id).toBe(dono.locadorId);
+
+      const reservaPersistida = await request(app)
+        .get(`/api/reserva/${reserva.id}`)
+        .set("Authorization", `Bearer ${dono.token}`);
+      expect(reservaPersistida.status).toBe(200);
+      expect(reservaPersistida.body.result.id).toBe(reserva.id);
+    });
+
+    it("serializa reserva concorrente com exclusão sem expor erro de chave estrangeira", async () => {
+      const dono = await createLocador();
+      const alvo = await createLocatario();
+      const veiculo = await createVeiculo(dono.token, dono.locadorId);
+
+      const [exclusao, criacaoReserva] = await Promise.all([
+        request(app)
+          .delete("/api/conta/auth/delete-account")
+          .set("Authorization", `Bearer ${alvo.token}`),
+        request(app)
+          .post("/api/reserva")
+          .set("Authorization", `Bearer ${alvo.token}`)
+          .send({
+            idVeiculo: veiculo.id,
+            idLocatario: alvo.locatarioId,
+            ...futurePeriod(),
+          }),
+      ]);
+
+      expect([204, 409]).toContain(exclusao.status);
+      expect(criacaoReserva.status).not.toBe(500);
+
+      const conta = await prisma.conta.findUnique({
+        where: { id: alvo.locatarioId },
+        select: { id: true },
+      });
+      const reservas = await prisma.reserva.count({
+        where: { idLocatario: alvo.locatarioId },
+      });
+
+      if (exclusao.status === 204) {
+        expect(criacaoReserva.status).not.toBe(201);
+        expect(conta).toBeNull();
+        expect(reservas).toBe(0);
+      } else {
+        expect(criacaoReserva.status).toBe(201);
+        expect(conta?.id).toBe(alvo.locatarioId);
+        expect(reservas).toBe(1);
+      }
     });
   });
 

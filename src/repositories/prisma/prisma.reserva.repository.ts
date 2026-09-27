@@ -227,10 +227,31 @@ export class PrismaReservaRepository implements IReservaRepository {
       // gravado depois dela: quem perdeu a corrida revisa a reserva.
       const veiculoAtual = await tx.veiculo.findUnique({
         where: { id: data.idVeiculo },
-        select: { garagemId: true },
+        select: { garagemId: true, idLocador: true },
       });
       if (!veiculoAtual) throw new HttpError(404, "Veículo não encontrado.");
-      if (veiculoAtual.garagemId !== (data.idGaragemRetirada ?? null)) {
+
+      // Exclusão e criação disputam as mesmas chaves de conta. A ordem
+      // canônica evita deadlock entre locatário e locador; a releitura cobre
+      // uma exclusão que tenha vencido antes desta transação obter a trava.
+      for (const idConta of [...new Set([data.idLocatario, veiculoAtual.idLocador])].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`conta:${idConta}`}, 0))`;
+      }
+
+      // PrismaPg executa uma transação em uma conexão. Consultas paralelas
+      // nela acionam `pg` com uma query ainda em curso e tornam a suíte
+      // intermitente. Preserve a releitura, mas serialize as consultas.
+      const locatarioAtual = await tx.locatario.findUnique({
+        where: { id: data.idLocatario },
+        select: { id: true },
+      });
+      const veiculoBloqueado = await tx.veiculo.findUnique({
+        where: { id: data.idVeiculo },
+        select: { garagemId: true },
+      });
+      if (!locatarioAtual) throw new HttpError(404, "Locatário não encontrado.");
+      if (!veiculoBloqueado) throw new HttpError(404, "Veículo não encontrado.");
+      if (veiculoBloqueado.garagemId !== (data.idGaragemRetirada ?? null)) {
         throw new HttpError(
           409,
           "A garagem de retirada foi alterada. Revise a reserva antes de confirmar.",

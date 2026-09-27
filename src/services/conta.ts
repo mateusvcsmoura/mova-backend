@@ -163,13 +163,13 @@ export class ContaService {
   };
 
   delete = async (id: string) => {
-    const existingConta = await this.contaRepository.findById(id);
+    const outcome = await this.contaRepository.deleteIfWithoutReservationHistory(id);
 
-    if (!existingConta) {
+    if (outcome === "NOT_FOUND") {
       throw new HttpError(404, "Conta não encontrada");
     }
 
-    if (await this.contaRepository.hasReservationHistory(id)) {
+    if (outcome === "HAS_HISTORY") {
       throw new HttpError(
         409,
         "A conta possui histórico de reservas e não pode ser excluída. Use a anonimização em POST /api/lgpd/anonimizar.",
@@ -177,6 +177,5 @@ export class ContaService {
       );
     }
 
-    await this.contaRepository.delete(id);
   };
 }

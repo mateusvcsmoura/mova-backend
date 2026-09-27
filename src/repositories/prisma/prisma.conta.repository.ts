@@ -143,21 +143,32 @@ export class PrismaContaRepository implements IContaRepository {
     });
   }
 
-  async hasReservationHistory(id: string): Promise<boolean> {
-    const total = await prisma.reserva.count({
-      where: {
-        OR: [
-          { idLocatario: id },
-          { veiculo: { idLocador: id } },
-        ],
-      },
-    });
-    return total > 0;
-  }
+  async deleteIfWithoutReservationHistory(
+    id: string,
+  ): Promise<"DELETED" | "HAS_HISTORY" | "NOT_FOUND"> {
+    // A criação de reserva obtém esta mesma trava para locatário e locador.
+    // Entre checar o histórico e apagar a conta não cabe uma nova reserva.
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`conta:${id}`}, 0))`;
 
-  async delete(id: string): Promise<void> {
-    await prisma.conta.delete({
-      where: { id },
+      const conta = await tx.conta.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+      if (!conta) return "NOT_FOUND";
+
+      const total = await tx.reserva.count({
+        where: {
+          OR: [
+            { idLocatario: id },
+            { veiculo: { idLocador: id } },
+          ],
+        },
+      });
+      if (total > 0) return "HAS_HISTORY";
+
+      await tx.conta.delete({ where: { id } });
+      return "DELETED";
     });
   }
 }
