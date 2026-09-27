@@ -244,6 +244,25 @@ describe("Relatório de Avaliações (dashboard do locador)", () => {
       expect(res.body.result.resumo.media).toBeCloseTo(4.5, 5);
     });
 
+    it("inclui avaliação no fim do dia informado", async () => {
+      const avaliacao = await seedAvaliacao(vA1.id, locatario.locatarioId, {
+        nota: 5,
+        data: new Date("2026-06-30T15:00:00.000Z"),
+        comentario: "No limite final",
+      });
+      try {
+        const res = await relatorio(
+          locadorA.token,
+          "?dataInicio=2026-06-30&dataFim=2026-06-30",
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.body.result.resumo).toMatchObject({ total: 1, media: 5 });
+      } finally {
+        await prisma.avaliacao.delete({ where: { id: avaliacao.id } });
+      }
+    });
+
     it("deve filtrar por veículo específico", async () => {
       const res = await relatorio(locadorA.token, `?idVeiculo=${vA1.id}`);
       expect(res.body.result.resumo.total).toBe(2);

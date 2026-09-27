@@ -79,11 +79,13 @@ export class PrismaLocadorDashboardRepository
         select: {
           id: true,
           idVeiculo: true,
+          idGaragemRetirada: true,
           dataHoraInicio: true,
           dataHoraFim: true,
           status: true,
           statusPagamento: true,
           valorTotal: true,
+          garagemRetirada: { select: { id: true, nome: true } },
           veiculo: {
             select: {
               placa: true,
@@ -108,6 +110,13 @@ export class PrismaLocadorDashboardRepository
       reservas: reservas.map((reserva) => ({
         id: reserva.id,
         idVeiculo: reserva.idVeiculo,
+        idGaragemRetirada: reserva.idGaragemRetirada,
+        garagemRetirada: reserva.garagemRetirada
+          ? {
+              id: reserva.garagemRetirada.id,
+              nome: reserva.garagemRetirada.nome,
+            }
+          : null,
         dataHoraInicio: reserva.dataHoraInicio,
         dataHoraFim: reserva.dataHoraFim,
         status: reserva.status,
@@ -179,10 +188,21 @@ export class PrismaLocadorDashboardRepository
   }
 
   async relatorioUtilizacao(idLocador: string): Promise<RelatorioUtilizacao> {
-    const [totalVeiculos, veiculosReservados, reservas] = await Promise.all([
+    const agora = new Date();
+    const [totalVeiculos, veiculosAlocados, reservasAtivas, reservas] = await Promise.all([
       prisma.veiculo.count({ where: { idLocador } }),
-      prisma.veiculo.count({
-        where: { idLocador, status: StatusVeiculo.RESERVADO },
+      prisma.veiculo.count({ where: { idLocador, garagemId: { not: null } } }),
+      prisma.reserva.findMany({
+        where: {
+          status: {
+            in: [StatusReserva.CONFIRMADA, StatusReserva.EM_ANDAMENTO],
+          },
+          dataHoraInicio: { lte: agora },
+          dataHoraFim: { gt: agora },
+          veiculo: { idLocador, garagemId: { not: null } },
+        },
+        distinct: ["idVeiculo"],
+        select: { idVeiculo: true },
       }),
       // Reservas não canceladas definem a utilização histórica.
       prisma.reserva.findMany({
@@ -232,10 +252,11 @@ export class PrismaLocadorDashboardRepository
 
     return {
       totalVeiculos,
-      veiculosReservados,
+      veiculosAlocados,
+      veiculosReservados: reservasAtivas.length,
       taxaOcupacao:
-        totalVeiculos > 0
-          ? Math.round((veiculosReservados / totalVeiculos) * 10000) / 10000
+        veiculosAlocados > 0
+          ? Math.round((reservasAtivas.length / veiculosAlocados) * 10000) / 10000
           : 0,
       tempoMedioReservadoHoras:
         reservas.length > 0
@@ -247,7 +268,7 @@ export class PrismaLocadorDashboardRepository
   }
 
   async frotaDashboard(idLocador: string): Promise<FrotaDashboard> {
-    const [statusGrupos, alertasAtivos, veiculos] = await Promise.all([
+    const [statusGrupos, alertasAtivos, alertasPorTipo, veiculos] = await Promise.all([
       prisma.veiculo.groupBy({
         by: ["status"],
         where: { idLocador },
@@ -255,6 +276,11 @@ export class PrismaLocadorDashboardRepository
       }),
       prisma.alertaVeiculo.count({
         where: { idLocador, resolvidoEm: null },
+      }),
+      prisma.alertaVeiculo.groupBy({
+        by: ["tipo"],
+        where: { idLocador, resolvidoEm: null },
+        _count: { _all: true },
       }),
       prisma.veiculo.findMany({
         where: { idLocador },
@@ -292,6 +318,14 @@ export class PrismaLocadorDashboardRepository
         inativo: contagem(StatusVeiculo.INATIVO),
       },
       alertasAtivos,
+      alertasPorTipo: {
+        INATIVIDADE:
+          alertasPorTipo.find((alerta) => alerta.tipo === "INATIVIDADE")
+            ?._count._all ?? 0,
+        BAIXA_AVALIACAO:
+          alertasPorTipo.find((alerta) => alerta.tipo === "BAIXA_AVALIACAO")
+            ?._count._all ?? 0,
+      },
       ultimasLocalizacoes,
     };
   }

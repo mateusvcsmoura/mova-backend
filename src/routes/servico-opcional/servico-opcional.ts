@@ -3,7 +3,7 @@ import { servicoOpcionalController } from "../container.js";
 
 const servicoOpcionalRouter = Router();
 
-// Listagem dos serviços opcionais disponíveis (qualquer usuário autenticado).
+// Catálogo público de serviços opcionais ativos; não há rotas de escrita aqui.
 servicoOpcionalRouter.get("/", servicoOpcionalController.index);
 servicoOpcionalRouter.get(
   "/:id",

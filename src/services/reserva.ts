@@ -531,7 +531,7 @@ export class ReservaService {
     return reservas;
   };
 
-  // Cotação pública sem persistência. Usa a mesma diária e o mesmo catálogo de serviços
+  // Precificação autenticada sem persistência. Usa a mesma diária e o mesmo catálogo de serviços
   // da criação; a criação recalcula novamente para impedir preço obsoleto ou
   // manipulado entre a visualização e o POST final.
   precificar = async (data: QuoteReservaInput) => {

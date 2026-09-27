@@ -679,7 +679,7 @@ describe("FINAL-H-04 — reserva exige ponto operacional", () => {
 
     const mover = await alocar(locador.token, garagemB.id, veiculo.id);
     expect(mover.status).toBe(409);
-    expect(mover.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+    expect(mover.body).toMatchObject({ code: "VEHICLE_HAS_ACTIVE_RESERVATION" });
 
     const reservaAntiga = await prisma.reserva.findUniqueOrThrow({
       where: { id: primeira.body.result.id },

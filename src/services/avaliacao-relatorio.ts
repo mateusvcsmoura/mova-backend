@@ -68,10 +68,18 @@ export class AvaliacaoRelatorioService {
     idLocador: string,
     options: DashboardOptions,
   ): Promise<AvaliacaoDashboard> => {
+    const dataFim = options.dataFim
+      ? new Date(Date.UTC(
+          options.dataFim.getUTCFullYear(),
+          options.dataFim.getUTCMonth(),
+          options.dataFim.getUTCDate(),
+          23, 59, 59, 999,
+        ))
+      : undefined;
     const filters: AvaliacaoRelatorioFilters = {
       idLocador,
       dataInicio: options.dataInicio,
-      dataFim: options.dataFim,
+      dataFim,
       idVeiculo: options.idVeiculo,
       idModeloVeiculo: options.idModeloVeiculo,
       notaMin: options.notaMin,

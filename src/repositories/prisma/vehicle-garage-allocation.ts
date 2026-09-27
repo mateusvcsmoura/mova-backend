@@ -97,8 +97,8 @@ async function assertNoReservationThatPinsGarage(
   if (ativa) {
     throw new HttpError(
       409,
-      "Não é possível alterar a garagem de um veículo com reserva pendente, confirmada ou em andamento.",
-      "VEICULO_COM_RESERVA_ATIVA",
+      "O veículo possui uma reserva que impede sua transferência.",
+      "VEHICLE_HAS_ACTIVE_RESERVATION",
     );
   }
 }

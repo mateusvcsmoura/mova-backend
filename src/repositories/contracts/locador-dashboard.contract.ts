@@ -7,6 +7,11 @@ import { StatusReserva } from "@prisma/client";
 export interface RelatorioReservaItem {
   id: string;
   idVeiculo: string;
+  idGaragemRetirada: string | null;
+  garagemRetirada: {
+    id: string;
+    nome: string;
+  } | null;
   dataHoraInicio: Date;
   dataHoraFim: Date;
   status: string;
@@ -74,8 +79,10 @@ export interface UtilizacaoVeiculo {
 
 export interface RelatorioUtilizacao {
   totalVeiculos: number;
+  // Veículos com alocação física válida; é o denominador da ocupação.
+  veiculosAlocados: number;
   veiculosReservados: number;
-  // Ocupação instantânea: veículos RESERVADO / total de veículos (0..1).
+  // Ocupação instantânea: reservas ativas em veículos alocados / veículos alocados (0..1).
   taxaOcupacao: number;
   // Duração média de uma reserva (não cancelada), em horas.
   tempoMedioReservadoHoras: number;
@@ -101,5 +108,9 @@ export interface FrotaDashboard {
     inativo: number;
   };
   alertasAtivos: number;
+  alertasPorTipo: {
+    INATIVIDADE: number;
+    BAIXA_AVALIACAO: number;
+  };
   ultimasLocalizacoes: UltimaLocalizacaoVeiculo[];
 }

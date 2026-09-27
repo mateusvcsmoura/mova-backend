@@ -25,12 +25,17 @@ async function seedReserva(
     horas?: number;
   },
 ) {
+  const veiculo = await prisma.veiculo.findUniqueOrThrow({
+    where: { id: idVeiculo },
+    select: { garagemId: true },
+  });
   const inicio = new Date("2026-01-01T10:00:00.000Z");
   const fim = new Date(inicio.getTime() + (opts.horas ?? 24) * 3600 * 1000);
   return prisma.reserva.create({
     data: {
       idVeiculo,
       idLocatario,
+      idGaragemRetirada: veiculo.garagemId,
       dataHoraInicio: inicio,
       dataHoraFim: fim,
       valorTotal: opts.valorTotal,
@@ -141,6 +146,8 @@ describe("Dashboard do locador (RF17/RF18)", () => {
         statusPagamento: "SUCESSO",
         valorTotal: 300,
         veiculo: { placa: expect.any(String), modelo: expect.any(String) },
+        idGaragemRetirada: expect.any(String),
+        garagemRetirada: { id: expect.any(String), nome: expect.any(String) },
       });
       expect(res.body.result.reservas[0]).not.toHaveProperty("idLocatario");
     });
@@ -285,12 +292,83 @@ describe("Dashboard do locador (RF17/RF18)", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.result.totalVeiculos).toBe(3);
-      expect(res.body.result.veiculosReservados).toBe(1); // v1
-      expect(res.body.result.taxaOcupacao).toBeCloseTo(1 / 3, 4);
+      expect(res.body.result.veiculosAlocados).toBe(3);
+      // As reservas de seed são históricas; não ocupam a frota neste instante.
+      expect(res.body.result.veiculosReservados).toBe(0);
+      expect(res.body.result.taxaOcupacao).toBe(0);
       // 4 reservas não canceladas, 24h cada -> média 24h.
       expect(res.body.result.tempoMedioReservadoHoras).toBe(24);
       expect(res.body.result.maisUtilizados.length).toBeGreaterThan(0);
       expect(res.body.result.maisUtilizados[0].idVeiculo).toBe(v1); // 2 reservas
+    });
+
+    it("calcula ocupação instantânea por reserva ativa e veículos alocados", async () => {
+      const agora = Date.now();
+      const reservasOriginais = await prisma.reserva.findMany({
+        where: { idVeiculo: v1 },
+        select: { id: true, status: true, dataHoraInicio: true, dataHoraFim: true },
+      });
+      try {
+        await prisma.veiculo.update({
+          where: { id: v1 },
+          data: { status: "DISPONIVEL" },
+        });
+        await prisma.reserva.updateMany({
+          where: { idVeiculo: v1 },
+          data: {
+            status: "CONFIRMADA",
+            dataHoraInicio: new Date(agora - 60 * 60 * 1000),
+            dataHoraFim: new Date(agora + 60 * 60 * 1000),
+          },
+        });
+
+        const res = await request(app)
+          .get("/api/dashboard/utilizacao")
+          .set(auth(locadorA.token));
+
+        expect(res.status).toBe(200);
+        expect(res.body.result.veiculosReservados).toBe(1);
+        expect(res.body.result.taxaOcupacao).toBeCloseTo(1 / 3, 4);
+      } finally {
+        await prisma.$transaction(
+          reservasOriginais.map((reserva) =>
+            prisma.reserva.update({
+              where: { id: reserva.id },
+              data: {
+                status: reserva.status,
+                dataHoraInicio: reserva.dataHoraInicio,
+                dataHoraFim: reserva.dataHoraFim,
+              },
+            }),
+          ),
+        );
+        await prisma.veiculo.update({
+          where: { id: v1 },
+          data: { status: "RESERVADO" },
+        });
+      }
+    });
+
+    it("não divide por zero e isola a ocupação entre locadores", async () => {
+      const semFrota = await createLocador();
+      const vazio = await request(app)
+        .get("/api/dashboard/utilizacao")
+        .set(auth(semFrota.token));
+
+      expect(vazio.status).toBe(200);
+      expect(vazio.body.result).toMatchObject({
+        totalVeiculos: 0,
+        veiculosAlocados: 0,
+        veiculosReservados: 0,
+        taxaOcupacao: 0,
+      });
+
+      const outro = await request(app)
+        .get("/api/dashboard/utilizacao")
+        .set(auth(locadorB.token));
+      expect(outro.status).toBe(200);
+      expect(outro.body.result.veiculosReservados).toBe(0);
+      expect(outro.body.result.taxaOcupacao).toBe(0);
     });
   });
 
@@ -305,6 +383,7 @@ describe("Dashboard do locador (RF17/RF18)", () => {
       expect(res.body.result.veiculos.reservado).toBe(1);
       expect(res.body.result.veiculos.disponivel).toBe(2);
       expect(res.body.result.alertasAtivos).toBe(1);
+      expect(res.body.result.alertasPorTipo).toEqual({ INATIVIDADE: 1, BAIXA_AVALIACAO: 0 });
       expect(res.body.result.ultimasLocalizacoes.length).toBe(1);
       expect(res.body.result.ultimasLocalizacoes[0].idVeiculo).toBe(v1);
     });

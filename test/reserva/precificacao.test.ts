@@ -6,6 +6,7 @@ import { prisma } from "../../src/database/prisma";
 import {
   createLocador,
   createLocatario,
+  createAdminAccount,
   createServico,
   createVeiculo,
 } from "../helpers";
@@ -30,7 +31,7 @@ describe("POST /api/reserva/precificacao", () => {
   }
 
   async function cotar(
-    _token: string,
+    token: string,
     _idLocatario: string,
     idVeiculo: string,
     periodo: ReturnType<typeof periodoEmHoras>,
@@ -38,6 +39,7 @@ describe("POST /api/reserva/precificacao", () => {
   ) {
     return request(app)
       .post("/api/reserva/precificacao")
+      .set("Authorization", `Bearer ${token}`)
       .send({ idVeiculo, ...periodo, ...extras });
   }
 
@@ -69,7 +71,7 @@ describe("POST /api/reserva/precificacao", () => {
     });
   });
 
-  it("permite cotação anônima sem identidade e não cria reserva", async () => {
+  it("exige locatário autenticado até decisão formal sobre cotação pública", async () => {
     const { veiculo } = await contexto(100);
     const servico = await createServico({ valor: 49.9 });
     const periodo = periodoEmHoras(10, 49);
@@ -79,18 +81,30 @@ describe("POST /api/reserva/precificacao", () => {
       .post("/api/reserva/precificacao")
       .send({ idVeiculo: veiculo.id, ...periodo, servicosIds: [servico.id] });
 
-    expect(resposta.status).toBe(200);
-    expect(resposta.body.result).toMatchObject({
-      valorDiaria: 100,
-      diarias: 3,
-      valorBase: 300,
-      valorServicos: 49.9,
-      valorTotal: 349.9,
-    });
+    expect(resposta.status).toBe(401);
     expect(await prisma.reserva.count()).toBe(reservasAntes);
   });
 
-  it("mantém criação de reserva protegida mesmo com a cotação pública", async () => {
+  it("recusa locador e permite administrador na precificação", async () => {
+    const { veiculo } = await contexto(100);
+    const locador = await createLocador();
+    const admin = await createAdminAccount();
+    const periodo = periodoEmHoras(10, 24);
+
+    await request(app)
+      .post("/api/reserva/precificacao")
+      .set("Authorization", `Bearer ${locador.token}`)
+      .send({ idVeiculo: veiculo.id, ...periodo })
+      .expect(403);
+
+    await request(app)
+      .post("/api/reserva/precificacao")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({ idVeiculo: veiculo.id, ...periodo })
+      .expect(200);
+  });
+
+  it("mantém criação de reserva protegida mesmo com precificação autenticada", async () => {
     const { locatario, veiculo } = await contexto(100);
     const response = await request(app)
       .post("/api/reserva")

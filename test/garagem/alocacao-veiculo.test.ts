@@ -346,7 +346,11 @@ describe("FINAL-H-04 — alocação operacional de veículos", () => {
         .set(auth(locadorA.token));
 
       expect(response.status).toBe(409);
-      expect(response.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+      expect(response.body).toMatchObject({
+        code: "VEHICLE_HAS_ACTIVE_RESERVATION",
+        message: expect.stringMatching(/reserva.*impede.*transfer/i),
+        requestId: expect.any(String),
+      });
       const [estado, reservaPersistida] = await Promise.all([
         estadoAlocacao(veiculo.id, [origem.id, destino.id]),
         prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } }),
@@ -379,9 +383,9 @@ describe("FINAL-H-04 — alocação operacional de veículos", () => {
         .delete(`/api/garagem/${origem.id}/veiculos/${veiculo.id}`)
         .set(auth(locadorA.token));
 
-      expect(viaPut.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+      expect(viaPut.body).toMatchObject({ code: "VEHICLE_HAS_ACTIVE_RESERVATION" });
       expect(viaPut.status).toBe(409);
-      expect(viaDelete.body).toMatchObject({ code: "VEICULO_COM_RESERVA_ATIVA" });
+      expect(viaDelete.body).toMatchObject({ code: "VEHICLE_HAS_ACTIVE_RESERVATION" });
       expect(viaDelete.status).toBe(409);
       const [estado, reservaPersistida] = await Promise.all([
         estadoAlocacao(veiculo.id, [origem.id, destino.id]),
@@ -432,7 +436,7 @@ describe("FINAL-H-04 — alocação operacional de veículos", () => {
       .set(auth(locadorA.token));
 
     expect(response.status).toBe(409);
-    expect(response.body.code).toBe("VEICULO_COM_RESERVA_ATIVA");
+    expect(response.body.code).toBe("VEHICLE_HAS_ACTIVE_RESERVATION");
   });
 
   it("B9: mesma garagem é no-op mesmo quando há pendência", async () => {
