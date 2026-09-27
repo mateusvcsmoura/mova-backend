@@ -1,7 +1,9 @@
 import request from "supertest";
+import jwt from "jsonwebtoken";
 import { describe, it, expect, beforeAll } from "vitest";
 
 import { app } from "../../src/app";
+import { env } from "../../src/config/env";
 import {
   DEFAULT_SENHA,
   createAccount,
@@ -84,6 +86,84 @@ describe("LGPD", () => {
       expect(dados.body.result.conta.nome).toBe("Usuário anonimizado");
       expect(dados.body.result.conta.anonimizadoEm).not.toBeNull();
       expect(dados.body.result.locatario.rg).toBe("[removido]");
+    });
+  });
+
+  describe("Sessões revogadas após anonimização", () => {
+    it("revoga somente o token do titular e preserva token inválido ou expirado", async () => {
+      const alvo = await createLocatario();
+      const administrador = await createAccount("ADMIN");
+      const tokenAntigo = alvo.token;
+
+      const anonimizar = await request(app)
+        .post(`/api/lgpd/${alvo.locatarioId}/anonimizar`)
+        .set("Authorization", `Bearer ${administrador.token}`);
+      expect(anonimizar.status).toBe(200);
+
+      const sessaoRevogada = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", `Bearer ${tokenAntigo}`);
+      expect(sessaoRevogada.status).toBe(401);
+      expect(sessaoRevogada.body.code).toBe("SESSION_REVOKED");
+
+      const novoLogin = await request(app)
+        .post("/api/conta/auth/login")
+        .send({ email: alvo.email, senha: alvo.senha });
+      expect(novoLogin.status).toBe(401);
+
+      const sessaoAdmin = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", `Bearer ${administrador.token}`);
+      expect(sessaoAdmin.status).toBe(200);
+
+      const invalido = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", "Bearer nao-e-um-jwt");
+      expect(invalido.status).toBe(401);
+      expect(invalido.body.code).toBe("INVALID_TOKEN");
+
+      const tokenExpirado = jwt.sign(
+        { id: administrador.conta.id, cargo: "ADMIN" },
+        env.JWT_SECRET,
+        { expiresIn: -1 },
+      );
+      const expirado = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", `Bearer ${tokenExpirado}`);
+      expect(expirado.status).toBe(401);
+      expect(expirado.body.code).toBe("INVALID_TOKEN");
+    });
+  });
+
+  describe("Exclusão de conta com histórico", () => {
+    it("recusa exclusão, preserva dados e oferece anonimização", async () => {
+      const dono = await createLocador();
+      const alvo = await createLocatario();
+      const veiculo = await createVeiculo(dono.token, dono.locadorId);
+      const reserva = await createReserva(alvo.token, veiculo.id, alvo.locatarioId);
+
+      const exclusao = await request(app)
+        .delete("/api/conta/auth/delete-account")
+        .set("Authorization", `Bearer ${alvo.token}`);
+
+      expect(exclusao.status).toBe(409);
+      expect(exclusao.body).toMatchObject({
+        code: "ACCOUNT_HAS_HISTORY",
+        message: expect.stringMatching(/anonimiz/i),
+        requestId: expect.any(String),
+      });
+
+      const conta = await request(app)
+        .get("/api/conta/auth/me")
+        .set("Authorization", `Bearer ${alvo.token}`);
+      expect(conta.status).toBe(200);
+      expect(conta.body.result.conta.id).toBe(alvo.locatarioId);
+
+      const reservaPersistida = await request(app)
+        .get(`/api/reserva/${reserva.id}`)
+        .set("Authorization", `Bearer ${alvo.token}`);
+      expect(reservaPersistida.status).toBe(200);
+      expect(reservaPersistida.body.result.id).toBe(reserva.id);
     });
   });
 

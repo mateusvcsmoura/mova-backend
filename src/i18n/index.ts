@@ -27,6 +27,8 @@ export const ErrorCode = {
   UNAUTHENTICATED: "UNAUTHENTICATED",
   FORBIDDEN: "FORBIDDEN",
   INVALID_TOKEN: "INVALID_TOKEN",
+  SESSION_REVOKED: "SESSION_REVOKED",
+  ACCOUNT_HAS_HISTORY: "ACCOUNT_HAS_HISTORY",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 

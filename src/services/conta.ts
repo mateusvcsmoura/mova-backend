@@ -11,6 +11,7 @@ import { ILocatarioRepository } from "../repositories/locatario.repository.js";
 import { PaginationParams } from "../shared/pagination.js";
 import { env } from "../config/env.js";
 import { Cargo } from "@prisma/client";
+import { ErrorCode } from "../i18n/index.js";
 
 export class ContaService {
   constructor(
@@ -166,6 +167,14 @@ export class ContaService {
 
     if (!existingConta) {
       throw new HttpError(404, "Conta não encontrada");
+    }
+
+    if (await this.contaRepository.hasReservationHistory(id)) {
+      throw new HttpError(
+        409,
+        "A conta possui histórico de reservas e não pode ser excluída. Use a anonimização em POST /api/lgpd/anonimizar.",
+        ErrorCode.ACCOUNT_HAS_HISTORY,
+      );
     }
 
     await this.contaRepository.delete(id);

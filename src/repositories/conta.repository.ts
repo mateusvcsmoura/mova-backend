@@ -16,5 +16,6 @@ export interface IContaRepository {
   create(data: CreateContaRequest): Promise<ContaResponse>;
   update(id: string, data: UpdateContaRequest): Promise<ContaResponse | null>;
   updatePassword(id: string, senhaHash: string): Promise<void>;
+  hasReservationHistory(id: string): Promise<boolean>;
   delete(id: string): Promise<void>;
 }

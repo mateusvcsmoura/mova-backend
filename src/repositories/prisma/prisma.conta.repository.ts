@@ -143,6 +143,18 @@ export class PrismaContaRepository implements IContaRepository {
     });
   }
 
+  async hasReservationHistory(id: string): Promise<boolean> {
+    const total = await prisma.reserva.count({
+      where: {
+        OR: [
+          { idLocatario: id },
+          { veiculo: { idLocador: id } },
+        ],
+      },
+    });
+    return total > 0;
+  }
+
   async delete(id: string): Promise<void> {
     await prisma.conta.delete({
       where: { id },
