@@ -49,7 +49,7 @@ export class PagamentoWebhookService {
         await this.sandboxAudit.registrarPagamentoBloqueado(
           evento.idReserva,
           provider,
-          rawBody,
+          evento.providerEventId,
         );
       } else {
         throw error;

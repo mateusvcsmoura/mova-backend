@@ -140,7 +140,12 @@ export class PagamentoService {
       );
     }
 
-    const corpo = montarEventoWebhook(idReserva, status, dados.metodoPagamento);
+    const corpo = montarEventoWebhook(
+      idReserva,
+      status,
+      dados.metodoPagamento,
+      `sandbox:${provider}:${idReserva}:${status}`,
+    );
     const bytes = Buffer.from(corpo, "utf8");
     const assinatura = assinarPayload(segredo, bytes);
     const header = HEADER_ASSINATURA[provider] ?? HEADER_ASSINATURA.mercadopago;

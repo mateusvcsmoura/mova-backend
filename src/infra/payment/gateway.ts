@@ -9,6 +9,7 @@ import { HttpError } from "../../errors/HttpError.js";
 // vê o formato bruto do gateway. É aqui que o "fluxo interno" começa.
 export interface PagamentoEvento {
   idReserva: string;
+  providerEventId: string;
   status: StatusPagamento;
   metodo?: MetodoPagamento;
 }
@@ -55,7 +56,9 @@ const EVENTO_STATUS: Record<string, StatusPagamento> = {
  * e no segredo — o esquema HMAC-SHA256 sobre o corpo cru é o denominador comum.
  *
  * `não integrar gateway real`: parseEvento espera um payload canônico
- * `{ idReserva, evento, metodo? }`. Para um provedor real, é AQUI que se mapeia
+ * `{ idReserva, providerEventId, evento, metodo? }`. `providerEventId` é a
+ * identidade estável da entrega para idempotência, distinta dos bytes assinados.
+ * Para um provedor real, é AQUI que se mapeia
  * o formato específico dele (ex.: Stripe `type`/`data.object`) — o resto da
  * aplicação não muda.
  */
@@ -81,14 +84,25 @@ class PaymentGatewayHmac implements PaymentGateway {
     }
     const p = payload as {
       idReserva?: string;
+      providerEventId?: string;
       evento?: string;
       metodo?: MetodoPagamento;
     };
     const status = p.evento ? EVENTO_STATUS[p.evento] : undefined;
-    if (!p.idReserva || !status) {
+    if (
+      !p.idReserva ||
+      typeof p.providerEventId !== "string" ||
+      p.providerEventId.length === 0 ||
+      !status
+    ) {
       throw new HttpError(400, "Payload de webhook inválido.");
     }
-    return { idReserva: p.idReserva, status, metodo: p.metodo };
+    return {
+      idReserva: p.idReserva,
+      providerEventId: p.providerEventId,
+      status,
+      metodo: p.metodo,
+    };
   }
 }
 

@@ -449,12 +449,14 @@ export async function confirmarPagamentoWebhook(
     provider?: string;
     evento?: string;
     metodo?: string;
+    providerEventId?: string;
     assinatura?: string; // permite forçar assinatura inválida nos testes
   } = {},
 ) {
   const provider = opts.provider ?? "stripe";
   const corpo = JSON.stringify({
     idReserva,
+    providerEventId: opts.providerEventId ?? `test:${provider}:${idReserva}:${opts.evento ?? "pagamento.sucesso"}`,
     evento: opts.evento ?? "pagamento.sucesso",
     ...(opts.metodo ? { metodo: opts.metodo } : {}),
   });

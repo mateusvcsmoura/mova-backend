@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 import { app } from "../../src/app";
 import { prisma } from "../../src/database/prisma";
+import { SandboxPaymentAudit } from "../../src/infra/payment/sandbox-audit";
 import {
   assinarWebhook,
   confirmarPagamentoWebhook,
@@ -116,6 +117,71 @@ describe("Webhook de pagamento (assinado)", () => {
 });
 
 describe("Webhook de pagamento bloqueado — trilha sandbox", () => {
+  it("deduplica o mesmo evento do provedor mesmo quando a serialização assinada muda", async () => {
+    const admin = await createAccount("ADMIN");
+    const locador = await createLocador();
+    const locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(200, 2),
+    );
+    await createBloqueio(admin.token, locatario.locatarioId);
+
+    const providerEventId = "evt-semanticamente-igual";
+    const primeiro = JSON.stringify({
+      idReserva: reserva.id,
+      evento: "pagamento.sucesso",
+      metodo: "PIX",
+      providerEventId,
+    });
+    const replayComOutraSerializacao = ` {\n  "providerEventId": "${providerEventId}",\n  "metodo": "PIX",\n  "evento": "pagamento.sucesso",\n  "idReserva": "${reserva.id}"\n}`;
+
+    for (const corpo of [primeiro, replayComOutraSerializacao]) {
+      const resposta = await request(app)
+        .post("/api/webhooks/pagamento/stripe")
+        .set("stripe-signature", assinarWebhook("stripe", corpo))
+        .set("Content-Type", "application/json")
+        .send(corpo);
+      expect(resposta.status).toBe(200);
+    }
+
+    expect(
+      await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id } }),
+    ).toBe(3);
+  });
+
+  it("replay concorrente reserva o estorno antes de chamar o gateway uma única vez", async () => {
+    const locador = await createLocador();
+    const locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(210, 2),
+    );
+    const chamadas: Array<{ chaveIdempotencia?: string }> = [];
+    const audit = new SandboxPaymentAudit({
+      solicitarEstorno: async ({ chaveIdempotencia }: { chaveIdempotencia?: string }) => {
+        chamadas.push({ chaveIdempotencia });
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      },
+    });
+
+    await Promise.all([
+      audit.registrarPagamentoBloqueado(reserva.id, "stripe", "evt-concorrente"),
+      audit.registrarPagamentoBloqueado(reserva.id, "stripe", "evt-concorrente"),
+    ]);
+
+    expect(chamadas).toEqual([{ chaveIdempotencia: "stripe:evt-concorrente:refund" }]);
+    expect(
+      await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id } }),
+    ).toBe(3);
+  });
+
   it("registra recebimento e estorno simulado uma vez sem confirmar ou liberar a reserva", async () => {
     const admin = await createAccount("ADMIN");
     const locador = await createLocador();

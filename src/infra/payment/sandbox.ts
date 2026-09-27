@@ -83,6 +83,7 @@ export function montarEventoWebhook(
   idReserva: string,
   status: StatusPagamento,
   metodo: MetodoPagamento,
+  providerEventId: string,
 ): string {
   const EVENTO_POR_STATUS: Record<string, string> = {
     [StatusPagamento.SUCESSO]: "pagamento.sucesso",
@@ -92,6 +93,7 @@ export function montarEventoWebhook(
 
   return JSON.stringify({
     idReserva,
+    providerEventId,
     evento: EVENTO_POR_STATUS[status],
     metodo,
   });
