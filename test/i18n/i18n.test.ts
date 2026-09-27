@@ -9,8 +9,14 @@ import { z } from "zod";
 
 // Simula res do Express capturando status/json.
 function fakeRes() {
-  const captured: { status?: number; body?: any } = {};
+  const captured: { status?: number; body?: any; headers: Record<string, string> } = {
+    headers: {},
+  };
   const res: any = {
+    setHeader(name: string, value: string) {
+      captured.headers[name] = value;
+      return res;
+    },
     status(code: number) {
       captured.status = code;
       return res;
@@ -51,7 +57,8 @@ describe("i18n — error-handler", () => {
       next,
     );
     expect(captured.status).toBe(403);
-    expect(captured.body).toEqual({ code: "FORBIDDEN", message: "Acesso negado" });
+    expect(captured.body).toMatchObject({ code: "FORBIDDEN", message: "Acesso negado" });
+    expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
   });
 
   it("en traduz a mensagem pelo código, mantendo o code estável", () => {
@@ -64,6 +71,7 @@ describe("i18n — error-handler", () => {
     );
     expect(captured.body.code).toBe("FORBIDDEN");
     expect(captured.body.message).toBe("Access denied.");
+    expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
   });
 
   it("HttpError sem código não é traduzido (compatibilidade)", () => {
@@ -74,7 +82,11 @@ describe("i18n — error-handler", () => {
       res,
       next,
     );
-    expect(captured.body).toEqual({ message: "Reserva não encontrada" });
+    expect(captured.body).toMatchObject({
+      code: "BUSINESS_ERROR",
+      message: "Reserva não encontrada",
+    });
+    expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
   });
 
   it("ZodError vira VALIDATION_ERROR e traduz em es", () => {
@@ -89,6 +101,7 @@ describe("i18n — error-handler", () => {
     expect(captured.status).toBe(400);
     expect(captured.body.code).toBe("VALIDATION_ERROR");
     expect(captured.body.message).toBe("Datos inválidos.");
+    expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
   });
 });
 

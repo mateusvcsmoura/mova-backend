@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 
 // ATENÇÃO: este arquivo NÃO mocka o Nodemailer — ele envia um e-mail REAL.
-// Por isso é opt-in: só roda quando SEND_REAL_EMAIL=true E o SMTP está
+// Por isso é opt-in: só roda quando RUN_REAL_EMAIL_TEST=true E o SMTP está
 // configurado. Em `npm test` normal (sem essas variáveis) todos os casos são
 // pulados, então a suíte jamais envia e-mail sozinha.
 //
 // Como rodar (PowerShell), com App Password do Gmail no .env:
-//   $env:SEND_REAL_EMAIL="true"; npx vitest run test/notificacao/real-email
+//   $env:RUN_REAL_EMAIL_TEST="true"; npx vitest run test/notificacao/real-email
 //
 // Ou passando tudo inline:
-//   $env:SEND_REAL_EMAIL="true"; $env:SMTP_HOST="smtp.gmail.com"; `
+//   $env:RUN_REAL_EMAIL_TEST="true"; $env:SMTP_HOST="smtp.gmail.com"; `
 //   $env:SMTP_PORT="465"; $env:SMTP_USER="voce@gmail.com"; `
 //   $env:SMTP_PASS="app-password"; $env:SMTP_FROM="Mova <voce@gmail.com>"; `
 //   npx vitest run test/notificacao/real-email
@@ -30,7 +30,7 @@ const smtpConfig = {
 
 const provider = new NodemailerMailProvider(smtpConfig);
 const habilitado =
-  process.env.SEND_REAL_EMAIL === "true" && provider.isEnabled();
+  process.env.RUN_REAL_EMAIL_TEST === "true" && provider.isEnabled();
 
 // it.skipIf pula (sem falhar) quando o envio real não está habilitado.
 const runIf = it.skipIf(!habilitado);

@@ -1,4 +1,4 @@
-import { beforeAll, afterAll } from "vitest";
+import { beforeAll } from "vitest";
 import { prisma } from "../src/database/prisma";
 
 // Trava de segurança: a suíte TRUNCA todas as tabelas. Só pode rodar quando o
@@ -62,10 +62,5 @@ beforeAll(async () => {
   await resetDatabase();
 });
 
-// Fecha o pool de conexões (adapter PrismaPg/node-postgres) ao fim de cada
-// arquivo. Sem isso o vitest mata o worker com sockets ainda abertos, o que no
-// Windows + pool de forks gera "Worker exited unexpectedly" de forma
-// intermitente. ponytail: teardown por arquivo, não por teste.
-afterAll(async () => {
-  await prisma.$disconnect();
-});
+// A suíte serial mantém o pool até o worker Vitest encerrar. Evita teardown de
+// conexão entre arquivos enquanto a causa do abort intermitente é monitorada.

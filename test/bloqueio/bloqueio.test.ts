@@ -278,7 +278,7 @@ describe("Bloqueio de locatário — RN07 no webhook de pagamento", () => {
     veiculoId = veiculo.id;
   });
 
-  it("locatário bloqueado após criar: webhook SUCESSO NÃO gera código (403)", async () => {
+  it("locatário bloqueado após criar: webhook reconhece evento, estorna sandbox e não gera código", async () => {
     const locatario = await createLocatario();
     const reserva = await createReserva(
       locatario.token,
@@ -293,12 +293,15 @@ describe("Bloqueio de locatário — RN07 no webhook de pagamento", () => {
     });
 
     const res = await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" });
-    expect(res.status).toBe(403);
+    // Webhook assinado recebe 200 para evitar reentregas; o bloqueio impede
+    // confirmação e é tratado pela trilha idempotente de estorno sandbox.
+    expect(res.status).toBe(200);
 
     const persistida = await prisma.reserva.findUnique({
       where: { id: reserva.id },
     });
     expect(persistida!.codigoDesbloqueio).toBeNull();
+    expect(persistida!.statusPagamento).not.toBe("SUCESSO");
   });
 
   it("locatário liberado: webhook SUCESSO gera código normalmente", async () => {
