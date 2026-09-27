@@ -1,33 +1,51 @@
-# C3 — pagamento bloqueado e estorno sandbox
+# C3 — blocked payment and sandbox refund
 
-## Estado
+## Final state
 
-Implementação parcial entregue: o webhook assinado para locatário bloqueado é
-reconhecido idempotentemente e não confirma a reserva, não gera código e não
-permite início. A resposta é 200 para conter reentregas, com uma trilha
-append-only exclusivamente simulada (`PAGAMENTO_RECEBIDO`,
-`ESTORNO_SOLICITADO`, `ESTORNO_CONCLUIDO`). Nenhuma integração ou alegação de
-transferência real foi adicionada; o modal Pix também foi explicitado como
-ilustrativo.
+A valid signed paid webhook received after the tenant is blocked is acknowledged
+idempotently. It does not confirm the reservation, issue an unlock code, or
+permit rental start. It records an append-only sandbox-only trace:
+`PAGAMENTO_RECEBIDO`, `ESTORNO_SOLICITADO`, `ESTORNO_FALHOU`, and
+`ESTORNO_CONCLUIDO` when the first simulated refund attempt fails.
 
-## Segurança de execução
+The dedicated refund gateway is a deterministic sandbox simulator: it has no
+credentials, balance, or transfer operation. `PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA=true`
+is a test-only switch that makes the first attempt fail. A second attempt runs
+automatically, and deterministic idempotency keys prevent duplicate financial
+records or repeated retries when the signed webhook is delivered again.
 
-Antes da migração e dos testes destrutivos foi confirmado:
+The Pix UI wording remains explicitly illustrative/simulated; this task makes
+no claim that a real refund or money movement occurred.
 
-- `NODE_ENV=test`
-- `DATABASE_URL_TEST` e `DIRECT_URL_TEST` em `localhost:5433/mova_test`
-- Prisma aplicou a migração no banco `mova_test`.
+## Test safety
 
-## RED/GREEN observado
+Before destructive tests, sanitized checks confirmed:
 
-- RED: `test/pagamento/webhook.test.ts --maxWorkers=1` falhou como esperado:
-  webhook válido de bloqueado retornava 403 em vez de reconhecer o recebimento.
-- GREEN: o mesmo arquivo passou com 7 testes.
-- Frontend: `src/pages/Pagamento.test.jsx` passou com 33 testes em 4 arquivos.
-- Backend: `prisma generate` e `tsc` passaram.
+- `DATABASE_URL_TEST` and `DIRECT_URL_TEST`: `localhost:5433/mova_test`
+- development URLs: `localhost:5433/mova_dev`
+- test commands force `NODE_ENV=test`
 
-## Limitação remanescente
+Only `mova_test` was used. The test reset now deletes
+`EventoFinanceiroSandbox` before `Reserva`, respecting its foreign key and
+retaining per-file isolation.
 
-O fluxo de falha e retry de estorno ainda não foi modelado: esta entrega
-simula somente estorno concluído. Portanto C3 ainda não satisfaz integralmente
-o critério de `ESTORNO_FALHOU` seguido de retry, nem a jornada E2E dedicada.
+## RED/GREEN evidence
+
+- RED: `NODE_ENV=test SEND_REAL_EMAIL=false npx.cmd vitest run
+  test/pagamento/webhook.test.ts --maxWorkers=1` failed at the new scenario.
+  The partial implementation produced only received/requested/completed events;
+  `ESTORNO_FALHOU` was absent.
+- GREEN: the same webhook file passed with **8 tests**.
+- Relevant E2E: `test/e2e/jornada-reserva-pagamento.test.ts` passed with
+  **2 tests**. The added journey creates the reservation by API, blocks the
+  tenant, sends the signed webhook, verifies no confirmation/unlock code, and
+  verifies automatic sandbox retry.
+- Payment regression: `npx.cmd vitest run test/pagamento --maxWorkers=1`
+  passed with **30 tests**. `npx.cmd tsc --noEmit` passed.
+
+## Full-suite note
+
+The serial full-suite attempt encountered unrelated pre-existing failures in
+`test/re-review/blocker-h04.test.ts`: **6 failed / 22 tests** (undefined test
+fixtures and a capacity assertion). The focused C3 proof and E2E journey are
+green; C1, C2, and C8 were not changed to conceal those failures.

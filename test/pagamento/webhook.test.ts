@@ -150,4 +150,44 @@ describe("Webhook de pagamento bloqueado — trilha sandbox", () => {
       "ESTORNO_CONCLUIDO",
     ]);
   });
+
+  it("falha uma vez e conclui o estorno sandbox em retry automático sem duplicar a trilha", async () => {
+    const anterior = process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA;
+    process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA = "true";
+
+    try {
+      const admin = await createAccount("ADMIN");
+      const locador = await createLocador();
+      const locatario = await createLocatario();
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const reserva = await createReserva(
+        locatario.token,
+        veiculo.id,
+        locatario.locatarioId,
+        futurePeriod(240, 2),
+      );
+      await createBloqueio(admin.token, locatario.locatarioId);
+
+      expect((await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" })).status).toBe(200);
+      expect((await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" })).status).toBe(200);
+
+      const trilha = await prisma.$queryRawUnsafe<Array<{ tipo: string }>>(
+        'SELECT "tipo" FROM "EventoFinanceiroSandbox" WHERE "idReserva" = $1 ORDER BY "criadoEm", "id"',
+        reserva.id,
+      );
+      expect(trilha.map((evento) => evento.tipo).sort()).toEqual([
+        "ESTORNO_CONCLUIDO",
+        "ESTORNO_FALHOU",
+        "ESTORNO_SOLICITADO",
+        "PAGAMENTO_RECEBIDO",
+      ]);
+
+      const persistida = await prisma.reserva.findUniqueOrThrow({ where: { id: reserva.id } });
+      expect(persistida.statusPagamento).not.toBe("SUCESSO");
+      expect(persistida.codigoDesbloqueio).toBeNull();
+    } finally {
+      if (anterior === undefined) delete process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA;
+      else process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA = anterior;
+    }
+  });
 });

@@ -4,6 +4,9 @@ import request from "supertest";
 import { app } from "../../src/app";
 import { prisma } from "../../src/database/prisma";
 import {
+  confirmarPagamentoWebhook,
+  createAccount,
+  createBloqueio,
   createGaragem,
   createLocador,
   createLocatario,
@@ -193,5 +196,52 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
 
     expect(aposDesbloqueio.body.result.status).toBe("EM_ANDAMENTO");
     expect(aposDesbloqueio.body.result.codigoUsadoEm).not.toBeNull();
+  });
+});
+
+describe("E2E — pagamento recebido após bloqueio", () => {
+  it("mantém a reserva bloqueada e recupera automaticamente o estorno apenas no sandbox", async () => {
+    const anterior = process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA;
+    process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA = "true";
+
+    try {
+      const admin = await createAccount("ADMIN");
+      const locador = await createLocador();
+      const locatario = await createLocatario();
+      const veiculo = await createVeiculo(locador.token, locador.locadorId);
+      const reserva = await request(app)
+        .post("/api/reserva")
+        .set("Authorization", `Bearer ${locatario.token}`)
+        .send({
+          idVeiculo: veiculo.id,
+          idLocatario: locatario.locatarioId,
+          dataHoraInicio: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+          dataHoraFim: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      expect(reserva.status).toBe(201);
+      await createBloqueio(admin.token, locatario.locatarioId);
+
+      expect((await confirmarPagamentoWebhook(reserva.body.result.id, { metodo: "PIX" })).status).toBe(200);
+
+      const consulta = await request(app)
+        .get(`/api/reserva/${reserva.body.result.id}`)
+        .set("Authorization", `Bearer ${locatario.token}`);
+      expect(consulta.body.result.status).toBe("AGUARDANDO_PAGAMENTO");
+      expect(consulta.body.result.codigoDesbloqueio).toBeNull();
+
+      const trilha = await prisma.$queryRawUnsafe<Array<{ tipo: string }>>(
+        'SELECT "tipo" FROM "EventoFinanceiroSandbox" WHERE "idReserva" = $1 ORDER BY "criadoEm", "id"',
+        reserva.body.result.id,
+      );
+      expect(trilha.map((evento) => evento.tipo).sort()).toEqual([
+        "ESTORNO_CONCLUIDO",
+        "ESTORNO_FALHOU",
+        "ESTORNO_SOLICITADO",
+        "PAGAMENTO_RECEBIDO",
+      ]);
+    } finally {
+      if (anterior === undefined) delete process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA;
+      else process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA = anterior;
+    }
   });
 });
