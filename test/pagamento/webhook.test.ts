@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { app } from "../../src/app";
 import { prisma } from "../../src/database/prisma";
 import { SandboxPaymentAudit } from "../../src/infra/payment/sandbox-audit";
+import { PagamentoWebhookService } from "../../src/services/pagamento-webhook";
 import {
   assinarWebhook,
   confirmarPagamentoWebhook,
@@ -180,6 +181,120 @@ describe("Webhook de pagamento bloqueado — trilha sandbox", () => {
     expect(
       await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id } }),
     ).toBe(3);
+  });
+
+  it("reentrega evento quando a tentativa anterior deixou somente falhas", async () => {
+    const locador = await createLocador();
+    const locatario = await createLocatario();
+    const veiculo = await createVeiculo(locador.token, locador.locadorId);
+    const reserva = await createReserva(
+      locatario.token,
+      veiculo.id,
+      locatario.locatarioId,
+      futurePeriod(215, 2),
+    );
+    let chamadas = 0;
+    const audit = new SandboxPaymentAudit({
+      solicitarEstorno: async () => {
+        chamadas += 1;
+        if (chamadas <= 2) throw new Error("falha transitória controlada");
+      },
+    });
+
+    await audit.registrarPagamentoBloqueado(reserva.id, "stripe", "evt-retry-incompleto");
+    await audit.registrarPagamentoBloqueado(reserva.id, "stripe", "evt-retry-incompleto");
+
+    expect(chamadas).toBe(3);
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" } })).toBe(1);
+  });
+
+  it("não confirma replay bloqueado enquanto o estorno ainda está pendente", async () => {
+    let confirmacoes = 0;
+    let reconciliacoes = 0;
+    const gateway = {
+      nome: "stripe",
+      verificarAssinatura: () => true,
+      parseEvento: () => ({
+        idReserva: "00000000-0000-0000-0000-000000000001",
+        providerEventId: "evt-pendente",
+        status: "SUCESSO",
+      }),
+    } as never;
+    const service = new PagamentoWebhookService(
+      new Map([["stripe", gateway]]),
+      { confirmarPagamento: async () => { confirmacoes += 1; throw new Error("não deveria confirmar"); } } as never,
+      {
+        jaRegistrouPagamentoBloqueado: async () => true,
+        registrarPagamentoBloqueado: async () => { reconciliacoes += 1; },
+      } as never,
+    );
+
+    await service.processar("stripe", Buffer.from("{}"), {});
+
+    expect(confirmacoes).toBe(0);
+    expect(reconciliacoes).toBe(1);
+  });
+
+  it("estorna recebimento tardio de reserva já cancelada", async () => {
+    const owner = await createLocador();
+    const renter = await createLocatario();
+    const vehicle = await createVeiculo(owner.token, owner.locadorId);
+    const reserva = await createReserva(
+      renter.token,
+      vehicle.id,
+      renter.locatarioId,
+      futurePeriod(260, 2),
+    );
+    const id = reserva.id as string;
+    const cancelamento = await request(app)
+      .post(`/api/reserva/${id}/cancelar`)
+      .set("Authorization", `Bearer ${renter.token}`);
+    expect(cancelamento.status).toBe(200);
+
+    expect((await confirmarPagamentoWebhook(id, { metodo: "PIX" })).status).toBe(200);
+    const persistida = await prisma.reserva.findUniqueOrThrow({ where: { id } });
+    expect(persistida.status).toBe("CANCELADA");
+    expect(persistida.statusPagamento).not.toBe("SUCESSO");
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: id, tipo: "ESTORNO_CONCLUIDO" } })).toBe(1);
+  });
+
+  it("não cria um segundo estorno ao repetir webhook de pagamento já cancelado e estornado", async () => {
+    const owner = await createLocador();
+    const renter = await createLocatario();
+    const vehicle = await createVeiculo(owner.token, owner.locadorId);
+    const reserva = await createReserva(
+      renter.token,
+      vehicle.id,
+      renter.locatarioId,
+      futurePeriod(265, 2),
+    );
+    const corpo = JSON.stringify({
+      idReserva: reserva.id,
+      evento: "pagamento.sucesso",
+      metodo: "PIX",
+      providerEventId: "evt-pagamento-cancelado-replay",
+    });
+    const entregar = () => request(app)
+      .post("/api/webhooks/pagamento/stripe")
+      .set("stripe-signature", assinarWebhook("stripe", corpo))
+      .set("Content-Type", "application/json")
+      .send(corpo);
+
+    expect((await entregar()).status).toBe(200);
+    expect((await request(app)
+      .post(`/api/reserva/${reserva.id}/cancelar`)
+      .set("Authorization", `Bearer ${renter.token}`)).status).toBe(200);
+    expect((await entregar()).status).toBe(200);
+
+    const trilha = await prisma.eventoFinanceiroSandbox.findMany({
+      where: { idReserva: reserva.id },
+      orderBy: { criadoEm: "asc" },
+    });
+    expect(trilha.map((evento) => evento.tipo)).toEqual([
+      "PAGAMENTO_RECEBIDO",
+      "ESTORNO_SOLICITADO",
+      "ESTORNO_CONCLUIDO",
+    ]);
   });
 
   it("registra recebimento e estorno simulado uma vez sem confirmar ou liberar a reserva", async () => {

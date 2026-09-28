@@ -1,36 +1,17 @@
 import { beforeAll } from "vitest";
 import { prisma } from "../src/database/prisma";
+import { assertSafeTestEnvironment, TEST_DATABASE_NAME } from "../src/config/test-environment";
 
 // Trava de segurança: a suíte TRUNCA todas as tabelas. Só pode rodar quando o
 // processo está explicitamente em modo de teste, porque é NODE_ENV=test que faz
 // src/database/prisma.ts escolher DATABASE_URL_TEST. Sem esta checagem, rodar o
 // arquivo por outro caminho (script, tsx, dev server) apagaria o banco de
 // desenvolvimento/produção silenciosamente.
-function assertAmbienteDeTeste() {
-  if (process.env.NODE_ENV !== "test") {
-    throw new Error(
-      `Reset de banco bloqueado: NODE_ENV="${process.env.NODE_ENV ?? "(vazio)"}". ` +
-        "A suíte só pode rodar com NODE_ENV=test (o vitest define isso sozinho). " +
-        "Ver auditoria/AMBIENTES.md.",
-    );
-  }
-
-  if (!process.env.DATABASE_URL_TEST) {
-    throw new Error(
-      "Reset de banco bloqueado: DATABASE_URL_TEST não está definida. " +
-        "Ver auditoria/AMBIENTES.md.",
-    );
-  }
-
-  // Aviso explícito quando teste e desenvolvimento compartilham a mesma
-  // instância: é a configuração atual e foi uma decisão consciente, mas nunca
-  // deve acontecer por engano. Rode `npm run db:seed` depois da suíte.
-  if (process.env.DATABASE_URL_TEST === process.env.DATABASE_URL) {
-    console.warn(
-      "[setup] ATENÇÃO: DATABASE_URL_TEST == DATABASE_URL. A suíte vai apagar " +
-        "o banco compartilhado com dev/Render. Rode `npm run db:seed` ao final " +
-        "(o script posttest já faz isso). Ver auditoria/AMBIENTES.md.",
-    );
+async function assertAmbienteDeTeste() {
+  assertSafeTestEnvironment();
+  const [conexao] = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`;
+  if (conexao?.current_database !== TEST_DATABASE_NAME) {
+    throw new Error(`Reset bloqueado: conexão efetiva está em ${conexao?.current_database ?? "(desconhecido)"}.`);
   }
 }
 
@@ -58,9 +39,6 @@ async function resetDatabase() {
 }
 
 beforeAll(async () => {
-  assertAmbienteDeTeste();
+  await assertAmbienteDeTeste();
   await resetDatabase();
 });
-
-// A suíte serial mantém o pool até o worker Vitest encerrar. Evita teardown de
-// conexão entre arquivos enquanto a causa do abort intermitente é monitorada.

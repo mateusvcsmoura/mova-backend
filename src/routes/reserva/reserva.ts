@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { Cargo } from "@prisma/client";
-import { compartilhamentoReservaController, localizacaoController, reservaController } from "../container.js";
+import { compartilhamentoReservaController, localizacaoController, pagamentoEstornoController, reservaController } from "../container.js";
 import { authMiddleware } from "../../middlewares/auth-middleware.js";
 import { authorize } from "../../middlewares/authorization-middleware.js";
 
@@ -26,6 +26,12 @@ reservaRouter.get(
   localizacaoController.ultimaDaReserva,
 );
 reservaRouter.get("/:id", authMiddleware, reservaController.findById);
+reservaRouter.get(
+  "/:id/pagamento",
+  authMiddleware,
+  authorize(Cargo.LOCATARIO, Cargo.ADMIN),
+  pagamentoEstornoController.consultar,
+);
 reservaRouter.post(
   "/precificacao",
   authMiddleware,

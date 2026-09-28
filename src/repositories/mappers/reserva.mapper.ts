@@ -19,7 +19,7 @@ import { VeiculoMapper } from "./veiculo.mapper.js";
 export type ReservaComServicos = Reserva & {
   servicos?: (ReservaServico & { servico: ServicoOpcional })[];
   cobrancas?: CobrancaReserva[];
-  veiculo: Veiculo & { modeloVeiculo: ModeloVeiculo };
+  veiculo: Veiculo & { modeloVeiculo: ModeloVeiculo; garagem?: Pick<Garagem, "id" | "nome" | "status"> | null; imagens?: import("@prisma/client").VeiculoImagem[] };
   garagemRetirada?: Pick<Garagem, "id" | "nome" | "endereco" | "status"> | null;
   garagemDevolucao?: Pick<Garagem, "id" | "nome" | "endereco" | "status"> | null;
 };

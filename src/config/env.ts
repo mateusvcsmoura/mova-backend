@@ -68,6 +68,20 @@ const envSchema = z.object({
   MERCADOPAGO_WEBHOOK_SECRET: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   ASAAS_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+  MEDIA_S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
+  MEDIA_S3_REGION: z.string().min(1).default("us-east-1"),
+  MEDIA_S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
+  MEDIA_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+  MEDIA_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  MEDIA_PRIVATE_BUCKET: z.string().min(1).default("mova-media-private"),
+  MEDIA_PUBLIC_BUCKET: z.string().min(1).default("mova-media-public"),
+  MEDIA_PUBLIC_BASE_URL: z.string().url().default("http://localhost:9000/mova-media-public"),
+  MEDIA_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+  MEDIA_MAX_WIDTH: z.coerce.number().int().positive().default(4096),
+  MEDIA_MAX_HEIGHT: z.coerce.number().int().positive().default(4096),
+  MEDIA_MAX_IMAGES_PER_VEHICLE: z.coerce.number().int().positive().default(12),
+  MEDIA_CLEANUP_MIN_AGE_MINUTES: z.coerce.number().int().nonnegative().default(60),
 });
 
 const parsed = envSchema.safeParse(process.env);

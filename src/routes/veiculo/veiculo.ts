@@ -1,6 +1,7 @@
-import { Handler, Router } from "express";
+import express, { Handler, Router } from "express";
 import { Cargo } from "@prisma/client";
-import { veiculoController } from "../container.js";
+import { env } from "../../config/env.js";
+import { veiculoController, veiculoImagemController } from "../container.js";
 import { authMiddleware } from "../../middlewares/auth-middleware.js";
 import { authorize } from "../../middlewares/authorization-middleware.js";
 
@@ -21,6 +22,7 @@ veiculoRouter.get("/locador/:id_locador", veiculoController.findByLocadorId);
 // Gestão de frota: proprietário é derivado do JWT. Nunca aceitar idLocador
 // arbitrário do cliente neste contexto.
 veiculoRouter.get("/meus", ...gerencia, veiculoController.frota);
+veiculoRouter.get("/:id/imagens", autenticacaoOpcional, veiculoImagemController.listar);
 veiculoRouter.get("/:id", autenticacaoOpcional, veiculoController.findById);
 
 // ── Escrita (protegida) ──────────────────────────────────────────────────
@@ -32,6 +34,15 @@ veiculoRouter.patch("/:id_veiculo/modelo", ...gerencia, veiculoController.update
 veiculoRouter.get("/", autenticacaoOpcional, veiculoController.index);
 
 veiculoRouter.post("/", ...gerencia, veiculoController.create);
+veiculoRouter.post(
+  "/:id/imagens",
+  ...gerencia,
+  express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: env.MEDIA_MAX_BYTES }),
+  veiculoImagemController.criar,
+);
+veiculoRouter.put("/:id/imagens/ordem", ...gerencia, veiculoImagemController.reordenar);
+veiculoRouter.post("/:id/imagens/:imagemId/capa", ...gerencia, veiculoImagemController.definirCapa);
+veiculoRouter.delete("/:id/imagens/:imagemId", ...gerencia, veiculoImagemController.excluir);
 veiculoRouter.put("/:id", ...gerencia, veiculoController.update);
 veiculoRouter.delete("/:id", ...gerencia, veiculoController.delete);
 

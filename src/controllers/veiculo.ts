@@ -47,6 +47,7 @@ export class VeiculoController {
         categoria: modelo.categoria,
         valorDiaria: modelo.valorDiaria,
       },
+      imagens: (veiculo.imagens ?? []).filter((imagem) => imagem.status === "READY"),
     };
   }
 

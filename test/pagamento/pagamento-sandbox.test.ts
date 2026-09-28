@@ -4,9 +4,12 @@ import request from "supertest";
 import { app } from "../../src/app";
 import { prisma } from "../../src/database/prisma";
 import { env } from "../../src/config/env";
+import { SandboxPaymentAudit } from "../../src/infra/payment/sandbox-audit";
+import { PrismaReservaRepository } from "../../src/repositories/prisma/prisma.reserva.repository";
 import {
   assinarWebhook,
   confirmarPagamentoWebhook,
+  createAccount,
   createLocador,
   createLocatario,
   createReserva,
@@ -50,13 +53,13 @@ describe("Pagamento — sandbox", () => {
   // Cada reserva usa um veículo próprio para não colidir períodos.
   // futurePeriod(_, 2) = 2 diárias.
   let deslocamento = 40;
-  async function novaReserva() {
+  async function novaReserva(owner = locatario) {
     const veiculo = await createVeiculo(locador.token, locador.locadorId);
     deslocamento += 1;
     return createReserva(
-      locatario.token,
+      owner.token,
       veiculo.id,
-      locatario.locatarioId,
+      owner.locatarioId,
       futurePeriod(deslocamento, 2),
     );
   }
@@ -415,5 +418,213 @@ describe("Pagamento — sandbox", () => {
       .send({ metodoPagamento: "PIX" });
 
     expect(res.status).toBe(401);
+  });
+
+  it("expõe projeção sanitizada do pagamento e estorno do próprio locatário", async () => {
+    const reserva = await novaReserva();
+    await pagar(reserva.id, { metodoPagamento: "PIX" });
+
+    const res = await request(app)
+      .get(`/api/reserva/${reserva.id}/pagamento`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.result).toMatchObject({
+      idReserva: reserva.id,
+      statusPagamento: "SUCESSO",
+      statusEstorno: "NAO_SOLICITADO",
+      valorPago: Number(reserva.valorTotal),
+      valorElegivelEstorno: Number(reserva.valorTotal),
+      simulado: true,
+    });
+    expect(JSON.stringify(res.body.result)).not.toMatch(/providerEventId|chaveIdempotencia|payload|secret|cpf|cartao/i);
+  });
+
+  it("cancela pagamento confirmado e conclui estorno sandbox sem duplicar eventos", async () => {
+    const reserva = await novaReserva();
+    await pagar(reserva.id, { metodoPagamento: "PIX" });
+    const inicio = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { dataHoraInicio: inicio, dataHoraFim: new Date(inicio.getTime() + 2 * 24 * 60 * 60 * 1000) },
+    });
+
+    const cancelamento = await request(app)
+      .post(`/api/reserva/${reserva.id}/cancelar`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(cancelamento.status).toBe(200);
+
+    const primeiro = await request(app)
+      .get(`/api/reserva/${reserva.id}/pagamento`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    const segundo = await request(app)
+      .get(`/api/reserva/${reserva.id}/pagamento`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+
+    expect(primeiro.body.result.statusEstorno).toBe("CONCLUIDO");
+    expect(primeiro.body.result.valorElegivelEstorno).toBe(Number(reserva.valorTotal));
+    expect(segundo.body.result).toEqual(primeiro.body.result);
+    expect(
+      await prisma.eventoFinanceiroSandbox.count({
+        where: { idReserva: reserva.id, tipo: "ESTORNO_SOLICITADO" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.eventoFinanceiroSandbox.count({
+        where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" },
+      }),
+    ).toBe(1);
+  });
+
+  it("grava a intenção de estorno na mesma transação que cancela reserva paga", async () => {
+    const reserva = await novaReserva();
+    await pagar(reserva.id, { metodoPagamento: "PIX" });
+    const inicio = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { dataHoraInicio: inicio, dataHoraFim: new Date(inicio.getTime() + 2 * 24 * 60 * 60 * 1000) },
+    });
+
+    await new PrismaReservaRepository().cancelar(reserva.id, 0, env.PAGAMENTO_SANDBOX_PROVIDER);
+
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_SOLICITADO" } })).toBe(1);
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" } })).toBe(0);
+  });
+
+  it("reconcilia estorno pendente ao repetir cancelamento após interrupção", async () => {
+    const reserva = await novaReserva();
+    await pagar(reserva.id, { metodoPagamento: "PIX" });
+    const inicio = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { dataHoraInicio: inicio, dataHoraFim: new Date(inicio.getTime() + 2 * 24 * 60 * 60 * 1000) },
+    });
+    await new PrismaReservaRepository().cancelar(reserva.id, 0, env.PAGAMENTO_SANDBOX_PROVIDER);
+
+    const repetido = await request(app)
+      .post(`/api/reserva/${reserva.id}/cancelar`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(repetido.status).toBe(409);
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" } })).toBe(1);
+  });
+
+  it("aplica multa RN04 e reduz valor elegível ao estorno", async () => {
+    const reserva = await novaReserva();
+    await pagar(reserva.id, { metodoPagamento: "PIX" });
+    const inicio = new Date(Date.now() + 60 * 60 * 1000);
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { dataHoraInicio: inicio, dataHoraFim: new Date(inicio.getTime() + 2 * 24 * 60 * 60 * 1000) },
+    });
+
+    expect(
+      (await request(app)
+        .post(`/api/reserva/${reserva.id}/cancelar`)
+        .set("Authorization", `Bearer ${locatario.token}`)).status,
+    ).toBe(200);
+
+    const pagamento = await request(app)
+      .get(`/api/reserva/${reserva.id}/pagamento`)
+      .set("Authorization", `Bearer ${locatario.token}`);
+    const esperado = Math.round(Number(reserva.valorTotal) * 0.8 * 100) / 100;
+    expect(pagamento.body.result.multaCancelamento).toBe(
+      Math.round(Number(reserva.valorTotal) * 0.2 * 100) / 100,
+    );
+    expect(pagamento.body.result.valorElegivelEstorno).toBe(esperado);
+  });
+
+  it("reconcilia solicitação durável deixada por processo interrompido", async () => {
+    const recoveryLocatario = await createLocatario();
+    const reserva = await novaReserva(recoveryLocatario);
+    await pagar(reserva.id, { metodoPagamento: "PIX" }, recoveryLocatario.token);
+    const identidade = `cancelamento:${reserva.id}`;
+    await prisma.eventoFinanceiroSandbox.create({
+      data: {
+        idReserva: reserva.id,
+        provider: env.PAGAMENTO_SANDBOX_PROVIDER,
+        tipo: "ESTORNO_SOLICITADO",
+        chaveIdempotencia: `${identidade}:refund-requested`,
+      },
+    });
+
+    await new SandboxPaymentAudit().registrarEstornoPorCancelamento(
+      reserva.id,
+      env.PAGAMENTO_SANDBOX_PROVIDER,
+    );
+
+    expect(await prisma.eventoFinanceiroSandbox.count({
+      where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" },
+    })).toBe(1);
+  });
+
+  it("sobrevive à falha transitória do gateway sandbox e permite retry idempotente", async () => {
+    const transientLocatario = await createLocatario();
+    const reserva = await novaReserva(transientLocatario);
+    await pagar(reserva.id, { metodoPagamento: "PIX" }, transientLocatario.token);
+    process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA = "true";
+    try {
+      await new SandboxPaymentAudit().registrarEstornoPorCancelamento(reserva.id, env.PAGAMENTO_SANDBOX_PROVIDER);
+    } finally {
+      delete process.env.PAGAMENTO_SANDBOX_ESTORNO_FALHA_UNICA;
+    }
+    const pagamento = await request(app)
+      .get(`/api/reserva/${reserva.id}/pagamento`)
+      .set("Authorization", `Bearer ${transientLocatario.token}`);
+    expect(pagamento.body.result.statusEstorno).toBe("CONCLUIDO");
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_FALHOU" } })).toBe(1);
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" } })).toBe(1);
+  });
+
+  it("serializa cancelamento concorrente e não duplica estorno", async () => {
+    const concurrentLocatario = await createLocatario();
+    const reserva = await novaReserva(concurrentLocatario);
+    await pagar(reserva.id, { metodoPagamento: "PIX" }, concurrentLocatario.token);
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { dataHoraInicio: new Date(Date.now() + 3 * 60 * 60 * 1000) },
+    });
+    const respostas = await Promise.all([
+      request(app).post(`/api/reserva/${reserva.id}/cancelar`).set("Authorization", `Bearer ${concurrentLocatario.token}`),
+      request(app).post(`/api/reserva/${reserva.id}/cancelar`).set("Authorization", `Bearer ${concurrentLocatario.token}`),
+    ]);
+    expect(respostas.map((resposta) => resposta.status).sort()).toEqual([200, 409]);
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_SOLICITADO" } })).toBe(1);
+    expect(await prisma.eventoFinanceiroSandbox.count({ where: { idReserva: reserva.id, tipo: "ESTORNO_CONCLUIDO" } })).toBe(1);
+  });
+
+  it("bloqueia visitante, locador e outro locatário no contrato financeiro", async () => {
+    const reserva = await prisma.reserva.findFirstOrThrow({ select: { id: true } });
+    const outroLocatario = await createLocatario();
+    const reservaId = reserva.id;
+
+    expect((await request(app).get(`/api/reserva/${reservaId}/pagamento`)).status).toBe(401);
+    expect(
+      (await request(app)
+        .get(`/api/reserva/${reservaId}/pagamento`)
+        .set("Authorization", `Bearer ${locador.token}`)).status,
+    ).toBe(403);
+    expect(
+      (await request(app)
+        .get(`/api/reserva/${reservaId}/pagamento`)
+        .set("Authorization", `Bearer ${outroLocatario.token}`)).status,
+    ).toBe(403);
+  });
+
+  it("revoga consulta financeira após anonimização da conta", async () => {
+    const alvo = await createLocatario();
+    const reserva = await novaReserva(alvo);
+    await pagar(reserva.id, { metodoPagamento: "PIX" }, alvo.token);
+    const administrador = await createAccount("ADMIN");
+
+    const anonimizar = await request(app)
+      .post(`/api/lgpd/${alvo.locatarioId}/anonimizar`)
+      .set("Authorization", `Bearer ${administrador.token}`);
+    expect(anonimizar.status).toBe(200);
+
+    const consulta = await request(app)
+      .get(`/api/reserva/${reserva.id}/pagamento`)
+      .set("Authorization", `Bearer ${alvo.token}`);
+    expect(consulta.status).toBe(401);
+    expect(consulta.body.code).toBe("SESSION_REVOKED");
   });
 });

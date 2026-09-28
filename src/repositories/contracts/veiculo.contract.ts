@@ -5,6 +5,7 @@ import {
   StatusVeiculo,
 } from "@prisma/client";
 import { PaginationParams } from "../../shared/pagination.js";
+import { VeiculoImagemResponse } from "./veiculo-imagem.contract.js";
 
 export interface ModeloVeiculoData {
   idLocador: string;
@@ -89,6 +90,7 @@ export interface VeiculoResponse {
   placa: string;
   status: StatusVeiculo;
   criadoEm: Date;
+  imagens?: VeiculoImagemResponse[];
 }
 
 export interface PublicVeiculoResponse {
@@ -108,6 +110,7 @@ export interface PublicVeiculoResponse {
     | "categoria"
     | "valorDiaria"
   >;
+  imagens?: VeiculoImagemResponse[];
 }
 
 export interface UpdateModeloVeiculoRequest {

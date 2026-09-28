@@ -1,4 +1,4 @@
-import { TipoEventoFinanceiroSandbox } from "@prisma/client";
+import { Prisma, TipoEventoFinanceiroSandbox } from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
 
@@ -37,15 +37,84 @@ export class SandboxPaymentAudit {
     private readonly refundGateway: SandboxRefundGateway = new SandboxRefundGatewayDeterministico(),
   ) {}
 
+  async registrarPagamentoRecebido(
+    idReserva: string,
+    provider: string,
+    providerEventId: string,
+  ): Promise<void> {
+    const identidade = `${provider.toLowerCase()}:${providerEventId}`;
+    await prisma.eventoFinanceiroSandbox.createMany({
+      data: {
+        idReserva,
+        provider: provider.toLowerCase(),
+        tipo: TipoEventoFinanceiroSandbox.PAGAMENTO_RECEBIDO,
+        chaveIdempotencia: `${identidade}:received`,
+      },
+      skipDuplicates: true,
+    });
+  }
+
+  async registrarEstornoPorCancelamento(
+    idReserva: string,
+    provider: string,
+  ): Promise<void> {
+    const providerNormalizado = provider.toLowerCase();
+    const identidade = `cancelamento:${idReserva}`;
+    await prisma.$transaction(async (tx) => {
+      // O gateway aqui é o simulador determinístico do sandbox, sem chamada
+      // externa. Manter o lock até a conclusão evita duas entregas paralelas
+      // executarem a mesma chave idempotente.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${identidade}, 0))`;
+      const concluido = await tx.eventoFinanceiroSandbox.findUnique({
+        where: { chaveIdempotencia: `${identidade}:refund-completed` },
+      });
+      if (concluido) return;
+
+      await tx.eventoFinanceiroSandbox.createMany({
+        data: {
+          idReserva,
+          provider: providerNormalizado,
+          tipo: TipoEventoFinanceiroSandbox.ESTORNO_SOLICITADO,
+          chaveIdempotencia: `${identidade}:refund-requested`,
+        },
+        skipDuplicates: true,
+      });
+      await this.executarEstorno(tx, idReserva, providerNormalizado, identidade, `${identidade}:refund`, 1);
+      await this.executarEstorno(tx, idReserva, providerNormalizado, identidade, `${identidade}:refund`, 2);
+    });
+  }
+
   async jaRegistrouPagamentoBloqueado(
     provider: string,
     providerEventId: string,
+    idReserva?: string,
   ): Promise<boolean> {
     const identidade = `${provider.toLowerCase()}:${providerEventId}`;
     const recebido = await prisma.eventoFinanceiroSandbox.findUnique({
       where: { chaveIdempotencia: `${identidade}:received` },
     });
-    return recebido !== null;
+    if (!recebido) return false;
+    const concluido = await prisma.eventoFinanceiroSandbox.findUnique({
+      where: { chaveIdempotencia: `${identidade}:refund-completed` },
+    });
+    if (concluido) return true;
+    if (!idReserva) return true;
+    const reserva = await prisma.reserva.findUnique({
+      where: { id: idReserva },
+      select: { statusPagamento: true },
+    });
+    // Recebimento normal já confirmado não deve virar estorno só porque o
+    // mesmo webhook foi reenviado. Pagamento bloqueado/cancelado ainda não é
+    // SUCESSO e precisa continuar na reconciliação sandbox.
+    return reserva?.statusPagamento !== "SUCESSO";
+  }
+
+  async registrarPagamentoCancelado(
+    idReserva: string,
+    provider: string,
+    providerEventId: string,
+  ): Promise<void> {
+    await this.registrarPagamentoBloqueado(idReserva, provider, providerEventId);
   }
 
   async registrarPagamentoBloqueado(
@@ -59,8 +128,9 @@ export class SandboxPaymentAudit {
     const identidade = `${providerNormalizado}:${providerEventId}`;
     const chaveEstorno = `${identidade}:refund`;
 
-    const reservaEstorno = await prisma.$transaction(async (tx) => {
-      const recebido = await tx.eventoFinanceiroSandbox.createMany({
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${identidade}, 0))`;
+      await tx.eventoFinanceiroSandbox.createMany({
         data: {
           idReserva,
           provider: providerNormalizado,
@@ -69,38 +139,42 @@ export class SandboxPaymentAudit {
         },
         skipDuplicates: true,
       });
-      if (recebido.count === 0) return { owner: false };
+      const concluido = await tx.eventoFinanceiroSandbox.findUnique({
+        where: { chaveIdempotencia: `${identidade}:refund-completed` },
+      });
+      if (concluido) return;
 
-      // Reserva a tentativa de forma durável antes de tocar o gateway. Só a
-      // transação que criou o recebimento pode se tornar dona do estorno.
-      await tx.eventoFinanceiroSandbox.create({
+      await tx.eventoFinanceiroSandbox.createMany({
         data: {
           idReserva,
           provider: providerNormalizado,
           tipo: TipoEventoFinanceiroSandbox.ESTORNO_SOLICITADO,
           chaveIdempotencia: `${identidade}:refund-requested`,
         },
+        skipDuplicates: true,
       });
-      return { owner: true };
+      await this.executarEstorno(tx, idReserva, providerNormalizado, identidade, chaveEstorno, 1);
+      await this.executarEstorno(tx, idReserva, providerNormalizado, identidade, chaveEstorno, 2);
     });
-
-    if (!reservaEstorno.owner) return;
-
-    await this.executarEstorno(idReserva, providerNormalizado, identidade, chaveEstorno, 1);
-    await this.executarEstorno(idReserva, providerNormalizado, identidade, chaveEstorno, 2);
   }
 
   private async executarEstorno(
+    tx: Prisma.TransactionClient,
     idReserva: string,
     provider: string,
     identidade: string,
     chaveEstorno: string,
     tentativa: number,
   ): Promise<void> {
-    const concluido = await prisma.eventoFinanceiroSandbox.findUnique({
+    const concluido = await tx.eventoFinanceiroSandbox.findUnique({
       where: { chaveIdempotencia: `${identidade}:refund-completed` },
     });
     if (concluido) return;
+
+    const falhasAnteriores = await tx.eventoFinanceiroSandbox.count({
+      where: { chaveIdempotencia: { startsWith: `${identidade}:refund-failed:` } },
+    });
+    const tentativaAtual = Math.max(tentativa, falhasAnteriores + 1);
 
     try {
       await this.refundGateway.solicitarEstorno({
@@ -109,7 +183,7 @@ export class SandboxPaymentAudit {
         tentativa,
         chaveIdempotencia: chaveEstorno,
       });
-      await prisma.eventoFinanceiroSandbox.createMany({
+      await tx.eventoFinanceiroSandbox.createMany({
         data: {
           idReserva,
           provider,
@@ -119,12 +193,12 @@ export class SandboxPaymentAudit {
         skipDuplicates: true,
       });
     } catch {
-      await prisma.eventoFinanceiroSandbox.createMany({
+      await tx.eventoFinanceiroSandbox.createMany({
         data: {
           idReserva,
           provider,
           tipo: TipoEventoFinanceiroSandbox.ESTORNO_FALHOU,
-          chaveIdempotencia: `${identidade}:refund-failed`,
+          chaveIdempotencia: `${identidade}:refund-failed:${tentativaAtual}`,
         },
         skipDuplicates: true,
       });

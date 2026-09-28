@@ -132,7 +132,28 @@ Table Veiculo {
   interesses InteresseVeiculo [not null]
   statusHistorico VeiculoStatusHistorico [not null]
   alertas AlertaVeiculo [not null]
+  imagens VeiculoImagem [not null]
   atualizadoEm DateTime [default: `now()`, not null]
+}
+
+Table VeiculoImagem {
+  id String [pk]
+  idVeiculo String [not null]
+  veiculo Veiculo [not null]
+  objectKey String [unique, not null]
+  ordem Int [not null]
+  altText String
+  mimeType String [not null]
+  tamanho Int [not null]
+  largura Int [not null]
+  altura Int [not null]
+  status StatusVeiculoImagem [not null, default: 'PENDING']
+  criadaEm DateTime [default: `now()`, not null]
+  atualizadoEm DateTime [default: `now()`, not null]
+
+  indexes {
+    (idVeiculo, ordem) [unique]
+  }
 }
 
 Table Garagem {
@@ -416,6 +437,12 @@ Enum StatusPagamento {
   FALHA
 }
 
+Enum StatusVeiculoImagem {
+  PENDING
+  READY
+  DELETING
+}
+
 Enum MetodoPagamento {
   CARTAO_CREDITO
   CARTAO_DEBITO
@@ -507,6 +534,8 @@ Ref: Veiculo.idLocador > Locador.id [delete: Cascade]
 Ref: Veiculo.idModeloVeiculo > ModeloVeiculo.id
 
 Ref: Veiculo.garagemId > Garagem.id
+
+Ref: VeiculoImagem.idVeiculo > Veiculo.id [delete: Cascade]
 
 Ref: Garagem.idLocador > Locador.id [delete: Cascade]
 

@@ -53,6 +53,12 @@ enum StatusPagamento {
   FALHA
 }
 
+enum StatusVeiculoImagem {
+  PENDING
+  READY
+  DELETING
+}
+
 // Forma de pagamento escolhida para a reserva. Suporte de modelagem (RF11);
 // a integração financeira real fica a cargo de um gateway externo.
 enum MetodoPagamento {
@@ -312,7 +318,27 @@ model Veiculo {
   interesses      InteresseVeiculo[]
   statusHistorico VeiculoStatusHistorico[]
   alertas         AlertaVeiculo[]
+  imagens         VeiculoImagem[]
   atualizadoEm    DateTime      @default(now()) @updatedAt
+}
+
+model VeiculoImagem {
+  id         String             @id @default(uuid()) @db.Uuid
+  idVeiculo  String             @db.Uuid
+  veiculo    Veiculo            @relation(fields: [idVeiculo], references: [id], onDelete: Cascade)
+  objectKey  String             @unique
+  ordem      Int
+  altText    String?
+  mimeType   String
+  tamanho    Int
+  largura    Int
+  altura     Int
+  status     StatusVeiculoImagem @default(PENDING)
+  criadaEm   DateTime           @default(now())
+  atualizadoEm DateTime         @default(now()) @updatedAt
+
+  @@unique([idVeiculo, ordem])
+  @@index([idVeiculo, status, ordem])
 }
 
 model Garagem {

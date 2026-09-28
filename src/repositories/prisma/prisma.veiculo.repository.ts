@@ -29,6 +29,7 @@ import {
 const withModelo = {
   modeloVeiculo: true,
   garagem: { select: { id: true, nome: true, status: true } },
+  imagens: { orderBy: { ordem: "asc" as const } },
 } as const;
 
 export class PrismaVeiculoRepository implements IVeiculoRepository {

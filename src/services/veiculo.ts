@@ -20,6 +20,10 @@ interface VeiculoRequester {
   cargo: Cargo;
 }
 
+interface MediaVisibilitySynchronizer {
+  sincronizarVisibilidadeVeiculo(idVeiculo: string): Promise<void>;
+}
+
 export class VeiculoService {
   // Notifier e recorder são opcionais para não obrigar todos os pontos de
   // construção (testes, scripts) a fornecê-los; em produção o container injeta.
@@ -27,6 +31,7 @@ export class VeiculoService {
     private veiculoRepository: IVeiculoRepository,
     private readonly disponibilidadeNotifier?: IVeiculoDisponivelNotifier,
     private readonly statusRecorder?: IVeiculoStatusRecorder,
+    private readonly mediaVisibility?: MediaVisibilitySynchronizer,
   ) {}
 
   // Registra a transição de status no histórico (base da regra de inatividade
@@ -232,6 +237,9 @@ export class VeiculoService {
     if (veiculo.status !== atualizado.status) {
       await this.registrarTransicaoStatus(atualizado.id, atualizado.status);
     }
+    if (veiculo.status !== atualizado.status || veiculo.garagemId !== atualizado.garagemId) {
+      await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(atualizado.id);
+    }
 
     // Disparo automático da watchlist: apenas na TRANSIÇÃO para DISPONIVEL
     // (não em updates que já estavam DISPONIVEL). O notifier nunca lança —
@@ -257,6 +265,7 @@ export class VeiculoService {
     if (veiculo.status !== StatusVeiculo.INATIVO) {
       await this.registrarTransicaoStatus(id, StatusVeiculo.INATIVO);
     }
+    await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(id);
   };
 
   updateModelo = async (

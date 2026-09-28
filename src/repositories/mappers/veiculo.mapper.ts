@@ -1,12 +1,14 @@
-import { Garagem, ModeloVeiculo, Veiculo } from "@prisma/client";
+import { Garagem, ModeloVeiculo, StatusGaragem, StatusVeiculo, StatusVeiculoImagem, Veiculo, VeiculoImagem } from "@prisma/client";
 import {
   ModeloVeiculoResponse,
   VeiculoResponse,
 } from "../contracts/veiculo.contract.js";
+import { publicMediaUrl } from "../../infra/media/storage-provider.js";
 
 type VeiculoComModelo = Veiculo & {
   modeloVeiculo: ModeloVeiculo;
   garagem?: Pick<Garagem, "id" | "nome" | "status"> | null;
+  imagens?: VeiculoImagem[];
 };
 
 export class VeiculoMapper {
@@ -44,6 +46,24 @@ export class VeiculoMapper {
       placa: veiculo.placa,
       status: veiculo.status,
       criadoEm: veiculo.criadoEm,
+      imagens: (veiculo.imagens ?? []).map((imagem) => ({
+        id: imagem.id,
+        idVeiculo: imagem.idVeiculo,
+        ordem: imagem.ordem,
+        altText: imagem.altText,
+        mimeType: imagem.mimeType,
+        tamanho: imagem.tamanho,
+        largura: imagem.largura,
+        altura: imagem.altura,
+        status: imagem.status,
+        url: imagem.status === StatusVeiculoImagem.READY &&
+          veiculo.status === StatusVeiculo.DISPONIVEL &&
+          veiculo.garagem?.status === StatusGaragem.ATIVA
+          ? publicMediaUrl(imagem.objectKey)
+          : null,
+        criadaEm: imagem.criadaEm,
+        atualizadoEm: imagem.atualizadoEm,
+      })),
     };
   }
 

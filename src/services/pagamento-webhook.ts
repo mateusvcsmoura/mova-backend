@@ -1,4 +1,5 @@
 import type { IncomingHttpHeaders } from "node:http";
+import { StatusPagamento, StatusReserva } from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
 import type { PagamentoEvento, PaymentGateway } from "../infra/payment/gateway.js";
@@ -41,16 +42,51 @@ export class PagamentoWebhookService {
     // alcançar a confirmação da reserva, mesmo se o bloqueio já foi revogado.
     if (
       evento.status === "SUCESSO" &&
-      await this.sandboxAudit.jaRegistrouPagamentoBloqueado(provider, evento.providerEventId)
+      await this.sandboxAudit.jaRegistrouPagamentoBloqueado(provider, evento.providerEventId, evento.idReserva)
     ) {
+      await this.sandboxAudit.registrarPagamentoBloqueado(
+        evento.idReserva,
+        provider,
+        evento.providerEventId,
+      );
       return evento;
     }
 
     try {
-      await this.reservaService.confirmarPagamento(evento.idReserva, {
+      const confirmada = await this.reservaService.confirmarPagamento(evento.idReserva, {
         status: evento.status,
         metodo: evento.metodo,
       });
+      if (evento.status === "SUCESSO") {
+        if (confirmada.status === StatusReserva.CANCELADA) {
+          if (confirmada.statusPagamento === StatusPagamento.SUCESSO) {
+            // O pagamento já existia antes do cancelamento. O estorno é o da
+            // chave durável do cancelamento; um replay do webhook não cria uma
+            // segunda identidade de estorno baseada no evento do provedor.
+            await this.sandboxAudit.registrarPagamentoRecebido(
+              evento.idReserva,
+              provider,
+              evento.providerEventId,
+            );
+            await this.sandboxAudit.registrarEstornoPorCancelamento(
+              evento.idReserva,
+              provider,
+            );
+          } else {
+            await this.sandboxAudit.registrarPagamentoCancelado(
+              evento.idReserva,
+              provider,
+              evento.providerEventId,
+            );
+          }
+        } else {
+          await this.sandboxAudit.registrarPagamentoRecebido(
+            evento.idReserva,
+            provider,
+            evento.providerEventId,
+          );
+        }
+      }
     } catch (error) {
       // Um recebimento assinado para conta bloqueada é reconhecido e estornado
       // apenas no sandbox. Não propagamos 403 ao gateway, evitando reentregas

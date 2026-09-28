@@ -25,5 +25,28 @@ services:
       timeout: 3s
       retries: 20
 
+  minio:
+    image: quay.io/minio/aistor/minio:latest@sha256:107cf2014a9583c74c11e3cdbd6903d89c2244355886b89ce532f4ecae9c23f3
+    profiles: ["media"]
+    restart: unless-stopped
+    command: server /data --console-address ":9001" --license /minio.license
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER for local media}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD for local media}
+    ports:
+      # API S3 e console ficam acessíveis somente nesta máquina em dev.
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - mova-minio-data:/data
+      - ../minio.license:/minio.license:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/ready >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
 volumes:
   mova-pgdata:
+  mova-minio-data:
+    name: ${MINIO_DATA_VOLUME:-mova-backend_mova-minio-data}

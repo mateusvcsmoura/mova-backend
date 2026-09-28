@@ -43,6 +43,7 @@ import {
   PaginatedResult,
   PaginationParams,
 } from "../shared/pagination.js";
+import type { PagamentoEstornoService } from "./pagamento-estorno.js";
 
 interface ReservaAccessContext {
   id: string;
@@ -100,6 +101,7 @@ export class ReservaService {
     // Notificação (relatório por e-mail). Opcional para não acoplar a regra de
     // negócio ao envio; quando ausente, a reserva funciona normalmente.
     private readonly reservaNotifier?: IReservaNotifier,
+    private readonly pagamentoEstornoService?: PagamentoEstornoService,
   ) {}
 
   // RN03: distância em metros entre dois pontos (fórmula de Haversine).
@@ -758,6 +760,11 @@ export class ReservaService {
 
     // Máquina de estados: só AGUARDANDO_PAGAMENTO/CONFIRMADA podem ser canceladas.
     if (reserva.status === StatusReserva.CANCELADA) {
+      if (reserva.statusPagamento === StatusPagamento.SUCESSO) {
+        // Se o processo caiu entre o commit do cancelamento e o executor do
+        // estorno, repetir a mesma operação é a reconciliação idempotente.
+        await this.pagamentoEstornoService?.reconciliarEstornoDeCancelamento(id);
+      }
       throw new HttpError(409, "Reserva já cancelada.");
     }
     if (
@@ -781,7 +788,11 @@ export class ReservaService {
       ? Math.round(reserva.valorTotal * MULTA_CANCELAMENTO_TARDIO * 100) / 100
       : 0;
 
-    return this.reservaRepository.cancelar(id, multa);
+    const cancelada = await this.reservaRepository.cancelar(id, multa, env.PAGAMENTO_SANDBOX_PROVIDER);
+    if (cancelada.statusPagamento === StatusPagamento.SUCESSO) {
+      await this.pagamentoEstornoService?.registrarEstornoDeCancelamento(id);
+    }
+    return cancelada;
   };
 
   // RN06: devolução da reserva. Registra devolvidoEm, transiciona para REALIZADA

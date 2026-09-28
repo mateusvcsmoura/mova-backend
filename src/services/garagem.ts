@@ -29,10 +29,16 @@ interface ListGaragemRequest {
   pagination: PaginationParams;
 }
 
+interface MediaVisibilitySynchronizer {
+  sincronizarVisibilidadeVeiculo(idVeiculo: string): Promise<void>;
+  sincronizarVisibilidadeGaragem(idGaragem: string): Promise<void>;
+}
+
 export class GaragemService {
   constructor(
     private readonly garagemRepository: IGaragemRepository,
     private readonly veiculoRepository: IVeiculoRepository,
+    private readonly mediaVisibility?: MediaVisibilitySynchronizer,
   ) {}
 
   private paraCatalogo(garagem: GaragemBaseResponse): PublicGaragemResponse {
@@ -228,6 +234,8 @@ export class GaragemService {
       throw new HttpError(404, "Garagem não encontrada");
     }
 
+    await this.mediaVisibility?.sincronizarVisibilidadeGaragem(id);
+
     return updatedGaragem;
   };
 
@@ -244,6 +252,7 @@ export class GaragemService {
     this.assertGaragemAccess(requester, garagem);
 
     await this.garagemRepository.delete(id);
+    await this.mediaVisibility?.sincronizarVisibilidadeGaragem(id);
   };
 
   alocarVeiculo = async (
@@ -273,6 +282,7 @@ export class GaragemService {
     }
 
     await this.garagemRepository.alocarVeiculo(garagemId, veiculoId);
+    await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(veiculoId);
   };
 
   desalocarVeiculo = async (
@@ -302,5 +312,6 @@ export class GaragemService {
     }
 
     await this.garagemRepository.desalocarVeiculo(garagemId, veiculoId);
+    await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(veiculoId);
   };
 }

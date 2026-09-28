@@ -15,6 +15,7 @@ import { LocatarioController } from "../controllers/locatario.js";
 import { ReservaController } from "../controllers/reserva.js";
 import { ServicoOpcionalController } from "../controllers/servico-opcional.js";
 import { VeiculoController } from "../controllers/veiculo.js";
+import { VeiculoImagemController } from "../controllers/veiculo-imagem.js";
 import { IContaRepository } from "../repositories/conta.repository.js";
 import { IDeficienciaRepository } from "../repositories/deficiencia.repository.js";
 import { IGaragemRepository } from "../repositories/garagem.repository.js";
@@ -57,6 +58,7 @@ import { AvaliacaoService } from "../services/avaliacao.js";
 import { AvaliacaoRelatorioService } from "../services/avaliacao-relatorio.js";
 import { FavoritoService } from "../services/favorito.js";
 import { VeiculoService } from "../services/veiculo.js";
+import { VeiculoImagemService } from "../services/veiculo-imagem.js";
 import { INotificacaoRepository } from "../repositories/notificacao.repository.js";
 import { PrismaNotificacaoRepository } from "../repositories/prisma/prisma.notificacao.repository.js";
 import { NodemailerMailProvider } from "../infra/email/nodemailer.provider.js";
@@ -79,7 +81,9 @@ import { MonitoramentoController } from "../controllers/monitoramento.js";
 import { construirGatewaysPagamento } from "../infra/payment/gateway.js";
 import { PagamentoWebhookService } from "../services/pagamento-webhook.js";
 import { PagamentoService } from "../services/pagamento.js";
+import { PagamentoEstornoService } from "../services/pagamento-estorno.js";
 import { PagamentoWebhookController } from "../controllers/pagamento-webhook.js";
+import { PagamentoEstornoController } from "../controllers/pagamento-estorno.js";
 import { ILgpdRepository } from "../repositories/lgpd.repository.js";
 import { PrismaLgpdRepository } from "../repositories/prisma/prisma.lgpd.repository.js";
 import { LgpdService } from "../services/lgpd.js";
@@ -121,8 +125,9 @@ export const veiculoRepository: IVeiculoRepository = new PrismaVeiculoRepository
 // notifier de disponibilidade, que por sua vez depende do mailProvider e dos
 // repositórios de interesse/garagem.
 
+export const veiculoImagemService = new VeiculoImagemService();
 export const garagemRepository: IGaragemRepository = new PrismaGaragemRepository();
-export const garagemService = new GaragemService(garagemRepository, veiculoRepository);
+export const garagemService = new GaragemService(garagemRepository, veiculoRepository, veiculoImagemService);
 export const garagemController = new GaragemController(garagemService);
 
 export const reservaRepository: IReservaRepository = new PrismaReservaRepository();
@@ -183,8 +188,9 @@ export const monitoramentoScheduler = new MonitoramentoScheduler(
   },
 );
 
-export const veiculoService = new VeiculoService(veiculoRepository, notificacaoVeiculoDisponivelService, monitoramentoRepository);
+export const veiculoService = new VeiculoService(veiculoRepository, notificacaoVeiculoDisponivelService, monitoramentoRepository, veiculoImagemService);
 export const veiculoController = new VeiculoController(veiculoService);
+export const veiculoImagemController = new VeiculoImagemController(veiculoImagemService);
 
 export const interesseService = new InteresseVeiculoService(interesseRepository, veiculoRepository, locatarioRepository, notificacaoInteresseRepository);
 export const interesseController = new InteresseController(interesseService);
@@ -193,7 +199,9 @@ export const condutorRepository: ICondutorRepository = new PrismaCondutorReposit
 // Localização (RN03): referência do geofence de desbloqueio; instanciada aqui
 // para ser injetada no ReservaService (o LocalizacaoService a reusa mais abaixo).
 export const localizacaoRepository: ILocalizacaoRepository = new PrismaLocalizacaoRepository();
-export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, localizacaoRepository, notificacaoReservaService);
+export const pagamentoEstornoService = new PagamentoEstornoService();
+export const pagamentoEstornoController = new PagamentoEstornoController(pagamentoEstornoService);
+export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, localizacaoRepository, notificacaoReservaService, pagamentoEstornoService);
 // Webhook de pagamento: registro de gateways (Mercado Pago/Stripe/Asaas) +
 // service que valida assinatura e delega a confirmação ao domínio.
 export const gatewaysPagamento = construirGatewaysPagamento();

@@ -4,6 +4,7 @@ import {
   StatusPagamento,
   StatusReserva,
   TipoCobranca,
+  TipoEventoFinanceiroSandbox,
 } from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
@@ -37,7 +38,7 @@ const RESERVA_INCLUDE = {
   },
   // O cliente precisa identificar o veículo da reserva (marca/modelo/placa)
   // sem uma segunda chamada por item de lista.
-  veiculo: { include: { modeloVeiculo: true } },
+  veiculo: { include: { modeloVeiculo: true, garagem: { select: { id: true, nome: true, status: true } }, imagens: { where: { status: "READY" }, orderBy: { ordem: "asc" } } } },
 } satisfies Prisma.ReservaInclude;
 
 // Projeção específica da listagem por veículo. A credencial de desbloqueio
@@ -68,7 +69,7 @@ const RESERVA_VEICULO_SELECT = {
   garagemDevolucao: {
     select: { id: true, nome: true, endereco: true, status: true },
   },
-  veiculo: { include: { modeloVeiculo: true } },
+  veiculo: { include: { modeloVeiculo: true, garagem: { select: { id: true, nome: true, status: true } }, imagens: { where: { status: "READY" }, orderBy: { ordem: "asc" } } } },
 } satisfies Prisma.ReservaSelect;
 
 export class PrismaReservaRepository implements IReservaRepository {
@@ -457,11 +458,17 @@ export class PrismaReservaRepository implements IReservaRepository {
     }
   }
 
-  async cancelar(id: string, multa: number): Promise<ReservaResponse> {
+  async cancelar(id: string, multa: number, provider?: string): Promise<ReservaResponse> {
     // Cobrança + transição em uma transação: ou registra a multa E cancela, ou
     // nada. Grava a cobrança mesmo com valor 0 (trilha completa — RN04).
     try {
       const reserva = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
+        const estadoAtual = await tx.reserva.findUnique({
+          where: { id },
+          select: { status: true, statusPagamento: true },
+        });
+        if (!estadoAtual) throw new HttpError(404, "Reserva não encontrada.");
         const atualizacao = await tx.reserva.updateMany({
           where: {
             id,
@@ -482,6 +489,17 @@ export class PrismaReservaRepository implements IReservaRepository {
               : StatusPagamento.SUCESSO,
           },
         });
+        if (estadoAtual.statusPagamento === StatusPagamento.SUCESSO && provider) {
+          await tx.eventoFinanceiroSandbox.createMany({
+            data: {
+              idReserva: id,
+              provider: provider.toLowerCase(),
+              tipo: TipoEventoFinanceiroSandbox.ESTORNO_SOLICITADO,
+              chaveIdempotencia: `cancelamento:${id}:refund-requested`,
+            },
+            skipDuplicates: true,
+          });
+        }
         return tx.reserva.findUniqueOrThrow({
           where: { id },
           include: RESERVA_INCLUDE,
