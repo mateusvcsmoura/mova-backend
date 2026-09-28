@@ -34,7 +34,12 @@ const app = express();
 
 // Origens permitidas: da env (CORS_ORIGINS, separadas por vírgula) ou, na
 // ausência, um whitelist de desenvolvimento. NUNCA "*".
-const DEV_ORIGINS = ["http://localhost:3000", "http://localhost:5173"];
+const DEV_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:4173",
+  "http://127.0.0.1:5173",
+];
 const allowedOrigins = env.CORS_ORIGINS
   ? env.CORS_ORIGINS.split(",")
       .map((o) => o.trim())

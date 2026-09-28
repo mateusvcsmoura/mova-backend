@@ -19,6 +19,15 @@ describe("Health & readiness", () => {
       expect(typeof res.body.timestamp).toBe("string");
       expect(new Date(res.body.timestamp).toString()).not.toBe("Invalid Date");
     });
+
+    it("permite o preview local do frontend em 127.0.0.1:4173", async () => {
+      const res = await request(app)
+        .get("/api/health")
+        .set("Origin", "http://127.0.0.1:4173");
+
+      expect(res.status).toBe(200);
+      expect(res.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:4173");
+    });
   });
 
   describe("GET /api/ready", () => {
