@@ -783,11 +783,15 @@ export class ReservaService {
     }
 
     // Prazo: cancelar após (dataHoraInicio - 2h) é tardio -> multa de 20%.
+    // Task 10 (D10-01): a multa é só do cancelamento tardio do próprio
+    // LOCATÁRIO. LOCADOR (ou ADMIN, atuando na operação) nunca transfere multa
+    // ao locatário; reserva paga segue para estorno integral abaixo. O autor
+    // vem do JWT (requester), nunca do corpo da requisição.
     const agora = new Date();
     const prazoLimite = new Date(
       reserva.dataHoraInicio.getTime() - PRAZO_CANCELAMENTO_MS,
     );
-    const tardio = agora > prazoLimite;
+    const tardio = requester.cargo === Cargo.LOCATARIO && agora > prazoLimite;
     // Arredonda para 2 casas (coluna Decimal(10,2)).
     const multa = tardio
       ? Math.round(reserva.valorTotal * MULTA_CANCELAMENTO_TARDIO * 100) / 100
@@ -885,6 +889,12 @@ export class ReservaService {
       evento.status,
       evento.metodo,
     );
+
+    // D10-05: o prazo venceu entre a leitura e o lock; a reserva expirou e o
+    // evento tardio não gera código nem confirmação.
+    if (atualizada.status === StatusReserva.CANCELADA) {
+      return atualizada;
+    }
 
     if (
       evento.status === StatusPagamento.SUCESSO &&
