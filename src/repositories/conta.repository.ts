@@ -1,6 +1,8 @@
 import {
   ContaResponse,
   CreateContaRequest,
+  PerfilCadastro,
+  PerfilCriado,
   UpdateContaRequest,
 } from "./contracts/conta.contract.js";
 import {
@@ -13,7 +15,7 @@ export interface IContaRepository {
   findByEmail(email: string): Promise<ContaResponse | null>;
   findAuthByEmail(email: string): Promise<{ id: string; email: string; senhaHash: string, cargo: string } | null>;
   findById(id: string): Promise<ContaResponse | null>;
-  create(data: CreateContaRequest): Promise<ContaResponse>;
+  create(data: CreateContaRequest, perfil?: PerfilCadastro): Promise<ContaResponse & PerfilCriado>;
   update(id: string, data: UpdateContaRequest): Promise<ContaResponse | null>;
   updatePassword(id: string, senhaHash: string): Promise<void>;
   deleteIfWithoutReservationHistory(

@@ -1,8 +1,12 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../database/prisma.js";
+import { HttpError } from "../../errors/HttpError.js";
 import { IContaRepository } from "../conta.repository.js";
 import {
   ContaResponse,
   CreateContaRequest,
+  PerfilCadastro,
+  PerfilCriado,
   UpdateContaRequest,
 } from "../contracts/conta.contract.js";
 import {
@@ -82,8 +86,50 @@ export class PrismaContaRepository implements IContaRepository {
     });
   }
 
-  async create(data: CreateContaRequest): Promise<ContaResponse> {
-    return prisma.conta.create({
+  // Task 10 (M-05): Conta e perfil numa única transação. Se o perfil falhar
+  // (CPF/CNH/CNPJ duplicado, FK de deficiência, qualquer erro), a Conta é
+  // desfeita junto: não existe Conta órfã nem perfil sem Conta.
+  async create(data: CreateContaRequest, perfil: PerfilCadastro = {}): Promise<ContaResponse & PerfilCriado> {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const conta = await this.criarConta(tx, data);
+        const locatario = perfil.locatario
+          ? await tx.locatario.create({
+              data: {
+                id: conta.id,
+                cpf: perfil.locatario.cpf,
+                cnh: perfil.locatario.cnh,
+                rg: perfil.locatario.rg,
+                dataNascimento: perfil.locatario.dataNascimento,
+                deficienciaId: perfil.locatario.deficiencia_id ?? null,
+              },
+            })
+          : undefined;
+        const locador = perfil.locador
+          ? await tx.locador.create({
+              data: { id: conta.id, empresa: perfil.locador.empresa, cnpj: perfil.locador.cnpj },
+            })
+          : undefined;
+        return { ...conta, ...(locatario ? { locatario } : {}), ...(locador ? { locador } : {}) };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Corrida com as checagens prévias do service: a constraint decide.
+        if (error.code === "P2002") {
+          const alvo = JSON.stringify(error.meta ?? {});
+          if (/email/i.test(alvo)) throw new HttpError(409, "Email já em uso");
+          if (perfil.locatario) throw new HttpError(409, "Locatário com este CPF ou CNH já existe");
+          if (perfil.locador) throw new HttpError(409, "Locador com este CNPJ ou empresa já existe");
+          throw new HttpError(409, "Email já em uso");
+        }
+        if (error.code === "P2003") throw new HttpError(404, "Deficiência não encontrada.");
+      }
+      throw error;
+    }
+  }
+
+  private criarConta(tx: Prisma.TransactionClient, data: CreateContaRequest): Promise<ContaResponse> {
+    return tx.conta.create({
       data: {
         nome: data.nome,
         email: data.email,

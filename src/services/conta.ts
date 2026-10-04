@@ -2,6 +2,7 @@ import { HttpError } from "../errors/HttpError.js";
 import { IContaRepository } from "../repositories/conta.repository.js";
 import {
   CreateContaRequest,
+  PerfilCadastro,
   UpdateContaRequest,
 } from "../repositories/contracts/conta.contract.js";
 import bcrypt from "bcrypt";
@@ -71,7 +72,10 @@ export class ContaService {
     };
   }
 
-  async register(data: CreateContaRequest) {
+  // Task 10 (M-05): cadastro oficial = Conta + perfil numa operação atômica
+  // (o repositório usa uma única transação). As checagens abaixo só dão
+  // mensagens claras; a garantia de integridade é a transação/constraint.
+  async register({ locatario, locador, ...data }: CreateContaRequest & PerfilCadastro) {
     // Defesa em profundidade: o controller já limita o schema público.
     if (data.cargo === Cargo.ADMIN) {
       throw new HttpError(400, "Cargo ADMIN não pode ser usado no cadastro público");
@@ -83,18 +87,36 @@ export class ContaService {
       throw new HttpError(409, "Email já em uso");
     }
 
+    if (
+      locatario &&
+      ((await this.locatarioRepository.findByCpf(locatario.cpf)) ||
+        (await this.locatarioRepository.findByCnh(locatario.cnh)))
+    ) {
+      throw new HttpError(409, "Locatário com este CPF ou CNH já existe");
+    }
+    if (
+      locador &&
+      ((await this.locadorRepository.findByCnpj(locador.cnpj)) ||
+        (await this.locadorRepository.findByEmpresa(locador.empresa, { page: 1, limit: 1 })).total > 0)
+    ) {
+      throw new HttpError(409, "Locador com este CNPJ ou empresa já existe");
+    }
+
     const senhaHash = await bcrypt.hash(data.senha, 10);
 
-    const conta = await this.contaRepository.create({
-      ...data,
-      senha: senhaHash,
-    });
+    const { locatario: perfilLocatario, locador: perfilLocador, ...conta } =
+      await this.contaRepository.create({ ...data, senha: senhaHash }, { locatario, locador });
 
     // Mesmo payload do login (id + cargo) para que o authMiddleware aceite o
     // token emitido no cadastro.
     const token = this.gerarToken({ id: conta.id, cargo: conta.cargo });
 
-    return { conta, token };
+    return {
+      conta,
+      token,
+      ...(perfilLocatario ? { locatario: perfilLocatario } : {}),
+      ...(perfilLocador ? { locador: perfilLocador } : {}),
+    };
   }
 
   async login(email: string, senha: string) {

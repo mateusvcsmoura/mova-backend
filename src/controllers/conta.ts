@@ -89,9 +89,9 @@ export class ContaController {
 
       const data = result;
 
-      const { conta, token } = await this.contaService.register(data);
+      const cadastro = await this.contaService.register(data);
 
-      return res.status(201).json({ result: { conta, token } });
+      return res.status(201).json({ result: cadastro });
     } catch (error) {
       next(error);
     }

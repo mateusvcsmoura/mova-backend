@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { createLocatarioSchema } from "./locatario.schema.js";
+import { createLocadorSchema } from "./locador.schema.js";
 
 enum Cargo {
   LOCATARIO = "LOCATARIO",
@@ -54,6 +56,17 @@ export const registerContaSchema = z.object({
   cargo: z.enum([Cargo.LOCATARIO, Cargo.LOCADOR], {
     message: "Cargo deve ser LOCATARIO ou LOCADOR",
   }),
+  // Task 10 (M-05): cadastro oficial em UMA operação. O perfil é opcional só
+  // por compatibilidade com o fluxo legado em duas chamadas (testes/admin).
+  locatario: createLocatarioSchema.omit({ id: true }).optional(),
+  locador: createLocadorSchema.omit({ id: true }).optional(),
+}).superRefine((data, ctx) => {
+  if (data.locatario && data.cargo !== Cargo.LOCATARIO) {
+    ctx.addIssue({ code: "custom", path: ["locatario"], message: "Perfil de locatário exige cargo LOCATARIO" });
+  }
+  if (data.locador && data.cargo !== Cargo.LOCADOR) {
+    ctx.addIssue({ code: "custom", path: ["locador"], message: "Perfil de locador exige cargo LOCADOR" });
+  }
 });
 
 export const loginSchema = z.object({
