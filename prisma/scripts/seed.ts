@@ -189,11 +189,18 @@ async function main() {
       await tx.avaliacao.deleteMany();
       await tx.localizacao.deleteMany();
       await tx.reservaServico.deleteMany();
+      // Mesma ordem de test/setup.ts: cobranças e eventos financeiros da
+      // sandbox (Task 7) e tabelas filhas de Reserva/Conta vêm antes.
+      await tx.cobrancaReserva.deleteMany();
+      await tx.eventoFinanceiroSandbox.deleteMany();
+      await tx.recuperacaoSenha.deleteMany();
+      await tx.notificacaoReserva.deleteMany();
       await tx.reserva.deleteMany();
       await tx.servicoOpcional.deleteMany();
       await tx.veiculo.deleteMany();
       await tx.modeloVeiculo.deleteMany();
       await tx.garagem.deleteMany();
+      await tx.bloqueioLocatario.deleteMany();
       await tx.locatario.deleteMany();
       await tx.locador.deleteMany();
       await tx.deficiencia.deleteMany();
