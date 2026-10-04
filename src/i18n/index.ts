@@ -29,6 +29,8 @@ export const ErrorCode = {
   INVALID_TOKEN: "INVALID_TOKEN",
   SESSION_REVOKED: "SESSION_REVOKED",
   ACCOUNT_HAS_HISTORY: "ACCOUNT_HAS_HISTORY",
+  // Task 10 (D10-06): mudança de status recusada por reserva paga futura.
+  VEICULO_COM_RESERVA_FUTURA_CONFIRMADA: "VEICULO_COM_RESERVA_FUTURA_CONFIRMADA",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
@@ -48,6 +50,8 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
     UNAUTHENTICATED: "Not authenticated.",
     FORBIDDEN: "Access denied.",
     INVALID_TOKEN: "Invalid or expired token.",
+    VEICULO_COM_RESERVA_FUTURA_CONFIRMADA:
+      "This vehicle has a confirmed upcoming or ongoing booking. Resolve those bookings before putting it under maintenance or deactivating it.",
   },
   es: {
     VALIDATION_ERROR: "Datos inválidos.",
@@ -55,6 +59,8 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
     UNAUTHENTICATED: "No autenticado.",
     FORBIDDEN: "Acceso denegado.",
     INVALID_TOKEN: "Token inválido o expirado.",
+    VEICULO_COM_RESERVA_FUTURA_CONFIRMADA:
+      "El vehículo tiene una reserva confirmada futura o en curso. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",
   },
 };
 

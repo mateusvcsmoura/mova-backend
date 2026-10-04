@@ -161,6 +161,10 @@ export const MENSAGENS: Record<string, Traducao> = {
   "Veículo não encontrado.": { en: "Vehicle not found.", es: "Vehículo no encontrado." },
   "Veículo da reserva não encontrado.": { en: "Booking vehicle not found.", es: "Vehículo de la reserva no encontrado." },
   "Veículo ou modelo já existe.": { en: "Vehicle or model already exists.", es: "El vehículo o modelo ya existe." },
+  "O veículo possui reserva confirmada futura ou em andamento. Resolva essas reservas antes de colocá-lo em manutenção ou inativá-lo.": {
+    en: "This vehicle has a confirmed upcoming or ongoing booking. Resolve those bookings before putting it under maintenance or deactivating it.",
+    es: "El vehículo tiene una reserva confirmada futura o en curso. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",
+  },
   "Modelo de veículo não encontrado.": { en: "Vehicle model not found.", es: "Modelo de vehículo no encontrado." },
   "O modelo precisa pertencer ao mesmo locador do veículo": {
     en: "The model must belong to the same rental company as the vehicle",

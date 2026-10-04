@@ -21,6 +21,7 @@ import {
 } from "../../shared/pagination.js";
 import { AcaoAuditoria, CategoriaVeiculo, EntidadeAuditada, Prisma, PrismaClient, StatusGaragem, StatusVeiculo } from "@prisma/client";
 import {
+  assertSemCompromissoParaIndisponibilizar,
   moveVehicleInTransaction,
   reserveGarageCapacityForNewVehicles,
 } from "./vehicle-garage-allocation.js";
@@ -326,6 +327,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           include: { modeloVeiculo: true },
         });
         if (!atual) return null;
+        await assertSemCompromissoParaIndisponibilizar(tx, id, atual.status, data.status ?? undefined);
 
         let idModeloVeiculo = atual.idModeloVeiculo;
         if (data.modelo) {
@@ -424,6 +426,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     try {
       await prisma.$transaction(async (tx) => {
         const atual = await tx.veiculo.findUniqueOrThrow({ where: { id } });
+        await assertSemCompromissoParaIndisponibilizar(tx, id, atual.status, StatusVeiculo.INATIVO);
         await tx.veiculo.update({
           where: { id },
           data: { status: StatusVeiculo.INATIVO },
@@ -437,7 +440,8 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           depois: { status: StatusVeiculo.INATIVO },
         });
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Veículo não encontrado.");
     }
   }

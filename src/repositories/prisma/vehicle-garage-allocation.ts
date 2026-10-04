@@ -1,6 +1,7 @@
-import { Prisma, StatusGaragem, StatusPagamento, StatusReserva } from "@prisma/client";
+import { Prisma, StatusGaragem, StatusPagamento, StatusReserva, StatusVeiculo } from "@prisma/client";
 
 import { HttpError } from "../../errors/HttpError.js";
+import { ErrorCode } from "../../i18n/index.js";
 import { prazoPagamentoVencido } from "../../shared/prazo-pagamento.js";
 
 type Transaction = Prisma.TransactionClient;
@@ -108,6 +109,44 @@ async function assertNoReservationThatPinsGarage(
       409,
       "O veículo possui uma reserva que impede sua transferência.",
       "VEHICLE_HAS_ACTIVE_RESERVATION",
+    );
+  }
+}
+
+// Task 10 (D10-06, B-03/BUG-14): status que impedem cumprir uma reserva.
+const STATUS_QUE_INDISPONIBILIZAM: StatusVeiculo[] = [StatusVeiculo.MANUTENCAO, StatusVeiculo.INATIVO];
+
+// Compromisso válido com o locatário: reserva paga (CONFIRMADA, ou aprovada e
+// ainda gerando o código) que não terminou, ou em andamento. Não cancela nem
+// remaneja nada: recusa a mudança e o locador resolve a reserva antes.
+export async function assertSemCompromissoParaIndisponibilizar(
+  tx: Transaction,
+  veiculoId: string,
+  statusAtual: StatusVeiculo,
+  novoStatus: StatusVeiculo | undefined,
+): Promise<void> {
+  if (!novoStatus || novoStatus === statusAtual || !STATUS_QUE_INDISPONIBILIZAM.includes(novoStatus)) return;
+  // Mesmo lock da criação de reserva + lock das linhas (padrão da alocação):
+  // serializa com nova reserva e com confirmação de pagamento em curso.
+  await lockVehicleAllocation(tx, veiculoId);
+  const agora = new Date();
+  const reservas = await tx.$queryRaw<Array<{ status: StatusReserva; statusPagamento: StatusPagamento; dataHoraFim: Date }>>(Prisma.sql`
+    SELECT "status", "statusPagamento", "dataHoraFim"
+    FROM "Reserva"
+    WHERE "idVeiculo" = ${veiculoId}::uuid
+    FOR UPDATE
+  `);
+  const compromisso = reservas.some((r) =>
+    r.status === StatusReserva.EM_ANDAMENTO ||
+    (r.statusPagamento === StatusPagamento.SUCESSO &&
+      (r.status === StatusReserva.CONFIRMADA || r.status === StatusReserva.AGUARDANDO_PAGAMENTO) &&
+      r.dataHoraFim > agora),
+  );
+  if (compromisso) {
+    throw new HttpError(
+      409,
+      "O veículo possui reserva confirmada futura ou em andamento. Resolva essas reservas antes de colocá-lo em manutenção ou inativá-lo.",
+      ErrorCode.VEICULO_COM_RESERVA_FUTURA_CONFIRMADA,
     );
   }
 }
