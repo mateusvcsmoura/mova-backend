@@ -213,6 +213,13 @@ describe("Veiculo API", () => {
       expect(item).not.toHaveProperty("placa");
       expect(item.modeloVeiculo).not.toHaveProperty("idLocador");
       expect(item.modeloVeiculo).not.toHaveProperty("criadoEm");
+
+      // Busca da Home: trecho do texto, sem diferenciar maiúsculas.
+      const parcial = await request(app)
+        .get("/api/veiculo")
+        .query({ marca: "publico mova", modelo: "catalogo PUBLICO ativo" });
+      expect(parcial.status).toBe(200);
+      expect(parcial.body.result.map((v: any) => v.id)).toEqual([reservavel.id]);
     });
 
     it("inclui o nome da garagem efetiva na resposta do catálogo", async () => {

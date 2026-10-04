@@ -60,4 +60,19 @@ describe("Autenticação JWT", () => {
 
     expect(res.status).toBe(401);
   });
+
+  it("rejeita token válido de conta que não existe mais (401)", async () => {
+    const token = jwt.sign(
+      { id: "00000000-0000-4000-8000-000000000000", cargo: "LOCATARIO" },
+      env.JWT_SECRET as jwt.Secret,
+      { expiresIn: "1h" },
+    );
+
+    const res = await request(app)
+      .get("/api/reserva")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe("SESSION_REVOKED");
+  });
 });

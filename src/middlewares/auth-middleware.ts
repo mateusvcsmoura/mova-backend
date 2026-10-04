@@ -55,11 +55,13 @@ export async function authMiddleware(
     where: { id: req.user.id },
     select: { anonimizadoEm: true },
   });
-  if (conta?.anonimizadoEm) {
+  if (!conta || conta.anonimizadoEm) {
     return next(
       new HttpError(
         401,
-        "Sessão revogada porque a conta foi anonimizada",
+        conta
+          ? "Sessão revogada porque a conta foi anonimizada"
+          : "Sessão revogada porque a conta não existe mais",
         ErrorCode.SESSION_REVOKED,
       ),
     );

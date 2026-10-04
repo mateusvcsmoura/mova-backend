@@ -140,7 +140,8 @@ export class ContaService {
       throw new HttpError(409, "Email já está em uso");
     }
 
-    return await this.contaRepository.create(data);
+    // Mesmo tratamento do register: o repositório grava o valor recebido em senhaHash.
+    return await this.contaRepository.create({ ...data, senha: await bcrypt.hash(data.senha, 10) });
   };
 
   update = async (id: string, data: UpdateContaRequest) => {

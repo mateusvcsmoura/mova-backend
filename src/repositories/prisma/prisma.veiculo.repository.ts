@@ -158,8 +158,9 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
       // visível apenas na frota privada do locador.
       garagem: { status: StatusGaragem.ATIVA },
       modeloVeiculo: {
-        marca: filters.marca,
-        modelo: filters.modelo,
+        // Busca textual do catálogo: trecho, sem diferenciar maiúsculas.
+        marca: filters.marca ? { contains: filters.marca, mode: "insensitive" } : undefined,
+        modelo: filters.modelo ? { contains: filters.modelo, mode: "insensitive" } : undefined,
         ano: filters.ano,
         cambio: filters.cambio,
         capacidade: filters.capacidade,

@@ -1,5 +1,6 @@
 import request from "supertest";
 import { app } from "../../src/app";
+import { prisma } from "../../src/database/prisma";
 import { describe, it, expect, beforeAll } from "vitest";
 import {
   createAccount,
@@ -69,6 +70,15 @@ describe("Admin API (Conta)", () => {
       expect(response.body.result.email).toBe(email);
 
       contaId = response.body.result.id;
+      expect(JSON.stringify(response.body.result)).not.toContain(DEFAULT_SENHA);
+
+      // A senha precisa ser gravada como hash: a conta criada consegue entrar.
+      const login = await request(app)
+        .post("/api/conta/auth/login")
+        .send({ email, senha: DEFAULT_SENHA });
+      expect(login.status).toBe(200);
+      const conta = await prisma.conta.findUniqueOrThrow({ where: { id: contaId } });
+      expect(conta.senhaHash).not.toBe(DEFAULT_SENHA);
     });
   });
 

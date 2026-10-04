@@ -531,6 +531,18 @@ describe("Pagamento — sandbox", () => {
       Math.round(Number(reserva.valorTotal) * 0.2 * 100) / 100,
     );
     expect(pagamento.body.result.valorElegivelEstorno).toBe(esperado);
+
+    // A multa já foi retida do valor pago: não pode virar uma segunda cobrança
+    // pendente (que bloquearia o locatário pela RN07).
+    const multa = await prisma.cobrancaReserva.findFirstOrThrow({
+      where: { idReserva: reserva.id, tipo: "CANCELAMENTO" },
+    });
+    expect(multa.statusPagamento).toBe("SUCESSO");
+    const pendentes = await request(app)
+      .get("/api/cobranca/pendentes")
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(pendentes.status).toBe(200);
+    expect(JSON.stringify(pendentes.body.result)).not.toContain(multa.id);
   });
 
   it("reconcilia solicitação durável deixada por processo interrompido", async () => {

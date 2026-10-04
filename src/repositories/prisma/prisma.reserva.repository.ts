@@ -484,7 +484,10 @@ export class PrismaReservaRepository implements IReservaRepository {
             idReserva: id,
             tipo: TipoCobranca.CANCELAMENTO,
             valor: multa,
-            statusPagamento: multa > 0
+            // Reserva já paga: a multa é retida do estorno (PagamentoEstornoService),
+            // então nasce quitada — senão seria cobrada duas vezes e ainda
+            // bloquearia o locatário pela RN07.
+            statusPagamento: multa > 0 && estadoAtual.statusPagamento !== StatusPagamento.SUCESSO
               ? StatusPagamento.AGUARDANDO_PAGAMENTO
               : StatusPagamento.SUCESSO,
           },
