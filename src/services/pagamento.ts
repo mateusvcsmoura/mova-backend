@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Cargo, StatusPagamento, StatusReserva } from "@prisma/client";
 
 import { env } from "../config/env.js";
@@ -144,11 +145,15 @@ export class PagamentoService {
       );
     }
 
+    // Task 11: cada tentativa é um evento próprio do "gateway" (como nos
+    // sandboxes reais). Uma identidade fixa por reserva+status fazia a trilha
+    // de estorno tratar a nova tentativa como replay do evento já recusado,
+    // e a reserva ficava impagável até expirar.
     const corpo = montarEventoWebhook(
       idReserva,
       status,
       dados.metodoPagamento,
-      `sandbox:${provider}:${idReserva}:${status}`,
+      `sandbox:${provider}:${idReserva}:${status}:${randomUUID()}`,
     );
     const bytes = Buffer.from(corpo, "utf8");
     const assinatura = assinarPayload(segredo, bytes);

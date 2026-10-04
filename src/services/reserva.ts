@@ -74,13 +74,11 @@ const MULTA_CANCELAMENTO_TARDIO = 0.2;
 // Dinheiro sempre com 2 casas — evita 0.1 + 0.2 aparecendo na resposta.
 const arredondar2 = (v: number): number => Math.round(v * 100) / 100;
 
-// RN06: atraso na devolução. Cobra a diária proporcional aos dias de atraso
-// mais multa de 10%. DECISÃO (base do 10%): a multa incide sobre a TAXA de
-// atraso (diasAtraso × valorDiária), não sobre o valorTotal da reserva —
-// cobrança final = taxa × 1,10. valorDiária é derivada da própria reserva:
-// valorTotal ÷ duração (em dias), evitando novo campo/entrada do cliente.
-// diasAtraso = teto((devolvidoEm − dataHoraFim) / 1 dia): qualquer atraso,
-// mesmo de minutos, conta como 1 diária.
+// RN06: atraso na devolução. Cobra a diária PROPORCIONAL ao tempo de atraso
+// (valorDiaria × atraso/24h, contínuo, sem arredondar para diária cheia) mais
+// 10% sobre essa taxa — cobrança final = taxa × 1,10. A base do 10% é a taxa
+// de atraso, não o valorTotal da reserva. valorDiaria é a do modelo do
+// veículo no momento da devolução (ver calcularCobrancaAtraso).
 const MULTA_ATRASO = 0.1;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -863,9 +861,16 @@ export class ReservaService {
 
     // Eventos de gateway podem ser reenviados fora de ordem. Aprovação é
     // terminal e uma reserva cancelada não pode voltar a receber confirmação.
+    // Task 11: aprovação já gravada mas ainda SEM código (falha entre o commit
+    // do pagamento e a geração) não é terminal — o próximo evento SUCESSO
+    // conclui a confirmação em vez de ser engolido.
+    const aprovadaSemCodigo =
+      reserva.statusPagamento === StatusPagamento.SUCESSO &&
+      !reserva.codigoDesbloqueio &&
+      evento.status === StatusPagamento.SUCESSO;
     if (
       reserva.status === StatusReserva.CANCELADA ||
-      reserva.statusPagamento === StatusPagamento.SUCESSO
+      (reserva.statusPagamento === StatusPagamento.SUCESSO && !aprovadaSemCodigo)
     ) {
       return reserva;
     }
@@ -875,13 +880,31 @@ export class ReservaService {
     // lança). Idempotente: reserva já confirmada mantém o mesmo código.
     if (
       evento.status === StatusPagamento.SUCESSO &&
-      !reserva.codigoDesbloqueio
+      !reserva.codigoDesbloqueio &&
+      // Autocura: o valor ja foi aceito; RN07 pertence a aceitacao, nao a geracao do codigo.
+      !aprovadaSemCodigo
     ) {
       // RN07: revalida bloqueio financeiro na trilha do pagamento. Locatário
       // bloqueado após criar a reserva não pode ser confirmado nem receber o
       // código pelo webhook. Idempotente: reserva que já tem código não entra
       // aqui (guard acima), então reprocessamento não dispara 403 espúrio.
-      await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
+      try {
+        await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
+      } catch (error) {
+        // Task 11: a tentativa recusada vira FALHA (mesmo desfecho da recusa
+        // operacional da Task 10.1). Sem isso ela ficava PROCESSANDO e uma nova
+        // tentativa era recusada até a reserva expirar. O erro continua
+        // subindo: o webhook registra o recebimento e estorna no sandbox.
+        if (error instanceof HttpError && reserva.statusPagamento !== StatusPagamento.SUCESSO) {
+          try {
+            await this.reservaRepository.atualizarStatusPagamento(idReserva, StatusPagamento.FALHA, evento.metodo);
+          } catch {
+            // Reserva cancelada/expirada entre a leitura e a escrita: o 403 original
+            // prevalece para o webhook registrar o recebimento e estornar.
+          }
+        }
+        throw error;
+      }
     }
 
     const atualizada = await this.reservaRepository.atualizarStatusPagamento(
@@ -910,7 +933,11 @@ export class ReservaService {
         // na mesma operação que gera o código, então nunca ficam dessincronizados.
         StatusReserva.CONFIRMADA,
       );
-      await this.reservaNotifier?.notificarReservaConfirmada(confirmada);
+      // Só a entrega que gravou o código notifica; uma entrega concorrente
+      // que perdeu a corrida devolve o estado vencedor sem repetir o e-mail.
+      if (confirmada.codigoDesbloqueio === codigo) {
+        await this.reservaNotifier?.notificarReservaConfirmada(confirmada);
+      }
       return confirmada;
     }
 
@@ -978,8 +1005,14 @@ export class ReservaService {
       );
     }
 
+    // Task 11: o token do QR expira junto com a janela de uso do código (RN03);
+    // antes não tinha validade e continuava verificável para sempre.
     const qr = jwt.sign(
-      { idReserva: id, codigo: reserva.codigoDesbloqueio },
+      {
+        idReserva: id,
+        codigo: reserva.codigoDesbloqueio,
+        exp: Math.floor(this.calcularExpiracaoCodigo(reserva).getTime() / 1000),
+      },
       env.JWT_SECRET,
     );
     return { qr };
@@ -999,7 +1032,10 @@ export class ReservaService {
         idReserva?: string;
         codigo?: string;
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new HttpError(409, "Código de desbloqueio expirado.");
+      }
       throw new HttpError(400, "QR Code inválido ou adulterado.");
     }
 
@@ -1074,7 +1110,13 @@ export class ReservaService {
     requester: ReservaAccessContext,
   ): Promise<CondutorResponse[]> => {
     await this.getReservaComAcesso(idReserva, requester);
-    return this.condutorRepository.findByReservaId(idReserva);
+    const condutores = await this.condutorRepository.findByReservaId(idReserva);
+    // Task 11 (RNF05, minimização): o Locador precisa de nome e CNH para a
+    // entrega do veículo; o CPF de terceiros não é necessário a ele.
+    if (requester.cargo === Cargo.LOCADOR) {
+      return condutores.map((condutor) => ({ ...condutor, cpf: null }));
+    }
+    return condutores;
   };
 
   removerCondutor = async (

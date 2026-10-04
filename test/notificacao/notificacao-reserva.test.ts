@@ -313,7 +313,9 @@ describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
       findById: vi.fn(async () => base),
       update: vi.fn(async () => ({ ...base, statusPagamento: "SUCESSO" })),
       atualizarStatusPagamento: vi.fn(async () => ({ ...base, statusPagamento: "SUCESSO" })),
-      gerarCodigoDesbloqueio: vi.fn(async () => confirmada),
+      // Fake fiel ao repositório: devolve a reserva com o código gravado pela
+      // própria chamada (o service só notifica a entrega que gravou o código).
+      gerarCodigoDesbloqueio: vi.fn(async (_id: string, codigo: string) => ({ ...confirmada, codigoDesbloqueio: codigo })),
       findByCodigoDesbloqueio: vi.fn(async () => null),
     } as any;
 
@@ -356,7 +358,8 @@ describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
 
     // Reserva confirmada normalmente, com código gerado.
     expect(result.statusPagamento).toBe("SUCESSO");
-    expect(result.codigoDesbloqueio).toBe("ABCD-2345");
+    // Código gerado pelo service (o fake devolve o que recebeu).
+    expect(result.codigoDesbloqueio).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
     // E a falha do e-mail ficou registrada, isoladamente.
     expect(records[0].status).toBe("FALHA");
   });
