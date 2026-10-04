@@ -161,6 +161,14 @@ export const MENSAGENS: Record<string, Traducao> = {
   "Veículo não encontrado.": { en: "Vehicle not found.", es: "Vehículo no encontrado." },
   "Veículo da reserva não encontrado.": { en: "Booking vehicle not found.", es: "Vehículo de la reserva no encontrado." },
   "Veículo ou modelo já existe.": { en: "Vehicle or model already exists.", es: "El vehículo o modelo ya existe." },
+  "O veículo desta reserva está indisponível no momento. O pagamento não foi confirmado e nenhum valor foi cobrado.": {
+    en: "The vehicle for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
+    es: "El vehículo de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
+  },
+  "O local de retirada ou de devolução desta reserva está indisponível no momento. O pagamento não foi confirmado e nenhum valor foi cobrado.": {
+    en: "The pickup or return location for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
+    es: "El lugar de retiro o de devolución de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
+  },
   "O veículo possui reserva confirmada futura ou em andamento. Resolva essas reservas antes de colocá-lo em manutenção ou inativá-lo.": {
     en: "This vehicle has a confirmed upcoming or ongoing booking. Resolve those bookings before putting it under maintenance or deactivating it.",
     es: "El vehículo tiene una reserva confirmada futura o en curso. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",

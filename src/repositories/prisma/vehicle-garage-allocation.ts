@@ -134,6 +134,7 @@ export async function assertSemCompromissoParaIndisponibilizar(
     SELECT "status", "statusPagamento", "dataHoraFim"
     FROM "Reserva"
     WHERE "idVeiculo" = ${veiculoId}::uuid
+    ORDER BY "id"
     FOR UPDATE
   `);
   const compromisso = reservas.some((r) =>
@@ -149,6 +150,39 @@ export async function assertSemCompromissoParaIndisponibilizar(
       ErrorCode.VEICULO_COM_RESERVA_FUTURA_CONFIRMADA,
     );
   }
+}
+
+// Task 10.1 (D10.1-01..06): o pagamento só pode ser aceito/confirmado se o
+// veículo e as garagens da reserva estiverem operacionais. Chamado sob o lock
+// da reserva; ordem de locks do projeto: reserva (advisory) → veículo
+// (advisory, o mesmo da criação de reserva e da troca de status) → garagens
+// (linha, FOR SHARE, por id). Quem indisponibiliza o veículo/garagem espera
+// estes locks e passa a ver a reserva paga como compromisso protegido.
+// Devolve o erro em vez de lançar: no webhook a tentativa é gravada como
+// FALHA na mesma transação antes de o erro subir.
+export async function verificarReservaOperacional(
+  tx: Transaction,
+  reserva: { idVeiculo: string; idGaragemRetirada: string | null; idGaragemDevolucao: string | null },
+): Promise<HttpError | null> {
+  await lockVehicleAllocation(tx, reserva.idVeiculo);
+  const [veiculo] = await tx.$queryRaw<Array<{ status: StatusVeiculo }>>(Prisma.sql`
+    SELECT "status" FROM "Veiculo" WHERE "id" = ${reserva.idVeiculo}::uuid
+  `);
+  if (!veiculo || STATUS_QUE_INDISPONIBILIZAM.includes(veiculo.status)) {
+    return new HttpError(409, "O veículo desta reserva está indisponível no momento. O pagamento não foi confirmado e nenhum valor foi cobrado.", ErrorCode.VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA);
+  }
+  const ids = [...new Set([reserva.idGaragemRetirada, reserva.idGaragemDevolucao].filter((id): id is string => Boolean(id)))].sort();
+  if (ids.length === 0) return null;
+  const garagens = await tx.$queryRaw<Array<{ status: StatusGaragem }>>(Prisma.sql`
+    SELECT "status" FROM "Garagem"
+    WHERE "id" IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+    ORDER BY "id"
+    FOR SHARE
+  `);
+  if (garagens.length !== ids.length || garagens.some((g) => g.status !== StatusGaragem.ATIVA)) {
+    return new HttpError(409, "O local de retirada ou de devolução desta reserva está indisponível no momento. O pagamento não foi confirmado e nenhum valor foi cobrado.", ErrorCode.GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA);
+  }
+  return null;
 }
 
 async function lockGarages(

@@ -31,6 +31,9 @@ export const ErrorCode = {
   ACCOUNT_HAS_HISTORY: "ACCOUNT_HAS_HISTORY",
   // Task 10 (D10-06): mudança de status recusada por reserva paga futura.
   VEICULO_COM_RESERVA_FUTURA_CONFIRMADA: "VEICULO_COM_RESERVA_FUTURA_CONFIRMADA",
+  // Task 10.1: pagamento recusado porque veículo/garagem ficou indisponível.
+  VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA: "VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA",
+  GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA: "GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
@@ -52,6 +55,10 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
     INVALID_TOKEN: "Invalid or expired token.",
     VEICULO_COM_RESERVA_FUTURA_CONFIRMADA:
       "This vehicle has a confirmed upcoming or ongoing booking. Resolve those bookings before putting it under maintenance or deactivating it.",
+    VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA:
+      "The vehicle for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
+    GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA:
+      "The pickup or return location for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
   },
   es: {
     VALIDATION_ERROR: "Datos inválidos.",
@@ -61,6 +68,10 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
     INVALID_TOKEN: "Token inválido o expirado.",
     VEICULO_COM_RESERVA_FUTURA_CONFIRMADA:
       "El vehículo tiene una reserva confirmada futura o en curso. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",
+    VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA:
+      "El vehículo de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
+    GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA:
+      "El lugar de retiro o de devolución de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
   },
 };
 

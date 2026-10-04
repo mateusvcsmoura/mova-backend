@@ -22,6 +22,7 @@ import {
 } from "../contracts/reserva.contract.js";
 import { ReservaMapper } from "../mappers/reserva.mapper.js";
 import { expirarReservaNoTx, expirarReservasVencidas, reservaVencidaWhere } from "./expiracao-reserva.js";
+import { verificarReservaOperacional } from "./vehicle-garage-allocation.js";
 import {
   buildPaginatedResult,
   PaginatedResult,
@@ -392,6 +393,15 @@ export class PrismaReservaRepository implements IReservaRepository {
             );
           }
         }
+      // Task 10.1: a garagem de devolução nova é validada no service fora da
+      // transação; aqui ela é relida sob FOR SHARE (ordem: reserva → veículo →
+      // garagem) para não correr com a indisponibilização dessa garagem.
+      if (data.idGaragemDevolucao) {
+        const [garagem] = await tx.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "Garagem" WHERE "id" = ${data.idGaragemDevolucao}::uuid FOR SHARE`;
+        if (!garagem || garagem.status !== "ATIVA") {
+          throw new HttpError(409, "O local de devolução não está disponível (garagem inativa ou em manutenção).");
+        }
+      }
       const atualizacao = await tx.reserva.updateMany({
         // Campos de domínio ficam fora desta operação pública; apenas uma
         // reserva não cancelada pode alterar os dados editáveis.
@@ -430,15 +440,18 @@ export class PrismaReservaRepository implements IReservaRepository {
     metodoPagamento?: MetodoPagamento,
   ): Promise<ReservaResponse> {
     try {
-      return await prisma.$transaction(async (tx) => {
+      const { reserva, recusa } = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
       // D10-05: evento que chega depois do prazo (webhook tardio) encontra a
       // reserva expirada sob o mesmo lock e não a confirma. Quem chamou recebe
       // a reserva CANCELADA e trata como pagamento de reserva cancelada.
       if (await expirarReservaNoTx(tx, id, new Date())) {
-        return ReservaMapper.toResponse(
-          await tx.reserva.findUniqueOrThrow({ where: { id }, include: RESERVA_INCLUDE }),
-        );
+        return {
+          reserva: ReservaMapper.toResponse(
+            await tx.reserva.findUniqueOrThrow({ where: { id }, include: RESERVA_INCLUDE }),
+          ),
+          recusa: null,
+        };
       }
       const estadoAtual = await tx.reserva.findUnique({
         where: { id },
@@ -452,12 +465,21 @@ export class PrismaReservaRepository implements IReservaRepository {
         estadoAtual.statusPagamento === StatusPagamento.SUCESSO &&
         statusPagamento !== StatusPagamento.SUCESSO
       ) {
-        return ReservaMapper.toResponse(estadoAtual);
+        return { reserva: ReservaMapper.toResponse(estadoAtual), recusa: null };
       }
+      // Task 10.1 (D10.1-01/06): aprovação só vale com veículo e garagens
+      // operacionais, verificados sob os mesmos locks de quem os altera. Se
+      // não estiverem, a tentativa vira FALHA (nada confirmado) e o erro sobe
+      // depois do commit; o webhook estorna o valor no sandbox.
+      let recusa: HttpError | null = null;
+      if (statusPagamento === StatusPagamento.SUCESSO && estadoAtual.statusPagamento !== StatusPagamento.SUCESSO) {
+        recusa = await verificarReservaOperacional(tx, estadoAtual);
+      }
+      const statusFinal = recusa ? StatusPagamento.FALHA : statusPagamento;
       const atualizacao = await tx.reserva.updateMany({
         where: { id, status: { not: StatusReserva.CANCELADA } },
         data: {
-          statusPagamento,
+          statusPagamento: statusFinal,
           metodoPagamento: metodoPagamento ?? undefined,
         },
       });
@@ -477,15 +499,17 @@ export class PrismaReservaRepository implements IReservaRepository {
       if (tentativaAtual && tentativaAtual.statusPagamento !== StatusPagamento.SUCESSO) {
         await tx.cobrancaReserva.update({
           where: { id: tentativaAtual.id },
-          data: { statusPagamento, metodoPagamento: metodoPagamento ?? undefined },
+          data: { statusPagamento: statusFinal, metodoPagamento: metodoPagamento ?? undefined },
         });
       }
-      const reserva = await tx.reserva.findUniqueOrThrow({
+      const atualizada = await tx.reserva.findUniqueOrThrow({
         where: { id },
         include: RESERVA_INCLUDE,
       });
-      return ReservaMapper.toResponse(reserva);
+      return { reserva: ReservaMapper.toResponse(atualizada), recusa };
       });
+      if (recusa) throw recusa;
+      return reserva;
     } catch (error) {
       if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Reserva não encontrada.");
@@ -663,9 +687,16 @@ export class PrismaReservaRepository implements IReservaRepository {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idReserva}, 0))`;
       const atual = await tx.reserva.findUnique({
         where: { id: idReserva },
-        select: { id: true, valorTotal: true },
+        select: { id: true, valorTotal: true, idVeiculo: true, idGaragemRetirada: true, idGaragemDevolucao: true },
       });
       if (!atual) throw new HttpError(404, "Reserva não encontrada.");
+      // Task 10.1 (D10.1-02): veículo/garagens indisponíveis → 409 antes de
+      // existir qualquer cobrança. Fica ANTES de escrever na reserva: a ordem
+      // de locks é reserva (advisory) → veículo → garagens → linhas de reserva;
+      // travar a linha da reserva antes do veículo causaria deadlock com a
+      // troca de status do veículo (que trava veículo → linhas de reserva).
+      const recusa = await verificarReservaOperacional(tx, atual);
+      if (recusa) throw recusa;
 
       const atualizacao = await tx.reserva.updateMany({
         where: {

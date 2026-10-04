@@ -2,6 +2,7 @@ import type { IncomingHttpHeaders } from "node:http";
 import { StatusPagamento, StatusReserva } from "@prisma/client";
 
 import { HttpError } from "../errors/HttpError.js";
+import { ErrorCode } from "../i18n/index.js";
 import type { PagamentoEvento, PaymentGateway } from "../infra/payment/gateway.js";
 import { SandboxPaymentAudit } from "../infra/payment/sandbox-audit.js";
 import type { ReservaService } from "./reserva.js";
@@ -14,6 +15,11 @@ import type { ReservaService } from "./reserva.js";
  * Separação: nada do formato do gateway vaza para o domínio; nenhuma regra de
  * negócio de reserva vive aqui.
  */
+const RECUSAS_OPERACIONAIS: string[] = [
+  ErrorCode.VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA,
+  ErrorCode.GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA,
+];
+
 export class PagamentoWebhookService {
   constructor(
     private readonly gateways: Map<string, PaymentGateway>,
@@ -91,7 +97,13 @@ export class PagamentoWebhookService {
       // Um recebimento assinado para conta bloqueada é reconhecido e estornado
       // apenas no sandbox. Não propagamos 403 ao gateway, evitando reentregas
       // infinitas; a reserva continua sem confirmação, código ou início.
-      if (error instanceof HttpError && error.status === 403 && evento.status === "SUCESSO") {
+      // Task 10.1: o mesmo vale para reserva cujo veículo/garagem ficou
+      // indisponível — a tentativa foi gravada como FALHA e o valor volta.
+      if (
+        error instanceof HttpError &&
+        evento.status === "SUCESSO" &&
+        (error.status === 403 || RECUSAS_OPERACIONAIS.includes(error.code ?? ""))
+      ) {
         await this.sandboxAudit.registrarPagamentoBloqueado(
           evento.idReserva,
           provider,
