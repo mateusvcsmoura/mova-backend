@@ -1,3 +1,4 @@
+import type { AtorAuditoria } from "./prisma/auditoria.js";
 import {
   CreateGaragemRequest,
   GaragemBaseResponse,
@@ -29,6 +30,6 @@ export interface IGaragemRepository {
     data: UpdateGaragemRequest,
   ): Promise<GaragemBaseResponse | null>;
   delete(id: string): Promise<void>;
-  alocarVeiculo(garagemId: string, veiculoId: string): Promise<void>;
-  desalocarVeiculo(garagemId: string, veiculoId: string): Promise<void>;
+  alocarVeiculo(garagemId: string, veiculoId: string, ator?: AtorAuditoria): Promise<void>;
+  desalocarVeiculo(garagemId: string, veiculoId: string, ator?: AtorAuditoria): Promise<void>;
 }

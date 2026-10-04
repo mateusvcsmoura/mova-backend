@@ -1,6 +1,8 @@
+import type { AtorAuditoria } from "./prisma/auditoria.js";
 import {
   CreateVeiculoLoteRequest,
   CreateVeiculoRequest,
+  ModeloVeiculoData,
   ModeloVeiculoResponse,
   UpdateModeloVeiculoRequest,
   UpdateVeiculoRequest,
@@ -31,10 +33,10 @@ export interface IVeiculoRepository {
   findForInteresse(
     pagination: PaginationParams,
   ): Promise<PaginatedResult<VeiculoResponse>>;
-  create(data: CreateVeiculoRequest): Promise<VeiculoResponse>;
-  createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]>;
-  update(id: string, data: UpdateVeiculoRequest): Promise<VeiculoResponse>;
-  delete(id: string): Promise<void>;
-  updateModelo(id: string, data: UpdateModeloVeiculoRequest): Promise<ModeloVeiculoResponse>;
-  updateModeloDoVeiculo(id: string, data: UpdateModeloVeiculoRequest): Promise<VeiculoResponse>;
+  create(data: CreateVeiculoRequest, ator?: AtorAuditoria): Promise<VeiculoResponse>;
+  createLote(data: CreateVeiculoLoteRequest, ator?: AtorAuditoria): Promise<VeiculoResponse[]>;
+  update(id: string, data: UpdateVeiculoRequest, ator?: AtorAuditoria): Promise<VeiculoResponse>;
+  delete(id: string, ator?: AtorAuditoria): Promise<void>;
+  updateModelo(id: string, data: UpdateModeloVeiculoRequest, ator?: AtorAuditoria): Promise<ModeloVeiculoResponse>;
+  updateModeloDoVeiculo(id: string, data: ModeloVeiculoData, ator?: AtorAuditoria): Promise<VeiculoResponse>;
 }

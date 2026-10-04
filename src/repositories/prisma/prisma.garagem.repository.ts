@@ -1,3 +1,5 @@
+import { AcaoAuditoria } from "@prisma/client";
+import { AtorAuditoria, auditarAlteracaoVeiculo } from "./auditoria.js";
 import { Garagem, Prisma, PrismaClient, StatusGaragem } from "@prisma/client";
 
 import { HttpError } from "../../errors/HttpError.js";
@@ -262,15 +264,31 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     }
   }
 
-  async alocarVeiculo(garagemId: string, veiculoId: string): Promise<void> {
+  async alocarVeiculo(garagemId: string, veiculoId: string, ator?: AtorAuditoria): Promise<void> {
     await prisma.$transaction(async (tx) => {
+      const antes = await tx.veiculo.findUniqueOrThrow({ where: { id: veiculoId } });
       await moveVehicleInTransaction(tx, veiculoId, garagemId);
+      await this.auditarGaragem(tx, ator, veiculoId, antes.idLocador, antes.garagemId);
     });
   }
 
-  async desalocarVeiculo(garagemId: string, veiculoId: string): Promise<void> {
+  async desalocarVeiculo(garagemId: string, veiculoId: string, ator?: AtorAuditoria): Promise<void> {
     await prisma.$transaction(async (tx) => {
+      const antes = await tx.veiculo.findUniqueOrThrow({ where: { id: veiculoId } });
       await desalocarVehicleInTransaction(tx, garagemId, veiculoId);
+      await this.auditarGaragem(tx, ator, veiculoId, antes.idLocador, antes.garagemId);
     });
+  }
+
+  // RN09: movimentação de veículo entre garagens, na mesma transação.
+  private async auditarGaragem(
+    tx: Prisma.TransactionClient,
+    ator: AtorAuditoria | undefined,
+    veiculoId: string,
+    idLocador: string,
+    garagemAntes: string | null,
+  ): Promise<void> {
+    const depois = await tx.veiculo.findUniqueOrThrow({ where: { id: veiculoId } });
+    await auditarAlteracaoVeiculo(tx, ator, veiculoId, idLocador, { garagemId: garagemAntes }, { garagemId: depois.garagemId }, AcaoAuditoria.MUDANCA_GARAGEM);
   }
 }

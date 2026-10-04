@@ -50,6 +50,11 @@ interface ReservaAccessContext {
   cargo: Cargo;
 }
 
+// RN09 audita as alterações de reserva feitas pelo lado do locador (ou ADMIN);
+// as ações do próprio locatário seguem o fluxo normal sem trilha de locador.
+const atorAuditoria = (requester: ReservaAccessContext) =>
+  requester.cargo === Cargo.LOCATARIO ? undefined : { id: requester.id, cargo: requester.cargo };
+
 // Alfabeto sem caracteres ambíguos (sem O, 0, I, 1, L).
 const CODIGO_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODIGO_BLOCO = 4; // XXXX-XXXX
@@ -741,7 +746,7 @@ export class ReservaService {
       dataHoraFim: data.dataHoraFim,
       metodoPagamento: data.metodoPagamento,
       ...(valorTotalCalculado !== undefined ? { valorTotalCalculado } : {}),
-    });
+    }, atorAuditoria(requester));
   };
 
   // RN04: cancelamento como ação de domínio. Grátis até 2h antes da retirada;
@@ -788,7 +793,7 @@ export class ReservaService {
       ? Math.round(reserva.valorTotal * MULTA_CANCELAMENTO_TARDIO * 100) / 100
       : 0;
 
-    const cancelada = await this.reservaRepository.cancelar(id, multa, env.PAGAMENTO_SANDBOX_PROVIDER);
+    const cancelada = await this.reservaRepository.cancelar(id, multa, env.PAGAMENTO_SANDBOX_PROVIDER, atorAuditoria(requester));
     if (cancelada.statusPagamento === StatusPagamento.SUCESSO) {
       await this.pagamentoEstornoService?.registrarEstornoDeCancelamento(id);
     }
@@ -836,7 +841,7 @@ export class ReservaService {
       );
     }
 
-    return this.reservaRepository.devolver(id, devolvidoEm, cobranca);
+    return this.reservaRepository.devolver(id, devolvidoEm, cobranca, atorAuditoria(requester));
   };
 
   // Fluxo INTERNO do gateway de pagamento. Só o webhook (após validar a

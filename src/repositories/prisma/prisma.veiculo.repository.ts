@@ -1,4 +1,5 @@
 import { prisma } from "../../database/prisma.js";
+import { AtorAuditoria, auditarAlteracaoVeiculo, registrarAuditoria, snapshotVeiculo } from "./auditoria.js";
 import { IVeiculoRepository } from "../veiculo.repository.js";
 import { HttpError } from "../../errors/HttpError.js";
 import {
@@ -18,7 +19,7 @@ import {
   PaginationParams,
   toSkipTake,
 } from "../../shared/pagination.js";
-import { CategoriaVeiculo, Prisma, PrismaClient, StatusGaragem, StatusVeiculo } from "@prisma/client";
+import { AcaoAuditoria, CategoriaVeiculo, EntidadeAuditada, Prisma, PrismaClient, StatusGaragem, StatusVeiculo } from "@prisma/client";
 import {
   moveVehicleInTransaction,
   reserveGarageCapacityForNewVehicles,
@@ -222,7 +223,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     );
   }
 
-  async create(data: CreateVeiculoRequest): Promise<VeiculoResponse> {
+  async create(data: CreateVeiculoRequest, ator?: AtorAuditoria): Promise<VeiculoResponse> {
     const veiculo = await prisma.$transaction(async (tx) => {
       const modelo = await this.upsertModelo(tx, data);
 
@@ -234,7 +235,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         );
       }
 
-      return tx.veiculo.create({
+      const criado = await tx.veiculo.create({
         data: {
           idLocador: data.idLocador,
           idModeloVeiculo: modelo.id,
@@ -245,12 +246,20 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         },
         include: withModelo,
       });
+      await registrarAuditoria(tx, ator, {
+        entidade: EntidadeAuditada.VEICULO,
+        idEntidade: criado.id,
+        idLocador: criado.idLocador,
+        acao: AcaoAuditoria.CRIACAO,
+        depois: snapshotVeiculo(criado),
+      });
+      return criado;
     });
 
     return VeiculoMapper.toResponse(veiculo);
   }
 
-  async createLote(data: CreateVeiculoLoteRequest): Promise<VeiculoResponse[]> {
+  async createLote(data: CreateVeiculoLoteRequest, ator?: AtorAuditoria): Promise<VeiculoResponse[]> {
     const veiculos = await prisma.$transaction(async (tx) => {
       const modelo = await this.upsertModelo(tx, data);
       const existentes = await tx.veiculo.findMany({
@@ -278,13 +287,23 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
         })),
       });
 
-      return tx.veiculo.findMany({
+      const lote = await tx.veiculo.findMany({
         where: {
           placa: { in: data.placas },
           idLocador: data.idLocador,
         },
         include: withModelo,
       });
+      for (const criado of lote.filter((veiculo) => placasNovas.includes(veiculo.placa))) {
+        await registrarAuditoria(tx, ator, {
+          entidade: EntidadeAuditada.VEICULO,
+          idEntidade: criado.id,
+          idLocador: criado.idLocador,
+          acao: AcaoAuditoria.CRIACAO,
+          depois: snapshotVeiculo(criado),
+        });
+      }
+      return lote;
     });
 
     return VeiculoMapper.toManyResponse(veiculos);
@@ -293,6 +312,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   async update(
     id: string,
     data: UpdateVeiculoRequest,
+    ator?: AtorAuditoria,
   ): Promise<VeiculoResponse> {
     const hasData = Object.values(data).some((v) => v !== undefined);
     if (!hasData) {
@@ -366,7 +386,7 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           await moveVehicleInTransaction(tx, id, data.garagemId);
         }
 
-        return tx.veiculo.update({
+        const atualizado = await tx.veiculo.update({
           where: { id },
           data: {
             placa: data.placa ?? undefined,
@@ -377,6 +397,8 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           },
           include: withModelo,
         });
+        await auditarAlteracaoVeiculo(tx, ator, id, atual.idLocador, snapshotVeiculo(atual), snapshotVeiculo(atualizado));
+        return atualizado;
       });
 
       if (!veiculo) throw new HttpError(404, "Veículo não encontrado.");
@@ -395,14 +417,25 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     }
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, ator?: AtorAuditoria): Promise<void> {
     // RN08: soft delete — marca INATIVO (espelha garagem). Preserva histórico
     // (evita cascade destrutivo) e tira o veículo de buscas (filtro DISPONIVEL)
     // e de novas reservas (create rejeita status != DISPONIVEL).
     try {
-      await prisma.veiculo.update({
-        where: { id },
-        data: { status: StatusVeiculo.INATIVO },
+      await prisma.$transaction(async (tx) => {
+        const atual = await tx.veiculo.findUniqueOrThrow({ where: { id } });
+        await tx.veiculo.update({
+          where: { id },
+          data: { status: StatusVeiculo.INATIVO },
+        });
+        await registrarAuditoria(tx, ator, {
+          entidade: EntidadeAuditada.VEICULO,
+          idEntidade: id,
+          idLocador: atual.idLocador,
+          acao: AcaoAuditoria.EXCLUSAO,
+          antes: { status: atual.status },
+          depois: { status: StatusVeiculo.INATIVO },
+        });
       });
     } catch {
       throw new HttpError(404, "Veículo não encontrado.");
@@ -412,9 +445,13 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   async updateModelo(
     idModelo: string,
     data: UpdateModeloVeiculoRequest,
+    ator?: AtorAuditoria,
   ): Promise<ModeloVeiculoResponse> {
     try {
-      const atualizado = await prisma.modeloVeiculo.update({
+      const atualizado = await prisma.$transaction(async (tx) => {
+        // Modelo compartilhado: a auditoria fica em cada veículo afetado.
+        const afetados = await tx.veiculo.findMany({ where: { idModeloVeiculo: idModelo }, include: withModelo });
+        const modeloAtualizado = await tx.modeloVeiculo.update({
         where: { id: idModelo },
         data: {
           cambio: data.cambio ?? undefined,
@@ -427,6 +464,11 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           // quebraria o @@unique e a identidade do modelo
         },
       });
+        for (const veiculo of afetados) {
+          await auditarAlteracaoVeiculo(tx, ator, veiculo.id, veiculo.idLocador, snapshotVeiculo(veiculo), snapshotVeiculo({ ...veiculo, modeloVeiculo: modeloAtualizado }));
+        }
+        return modeloAtualizado;
+      });
       return VeiculoMapper.toModeloResponse(atualizado);
     } catch {
       throw new HttpError(404, "Modelo de veículo não encontrado.");
@@ -436,14 +478,19 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   async updateModeloDoVeiculo(
     idVeiculo: string,
     data: ModeloVeiculoData,
+    ator?: AtorAuditoria,
   ): Promise<VeiculoResponse> {
-    const modelo = await this.upsertModelo(prisma, data);
-
     try {
-      const veiculo = await prisma.veiculo.update({
-        where: { id: idVeiculo },
-        data: { idModeloVeiculo: modelo.id },
-        include: withModelo,
+      const veiculo = await prisma.$transaction(async (tx) => {
+        const atual = await tx.veiculo.findUniqueOrThrow({ where: { id: idVeiculo }, include: withModelo });
+        const modelo = await this.upsertModelo(tx, data);
+        const atualizado = await tx.veiculo.update({
+          where: { id: idVeiculo },
+          data: { idModeloVeiculo: modelo.id },
+          include: withModelo,
+        });
+        await auditarAlteracaoVeiculo(tx, ator, idVeiculo, atual.idLocador, snapshotVeiculo(atual), snapshotVeiculo(atualizado));
+        return atualizado;
       });
       return VeiculoMapper.toResponse(veiculo);
     } catch {

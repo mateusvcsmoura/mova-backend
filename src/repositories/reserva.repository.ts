@@ -1,3 +1,4 @@
+import type { AtorAuditoria } from "./prisma/auditoria.js";
 import { MetodoPagamento, StatusPagamento, StatusReserva } from "@prisma/client";
 import {
   CreateReservaRequest,
@@ -40,7 +41,7 @@ export interface IReservaRepository {
   ): Promise<PaginatedResult<ReservaResponse>>;
   findByCodigoDesbloqueio(codigo: string): Promise<ReservaResponse | null>;
   create(data: CreateReservaRequest): Promise<ReservaResponse>;
-  update(id: string, data: UpdateReservaRequest): Promise<ReservaResponse>;
+  update(id: string, data: UpdateReservaRequest, ator?: AtorAuditoria): Promise<ReservaResponse>;
   atualizarStatusPagamento(
     id: string,
     statusPagamento: StatusPagamento,
@@ -63,13 +64,14 @@ export interface IReservaRepository {
   ): Promise<ReservaResponse>;
   // RN04: cancela a reserva de forma atômica — registra a cobrança de multa
   // (valor 0 quando dentro do prazo) e transiciona status para CANCELADA.
-  cancelar(id: string, multa: number, provider?: string): Promise<ReservaResponse>;
+  cancelar(id: string, multa: number, provider?: string, ator?: AtorAuditoria): Promise<ReservaResponse>;
   // RN06: registra a devolução — grava devolvidoEm, transiciona para REALIZADA
   // e, quando valorCobranca > 0, lança a cobrança de atraso (transacional).
   devolver(
     id: string,
     devolvidoEm: Date,
     valorCobranca: number,
+    ator?: AtorAuditoria,
   ): Promise<ReservaResponse>;
   // Existe reserva ativa do veículo que colide com o período informado?
   hasOverlapForVeiculo(

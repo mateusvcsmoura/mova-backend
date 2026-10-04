@@ -281,7 +281,7 @@ export class GaragemService {
       );
     }
 
-    await this.garagemRepository.alocarVeiculo(garagemId, veiculoId);
+    await this.garagemRepository.alocarVeiculo(garagemId, veiculoId, requester);
     await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(veiculoId);
   };
 
@@ -311,7 +311,7 @@ export class GaragemService {
       );
     }
 
-    await this.garagemRepository.desalocarVeiculo(garagemId, veiculoId);
+    await this.garagemRepository.desalocarVeiculo(garagemId, veiculoId, requester);
     await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(veiculoId);
   };
 }

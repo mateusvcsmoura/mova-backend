@@ -1,4 +1,7 @@
+import { AtorAuditoria, diferenca, registrarAuditoria, snapshotReserva } from "./auditoria.js";
 import {
+  AcaoAuditoria,
+  EntidadeAuditada,
   MetodoPagamento,
   Prisma,
   StatusPagamento,
@@ -320,6 +323,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   async update(
     id: string,
     data: UpdateReservaRequest,
+    ator?: AtorAuditoria,
   ): Promise<ReservaResponse> {
     const hasData = Object.values(data).some((v) => v !== undefined);
     if (!hasData) {
@@ -341,6 +345,7 @@ export class PrismaReservaRepository implements IReservaRepository {
           },
         });
         if (!atual) throw new HttpError(404, "Reserva não encontrada.");
+        const antes = await this.estadoAuditavel(tx, id);
         if (atual.status === StatusReserva.CANCELADA) {
           throw new HttpError(409, "Reserva cancelada.");
         }
@@ -392,6 +397,7 @@ export class PrismaReservaRepository implements IReservaRepository {
         if (!existente) throw new HttpError(404, "Reserva não encontrada.");
         throw new HttpError(409, "Código de desbloqueio já utilizado ou reserva inválida.");
       }
+      await this.auditar(tx, ator, id, AcaoAuditoria.ALTERACAO, antes);
       const reserva = await tx.reserva.findUniqueOrThrow({
         where: { id },
         include: RESERVA_INCLUDE,
@@ -458,7 +464,7 @@ export class PrismaReservaRepository implements IReservaRepository {
     }
   }
 
-  async cancelar(id: string, multa: number, provider?: string): Promise<ReservaResponse> {
+  async cancelar(id: string, multa: number, provider?: string, ator?: AtorAuditoria): Promise<ReservaResponse> {
     // Cobrança + transição em uma transação: ou registra a multa E cancela, ou
     // nada. Grava a cobrança mesmo com valor 0 (trilha completa — RN04).
     try {
@@ -469,6 +475,7 @@ export class PrismaReservaRepository implements IReservaRepository {
           select: { status: true, statusPagamento: true },
         });
         if (!estadoAtual) throw new HttpError(404, "Reserva não encontrada.");
+        const antes = await this.estadoAuditavel(tx, id);
         const atualizacao = await tx.reserva.updateMany({
           where: {
             id,
@@ -503,6 +510,7 @@ export class PrismaReservaRepository implements IReservaRepository {
             skipDuplicates: true,
           });
         }
+        await this.auditar(tx, ator, id, AcaoAuditoria.CANCELAMENTO, antes);
         return tx.reserva.findUniqueOrThrow({
           where: { id },
           include: RESERVA_INCLUDE,
@@ -519,10 +527,12 @@ export class PrismaReservaRepository implements IReservaRepository {
     id: string,
     devolvidoEm: Date,
     valorCobranca: number,
+    ator?: AtorAuditoria,
   ): Promise<ReservaResponse> {
     // Cobrança (só quando há atraso) + devolvidoEm + REALIZADA numa transação.
     try {
       const reserva = await prisma.$transaction(async (tx) => {
+        const antes = await this.estadoAuditavel(tx, id);
         const atualizacao = await tx.reserva.updateMany({
           where: { id, status: StatusReserva.EM_ANDAMENTO, codigoUsadoEm: { not: null }, devolvidoEm: null },
           data: { devolvidoEm, status: StatusReserva.REALIZADA },
@@ -538,6 +548,7 @@ export class PrismaReservaRepository implements IReservaRepository {
             },
           });
         }
+        await this.auditar(tx, ator, id, AcaoAuditoria.DEVOLUCAO, antes);
         return tx.reserva.findUniqueOrThrow({
           where: { id },
           include: RESERVA_INCLUDE,
@@ -548,6 +559,36 @@ export class PrismaReservaRepository implements IReservaRepository {
         if (error instanceof HttpError) throw error;
         throw new HttpError(404, "Reserva não encontrada.");
     }
+  }
+
+  // RN09: estado operacional da reserva (sem PII do locatário) para a auditoria.
+  private async estadoAuditavel(tx: Prisma.TransactionClient, id: string) {
+    const reserva = await tx.reserva.findUnique({
+      where: { id },
+      include: { veiculo: { select: { idLocador: true } } },
+    });
+    return reserva ? { idLocador: reserva.veiculo.idLocador, snapshot: snapshotReserva(reserva) } : null;
+  }
+
+  private async auditar(
+    tx: Prisma.TransactionClient,
+    ator: AtorAuditoria | undefined,
+    id: string,
+    acao: AcaoAuditoria,
+    antes: { idLocador: string; snapshot: ReturnType<typeof snapshotReserva> } | null,
+  ): Promise<void> {
+    if (!ator || !antes) return;
+    const depois = await this.estadoAuditavel(tx, id);
+    const diff = diferenca(antes.snapshot, depois?.snapshot ?? {});
+    if (Object.keys(diff.depois).length === 0) return;
+    await registrarAuditoria(tx, ator, {
+      entidade: EntidadeAuditada.RESERVA,
+      idEntidade: id,
+      idLocador: antes.idLocador,
+      acao,
+      antes: diff.antes,
+      depois: diff.depois,
+    });
   }
 
   async gerarCodigoDesbloqueio(

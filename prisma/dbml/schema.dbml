@@ -333,6 +333,19 @@ Table VeiculoStatusHistorico {
   criadoEm DateTime [default: `now()`, not null]
 }
 
+Table RegistroAuditoria {
+  id String [pk]
+  idAtor String [not null]
+  cargoAtor Cargo [not null]
+  idLocador String [not null]
+  entidade EntidadeAuditada [not null]
+  idEntidade String [not null]
+  acao AcaoAuditoria [not null]
+  antes Json
+  depois Json
+  criadoEm DateTime [default: `now()`, not null]
+}
+
 Table AlertaVeiculo {
   id String [pk]
   tipo TipoAlertaVeiculo [not null]
@@ -511,6 +524,21 @@ Enum AcaoLgpd {
   EXPORTAR
   ANONIMIZAR
   CONSULTAR
+}
+
+Enum EntidadeAuditada {
+  VEICULO
+  RESERVA
+}
+
+Enum AcaoAuditoria {
+  CRIACAO
+  ALTERACAO
+  ALTERACAO_STATUS
+  MUDANCA_GARAGEM
+  EXCLUSAO
+  CANCELAMENTO
+  DEVOLUCAO
 }
 
 Ref: RecuperacaoSenha.idConta > Conta.id [delete: Cascade]

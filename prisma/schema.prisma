@@ -668,6 +668,43 @@ model VeiculoStatusHistorico {
 // gera novo alerta do mesmo tipo para o mesmo veículo enquanto houver um ativo;
 // quando a condição deixa de valer, o alerta é resolvido automaticamente —
 // permitindo novo alerta se o problema reincidir.
+// RN09: trilha de auditoria de negócio (append-only) das alterações feitas por
+// Locadores (e ADMIN) em veículos e reservas. Sem FK de propósito: o registro
+// sobrevive à exclusão/anonimização dos envolvidos. `antes`/`depois` guardam só
+// os campos operacionais que mudaram — nunca PII, senha, token ou cartão.
+enum EntidadeAuditada {
+  VEICULO
+  RESERVA
+}
+
+enum AcaoAuditoria {
+  CRIACAO
+  ALTERACAO
+  ALTERACAO_STATUS
+  MUDANCA_GARAGEM
+  EXCLUSAO
+  CANCELAMENTO
+  DEVOLUCAO
+}
+
+model RegistroAuditoria {
+  id         String           @id @default(uuid()) @db.Uuid
+  // Quem: conta autenticada (id do JWT) e o cargo com que agiu.
+  idAtor     String           @db.Uuid
+  cargoAtor  Cargo
+  // Dono do recurso afetado: escopo da consulta do locador.
+  idLocador  String           @db.Uuid
+  entidade   EntidadeAuditada
+  idEntidade String           @db.Uuid
+  acao       AcaoAuditoria
+  antes      Json?
+  depois     Json?
+  criadoEm   DateTime         @default(now())
+
+  @@index([entidade, idEntidade, criadoEm])
+  @@index([idLocador, criadoEm])
+}
+
 model AlertaVeiculo {
   id String @id @default(uuid()) @db.Uuid
 

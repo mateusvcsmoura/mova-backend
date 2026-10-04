@@ -25,6 +25,7 @@ import { interesseRouter } from "./routes/interesse/interesse.js";
 import { dashboardRouter } from "./routes/dashboard/dashboard.js";
 import { webhookRouter } from "./routes/webhook/webhook.js";
 import { lgpdRouter } from "./routes/lgpd/lgpd.js";
+import { auditoriaRouter } from "./routes/auditoria/auditoria.js";
 import { notificacaoRouter } from "./routes/notificacao/notificacao.js";
 import { cobrancaRouter } from "./routes/cobranca/cobranca.js";
 import { compartilhamentoRouter } from "./routes/compartilhamento/compartilhamento.js";
@@ -109,6 +110,7 @@ app.use("/api/interesse", interesseRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/lgpd", lgpdRouter);
 app.use("/api/notificacao", notificacaoRouter);
+app.use("/api/auditoria", auditoriaRouter);
 
 app.use("/api", (_req, _res, next) => {
   next(new HttpError(404, "Rota da API não encontrada.", "NOT_FOUND"));

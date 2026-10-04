@@ -183,7 +183,7 @@ export class VeiculoService {
     return this.veiculoRepository.create({
       ...data,
       status: data.status ?? StatusVeiculo.DISPONIVEL,
-    });
+    }, requester);
   };
 
   createLote = async (
@@ -218,7 +218,7 @@ export class VeiculoService {
       );
     }
 
-    return this.veiculoRepository.createLote(data);
+    return this.veiculoRepository.createLote(data, requester);
   };
 
   update = async (
@@ -231,7 +231,7 @@ export class VeiculoService {
       throw new HttpError(404, "Veículo não encontrado");
     }
     this.assertPodeGerenciar(requester, veiculo.idLocador);
-    const atualizado = await this.veiculoRepository.update(id, data);
+    const atualizado = await this.veiculoRepository.update(id, data, requester);
 
     // Histórico de transições (monitoramento de inatividade).
     if (veiculo.status !== atualizado.status) {
@@ -261,7 +261,7 @@ export class VeiculoService {
       throw new HttpError(404, "Veículo não encontrado");
     }
     this.assertPodeGerenciar(requester, veiculo.idLocador);
-    await this.veiculoRepository.delete(id);
+    await this.veiculoRepository.delete(id, requester);
     if (veiculo.status !== StatusVeiculo.INATIVO) {
       await this.registrarTransicaoStatus(id, StatusVeiculo.INATIVO);
     }
@@ -284,7 +284,7 @@ export class VeiculoService {
     }
     this.assertPodeGerenciar(requester, modelo.idLocador);
 
-    return this.veiculoRepository.updateModelo(idModelo, data);
+    return this.veiculoRepository.updateModelo(idModelo, data, requester);
   };
 
   updateModeloDoVeiculo = async (
@@ -307,6 +307,6 @@ export class VeiculoService {
       );
     }
 
-    return this.veiculoRepository.updateModeloDoVeiculo(idVeiculo, data);
+    return this.veiculoRepository.updateModeloDoVeiculo(idVeiculo, data, requester);
   };
 }
