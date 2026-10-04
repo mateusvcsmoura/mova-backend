@@ -169,6 +169,10 @@ export const MENSAGENS: Record<string, Traducao> = {
     en: "The pickup or return location for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
     es: "El lugar de retiro o de devolución de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
   },
+  "Esta garagem possui reservas confirmadas que ainda dependem dela. Resolva essas reservas antes de colocá-la em manutenção ou inativá-la.": {
+    en: "This garage has confirmed bookings that still depend on it. Resolve those bookings before putting it under maintenance or deactivating it.",
+    es: "Este garaje tiene reservas confirmadas que todavía dependen de él. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",
+  },
   "O veículo possui reserva confirmada futura ou em andamento. Resolva essas reservas antes de colocá-lo em manutenção ou inativá-lo.": {
     en: "This vehicle has a confirmed upcoming or ongoing booking. Resolve those bookings before putting it under maintenance or deactivating it.",
     es: "El vehículo tiene una reserva confirmada futura o en curso. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",

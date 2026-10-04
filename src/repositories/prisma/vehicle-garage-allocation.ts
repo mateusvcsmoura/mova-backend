@@ -185,6 +185,54 @@ export async function verificarReservaOperacional(
   return null;
 }
 
+// Task 10.1 (D10.1-07/08, Bug B): garagem ainda necessária a uma reserva
+// confirmada não vai para MANUTENCAO/INATIVA. Necessidade FUTURA:
+// - retirada: reserva paga (CONFIRMADA, ou aprovada gerando o código) com fim
+//   futuro — o veículo ainda vai sair dali;
+// - devolução (idGaragemDevolucao, ou a de retirada quando não informada):
+//   a mesma reserva paga futura, ou EM_ANDAMENTO (o veículo ainda vai voltar,
+//   inclusive com atraso).
+// EM_ANDAMENTO não protege a retirada (já aconteceu). REALIZADA, CANCELADA,
+// expirada e não paga não protegem. Locks: linha da garagem (FOR UPDATE) →
+// linhas de reserva (FOR UPDATE, por id), na transação da própria alteração.
+export async function assertGaragemSemCompromissoParaIndisponibilizar(
+  tx: Transaction,
+  garagemId: string,
+  novoStatus: StatusGaragem | undefined,
+): Promise<void> {
+  if (!novoStatus || novoStatus === StatusGaragem.ATIVA) return;
+  const garagem = await lockGarage(tx, garagemId);
+  if (garagem.status === novoStatus) return;
+  const agora = new Date();
+  const reservas = await tx.$queryRaw<Array<{
+    status: StatusReserva;
+    statusPagamento: StatusPagamento;
+    dataHoraFim: Date;
+    idGaragemRetirada: string | null;
+    idGaragemDevolucao: string | null;
+  }>>(Prisma.sql`
+    SELECT "status", "statusPagamento", "dataHoraFim", "idGaragemRetirada", "idGaragemDevolucao"
+    FROM "Reserva"
+    WHERE "idGaragemRetirada" = ${garagemId}::uuid OR "idGaragemDevolucao" = ${garagemId}::uuid
+    ORDER BY "id"
+    FOR UPDATE
+  `);
+  const pagaFutura = (r: (typeof reservas)[number]) =>
+    r.statusPagamento === StatusPagamento.SUCESSO &&
+    (r.status === StatusReserva.CONFIRMADA || r.status === StatusReserva.AGUARDANDO_PAGAMENTO) &&
+    r.dataHoraFim > agora;
+  const necessaria = reservas.some((r) => {
+    const devolucao = r.idGaragemDevolucao ?? r.idGaragemRetirada;
+    return (
+      (r.idGaragemRetirada === garagemId && pagaFutura(r)) ||
+      (devolucao === garagemId && (pagaFutura(r) || r.status === StatusReserva.EM_ANDAMENTO))
+    );
+  });
+  if (necessaria) {
+    throw new HttpError(409, "Esta garagem possui reservas confirmadas que ainda dependem dela. Resolva essas reservas antes de colocá-la em manutenção ou inativá-la.", ErrorCode.GARAGEM_COM_RESERVA_FUTURA_CONFIRMADA);
+  }
+}
+
 async function lockGarages(
   tx: Transaction,
   ids: Array<string | null | undefined>,

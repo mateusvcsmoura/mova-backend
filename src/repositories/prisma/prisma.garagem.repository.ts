@@ -23,6 +23,7 @@ import {
 } from "../../shared/pagination.js";
 import {
   assertGarageCapacityUpdate,
+  assertGaragemSemCompromissoParaIndisponibilizar,
   desalocarVehicleInTransaction,
   moveVehicleInTransaction,
 } from "./vehicle-garage-allocation.js";
@@ -230,6 +231,7 @@ export class PrismaGaragemRepository implements IGaragemRepository {
         // garagem. Assim uma troca para MANUTENCAO/INATIVA não corre em
         // paralelo com uma alocação que ainda enxerga o status anterior.
         await assertGarageCapacityUpdate(tx, id, data.capacidade);
+        await assertGaragemSemCompromissoParaIndisponibilizar(tx, id, data.status ?? undefined);
 
         return tx.garagem.update({
           where: { id },
@@ -255,11 +257,15 @@ export class PrismaGaragemRepository implements IGaragemRepository {
   // aparece para novas reservas (regra no ReservaService).
   async delete(id: string): Promise<void> {
     try {
-      await prisma.garagem.update({
-        where: { id },
-        data: { status: StatusGaragem.INATIVA },
+      await prisma.$transaction(async (tx) => {
+        await assertGaragemSemCompromissoParaIndisponibilizar(tx, id, StatusGaragem.INATIVA);
+        await tx.garagem.update({
+          where: { id },
+          data: { status: StatusGaragem.INATIVA },
+        });
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
       throw new HttpError(404, "Garagem não encontrada.");
     }
   }

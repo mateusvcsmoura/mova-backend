@@ -34,6 +34,8 @@ export const ErrorCode = {
   // Task 10.1: pagamento recusado porque veículo/garagem ficou indisponível.
   VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA: "VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA",
   GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA: "GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA",
+  // Task 10.1: garagem ainda necessária a reservas confirmadas.
+  GARAGEM_COM_RESERVA_FUTURA_CONFIRMADA: "GARAGEM_COM_RESERVA_FUTURA_CONFIRMADA",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
@@ -59,6 +61,8 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
       "The vehicle for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
     GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA:
       "The pickup or return location for this booking is currently unavailable. The payment was not confirmed and nothing was charged.",
+    GARAGEM_COM_RESERVA_FUTURA_CONFIRMADA:
+      "This garage has confirmed bookings that still depend on it. Resolve those bookings before putting it under maintenance or deactivating it.",
   },
   es: {
     VALIDATION_ERROR: "Datos inválidos.",
@@ -72,6 +76,8 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
       "El vehículo de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
     GARAGEM_INDISPONIVEL_PARA_CONFIRMAR_RESERVA:
       "El lugar de retiro o de devolución de esta reserva no está disponible en este momento. El pago no se confirmó y no se cobró nada.",
+    GARAGEM_COM_RESERVA_FUTURA_CONFIRMADA:
+      "Este garaje tiene reservas confirmadas que todavía dependen de él. Resuelva esas reservas antes de ponerlo en mantenimiento o desactivarlo.",
   },
 };
 
