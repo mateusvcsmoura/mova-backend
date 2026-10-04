@@ -79,7 +79,8 @@ jobs:
       MEDIA_PUBLIC_BASE_URL: http://localhost:9000/mova-media-public
       MEDIA_S3_ACCESS_KEY_ID: movaci
       MEDIA_S3_SECRET_ACCESS_KEY: movaci-secret
-      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+      # Origens locais que a suíte exercita (inclui o preview do frontend).
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:4173,http://127.0.0.1:5173
       BODY_LIMIT: ${{ secrets.BODY_LIMIT }}
       RATE_LIMIT_WINDOW_MS: ${{ secrets.RATE_LIMIT_WINDOW_MS }}
       RATE_LIMIT_AUTH_MAX: ${{ secrets.RATE_LIMIT_AUTH_MAX }}
