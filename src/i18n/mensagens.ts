@@ -291,6 +291,7 @@ export const MENSAGENS: Record<string, Traducao> = {
     es: "El vehículo no tiene un garaje de retiro operativo.",
   },
   "Reserva cancelada.": { en: "Booking cancelled.", es: "Reserva cancelada." },
+  "Reserva já realizada não pode ser alterada.": { en: "A completed booking can no longer be changed.", es: "Una reserva ya realizada no puede modificarse." },
   "Reserva em andamento ou concluída não pode ser cancelada.": {
     en: "An ongoing or completed booking cannot be cancelled.",
     es: "Una reserva en curso o finalizada no puede cancelarse.",

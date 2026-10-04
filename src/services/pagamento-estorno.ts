@@ -10,6 +10,7 @@ import { env } from "../config/env.js";
 import { HttpError } from "../errors/HttpError.js";
 import { SandboxPaymentAudit } from "../infra/payment/sandbox-audit.js";
 import { prisma } from "../database/prisma.js";
+import { expirarReservasVencidas } from "../repositories/prisma/expiracao-reserva.js";
 import {
   PagamentoReservaResponse,
   StatusEstorno,
@@ -48,6 +49,9 @@ export class PagamentoEstornoService {
     idReserva: string,
     requester: PagamentoRequester,
   ): Promise<PagamentoReservaResponse> {
+    // Task 11: mesma expiração preguiçosa das demais leituras (D10-03), para
+    // não mostrar "aguardando pagamento" numa reserva já vencida.
+    await expirarReservasVencidas({ id: idReserva });
     const reserva = await prisma.reserva.findUnique({
       where: { id: idReserva },
       include: {

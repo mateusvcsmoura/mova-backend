@@ -93,6 +93,7 @@ async function assertNoReservationThatPinsGarage(
     SELECT "id", "status", "statusPagamento", "criadaEm"
     FROM "Reserva"
     WHERE "idVeiculo" = ${veiculoId}::uuid
+    ORDER BY "id"
     FOR UPDATE
   `);
   // Task 10: reserva não paga com prazo vencido (15 min) já não segura nada.
@@ -332,8 +333,12 @@ export async function moveVehicleInTransaction(
     return;
   }
 
-  await assertNoReservationThatPinsGarage(tx, veiculoId);
+  // Task 11: ordem global reserva → veículo → garagens (linha) → linhas de
+  // reserva. As garagens vêm ANTES das linhas de reserva; a ordem inversa
+  // formava ciclo com a indisponibilização de garagem (garagem → reservas) e
+  // com a troca de garagem de devolução da reserva.
   const garagens = await lockGarages(tx, [veiculo.garagemId, destinoGaragemId]);
+  await assertNoReservationThatPinsGarage(tx, veiculoId);
 
   const destino = destinoGaragemId
     ? garagens.get(destinoGaragemId)
@@ -379,9 +384,10 @@ export async function desalocarVehicleInTransaction(
     throw new HttpError(409, "O veículo não está alocado nesta garagem.");
   }
 
+  // Mesma ordem de locks da movimentação: garagem antes das linhas de reserva.
+  const garagem = await lockGarage(tx, garagemId);
   await assertNoReservationThatPinsGarage(tx, veiculoId);
 
-  const garagem = await lockGarage(tx, garagemId);
   await tx.veiculo.update({
     where: { id: veiculoId },
     data: { garagemId: null },

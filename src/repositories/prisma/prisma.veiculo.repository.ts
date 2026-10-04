@@ -327,6 +327,12 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           include: { modeloVeiculo: true },
         });
         if (!atual) return null;
+        // Task 11: a movimentacao trava garagens -> linhas de reserva; a checagem de
+        // compromisso trava linhas de reserva. Mover ANTES mantem a ordem global
+        // (veiculo -> garagens -> reservas) tambem no PUT que muda status + garagem.
+        if (data.garagemId !== undefined) {
+          await moveVehicleInTransaction(tx, id, data.garagemId);
+        }
         await assertSemCompromissoParaIndisponibilizar(tx, id, atual.status, data.status ?? undefined);
 
         let idModeloVeiculo = atual.idModeloVeiculo;
@@ -384,10 +390,6 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           idModeloVeiculo = atualizado.id;
         }
 
-        if (data.garagemId !== undefined) {
-          await moveVehicleInTransaction(tx, id, data.garagemId);
-        }
-
         const atualizado = await tx.veiculo.update({
           where: { id },
           data: {
@@ -426,6 +428,9 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
     try {
       await prisma.$transaction(async (tx) => {
         const atual = await tx.veiculo.findUniqueOrThrow({ where: { id } });
+        // Task 11: exclusão lógica repetida é no-op — não grava um segundo
+        // registro EXCLUSAO na auditoria (RN09 registra só o que mudou).
+        if (atual.status === StatusVeiculo.INATIVO) return;
         await assertSemCompromissoParaIndisponibilizar(tx, id, atual.status, StatusVeiculo.INATIVO);
         await tx.veiculo.update({
           where: { id },

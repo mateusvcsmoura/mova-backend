@@ -115,6 +115,18 @@ export class GaragemService {
     }
   }
 
+  // Task 11: escrita (editar/excluir) = dono LOCADOR ou ADMIN. assertGaragemAccess
+  // admite LOCATARIO em garagem ATIVA (leitura) e não serve para escrita.
+  private assertPodeGerenciar(
+    requester: GaragemAccessContext,
+    garagem: GaragemBaseResponse,
+  ) {
+    if (requester.cargo === Cargo.ADMIN) return;
+    if (requester.cargo !== Cargo.LOCADOR || requester.id !== garagem.idLocador) {
+      throw new HttpError(403, "Acesso negado");
+    }
+  }
+
   private assertLocadorResponsavel(
     requester: GaragemAccessContext,
     garagem: GaragemBaseResponse,
@@ -226,7 +238,7 @@ export class GaragemService {
       throw new HttpError(404, "Garagem não encontrada");
     }
 
-    this.assertGaragemAccess(requester, garagem);
+    this.assertPodeGerenciar(requester, garagem);
 
     const updatedGaragem = await this.garagemRepository.update(id, data);
 
@@ -249,7 +261,7 @@ export class GaragemService {
       throw new HttpError(404, "Garagem não encontrada");
     }
 
-    this.assertGaragemAccess(requester, garagem);
+    this.assertPodeGerenciar(requester, garagem);
 
     await this.garagemRepository.delete(id);
     await this.mediaVisibility?.sincronizarVisibilidadeGaragem(id);

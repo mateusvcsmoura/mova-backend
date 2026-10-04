@@ -90,7 +90,7 @@ reservaRouter.post("/:id/cancelar", authMiddleware, reservaController.cancelar);
 reservaRouter.post("/:id/devolucao", authMiddleware, reservaController.devolver);
 reservaRouter.put("/:id", authMiddleware, reservaController.update);
 // Compatibilidade legada: exclusão definitiva de reserva não é permitida.
-reservaRouter.delete("/:id", reservaController.delete);
+reservaRouter.delete("/:id", authMiddleware, reservaController.delete);
 
 // Condutores adicionais (RF12). Acesso (dono/admin/locador) validado no service.
 reservaRouter.get(

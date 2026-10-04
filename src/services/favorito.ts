@@ -1,3 +1,4 @@
+import { StatusGaragem, StatusVeiculo } from "@prisma/client";
 import { HttpError } from "../errors/HttpError.js";
 import { FavoritoResponse } from "../repositories/contracts/favorito.contract.js";
 import { IFavoritoRepository } from "../repositories/favorito.repository.js";
@@ -32,9 +33,16 @@ export class FavoritoService {
     }
   }
 
+  // Task 11: mesmo critério do catálogo público (DISPONIVEL em garagem ATIVA).
+  // Favoritar um veículo fora do catálogo devolvia placa, status e dados do
+  // locador de um veículo que o público não deveria enxergar.
   private async assertVeiculoExiste(idVeiculo: string): Promise<void> {
     const veiculo = await this.veiculoRepository.findById(idVeiculo);
-    if (!veiculo) {
+    if (
+      !veiculo ||
+      veiculo.status !== StatusVeiculo.DISPONIVEL ||
+      veiculo.garagem?.status !== StatusGaragem.ATIVA
+    ) {
       throw new HttpError(404, "Veículo não encontrado");
     }
   }

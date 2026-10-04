@@ -364,6 +364,10 @@ export class PrismaReservaRepository implements IReservaRepository {
         if (atual.status === StatusReserva.CANCELADA) {
           throw new HttpError(409, "Reserva cancelada.");
         }
+        // Task 11: reserva encerrada é histórico; nada mais é editável.
+        if (atual.status === StatusReserva.REALIZADA) {
+          throw new HttpError(409, "Reserva já realizada não pode ser alterada.");
+        }
 
         const inicioFinal = data.dataHoraInicio ?? atual.dataHoraInicio;
         const fimFinal = data.dataHoraFim ?? atual.dataHoraFim;
