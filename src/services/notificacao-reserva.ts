@@ -86,7 +86,7 @@ export class NotificacaoReservaService implements IReservaNotifier {
         );
         await this.notificacaoRepository.marcarEnviada(registro.id, new Date());
         console.info(
-          `[notificacao] relatório enviado — reserva ${reserva.id} -> ${payload.locatario.email}`,
+          `[notificacao] relatório enviado — reserva ${reserva.id} (registro ${registro.id})`,
         );
       } catch (sendError) {
         const mensagem =

@@ -71,7 +71,7 @@ export class NotificacaoAlertaVeiculoService implements IAlertaVeiculoDispatcher
       });
       await this.monitoramentoRepository.marcarEnviado(alerta.id, new Date());
       console.info(
-        `[monitoramento] alerta enviado — ${alerta.tipo} veículo ${alerta.idVeiculo} -> ${alerta.destinatario}`,
+        `[monitoramento] alerta enviado — ${alerta.tipo} veículo ${alerta.idVeiculo} (alerta ${alerta.id})`,
       );
       return true;
     } catch (error) {

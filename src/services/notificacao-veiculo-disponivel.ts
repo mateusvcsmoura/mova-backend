@@ -172,7 +172,7 @@ export class NotificacaoVeiculoDisponivelService
           new Date(),
         );
         console.info(
-          `[interesse] notificação enviada — inscrição ${idInteresse} -> ${locatario.email}`,
+          `[interesse] notificação enviada — inscrição ${idInteresse}`,
         );
       } catch (sendError) {
         const mensagem =

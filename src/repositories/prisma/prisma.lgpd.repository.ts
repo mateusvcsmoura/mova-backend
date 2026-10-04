@@ -99,6 +99,27 @@ export class PrismaLgpdRepository implements ILgpdRepository {
           cnpj: `anon-${tag}`,
         },
       }),
+      // Task 11 (RNF05): resíduos de PII fora das tabelas de perfil. Os
+      // snapshots de destinatário das notificações guardavam o e-mail real; os
+      // condutores adicionais são terceiros informados pelo titular (nome, CPF,
+      // CNH) e deixam de ter finalidade quando ele se anonimiza.
+      prisma.notificacaoReserva.updateMany({
+        where: { reserva: { idLocatario: idConta } },
+        data: { destinatario: `anon-${tag}@anonimizado.local` },
+      }),
+      prisma.notificacaoInteresse.updateMany({
+        where: { interesse: { idLocatario: idConta } },
+        data: { destinatario: `anon-${tag}@anonimizado.local` },
+      }),
+      prisma.alertaVeiculo.updateMany({
+        where: { idLocador: idConta },
+        data: { destinatario: `anon-${tag}@anonimizado.local` },
+      }),
+      // Reservas em curso/confirmadas mantem os condutores (quem pode dirigir o
+      // veiculo que esta na rua); as encerradas perdem o PII de terceiros.
+      prisma.condutorAdicional.deleteMany({
+        where: { reserva: { idLocatario: idConta, status: { in: ["REALIZADA", "CANCELADA"] } } },
+      }),
     ]);
 
     return true;
