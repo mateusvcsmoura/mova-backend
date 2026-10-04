@@ -3,6 +3,7 @@ import { ErrorRequestHandler } from "express";
 import z from "zod";
 import { HttpError } from "../errors/HttpError.js";
 import { ErrorCode, LOCALE_PADRAO, traduzirErro } from "../i18n/index.js";
+import { traduzirMensagem } from "../i18n/mensagens.js";
 import { logger } from "../shared/logger.js";
 
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
@@ -11,8 +12,12 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     res.setHeader("X-Request-Id", requestId);
 
     if (error instanceof HttpError) {
+        // pt: mensagem original intacta. Outros: code > catálogo de mensagens > original.
         const traduzida =
-            locale === LOCALE_PADRAO ? undefined : traduzirErro(error.code, locale);
+            locale === LOCALE_PADRAO
+                ? undefined
+                : traduzirErro(error.code, locale) ??
+                  traduzirMensagem(error.message, locale);
         return res.status(error.status).json({
             code: error.code ?? "BUSINESS_ERROR",
             message: traduzida ?? error.message,

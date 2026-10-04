@@ -74,19 +74,23 @@ describe("i18n — error-handler", () => {
     expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
   });
 
-  it("HttpError sem código não é traduzido (compatibilidade)", () => {
+  it("HttpError sem código usa o catálogo de mensagens em en/es; pt intacto", () => {
+    for (const [locale, esperado] of [
+      ["en", "Booking not found"],
+      ["es", "Reserva no encontrada"],
+      ["pt", "Reserva não encontrada"],
+    ] as const) {
+      const { res, captured } = fakeRes();
+      errorHandler(new HttpError(404, "Reserva não encontrada"), { locale } as any, res, next);
+      expect(captured.body).toMatchObject({ code: "BUSINESS_ERROR", message: esperado });
+      expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
+    }
+  });
+
+  it("mensagem fora do catálogo cai no texto original (fallback)", () => {
     const { res, captured } = fakeRes();
-    errorHandler(
-      new HttpError(404, "Reserva não encontrada"),
-      { locale: "en" } as any,
-      res,
-      next,
-    );
-    expect(captured.body).toMatchObject({
-      code: "BUSINESS_ERROR",
-      message: "Reserva não encontrada",
-    });
-    expect(captured.body.requestId).toBe(captured.headers["X-Request-Id"]);
+    errorHandler(new HttpError(404, "Mensagem não catalogada xyz"), { locale: "en" } as any, res, next);
+    expect(captured.body).toMatchObject({ code: "BUSINESS_ERROR", message: "Mensagem não catalogada xyz" });
   });
 
   it("ZodError vira VALIDATION_ERROR e traduz em es", () => {
