@@ -147,9 +147,10 @@ export const servicoOpcionalController = new ServicoOpcionalController(servicoOp
 // no .env: a suíte de integração jamais envia e-mail real — o PUT de reserva
 // travava >5s no handshake SMTP e estourava o timeout do vitest. O envio real
 // é opt-in apenas em test/notificacao/real-email.test.ts, que monta o próprio
-// provedor.
+// provedor. SEND_REAL_EMAIL=false desliga o envio também fora de teste (demo
+// local com contas fictícias não deve disparar SMTP real).
 export const mailProvider: IMailProvider = new NodemailerMailProvider(
-  env.NODE_ENV === "test"
+  env.NODE_ENV === "test" || process.env.SEND_REAL_EMAIL === "false"
     ? {}
     : {
         host: env.SMTP_HOST,

@@ -20,7 +20,8 @@
     "db:migrate:test": "cross-env NODE_ENV=test prisma migrate deploy",
     "db:migrate:deploy": "prisma migrate deploy",
     "media:init": "tsx prisma/scripts/media-init.ts",
-    "media:cleanup": "tsx prisma/scripts/media-cleanup.ts"
+    "media:cleanup": "tsx prisma/scripts/media-cleanup.ts",
+    "db:seed:demo": "tsx prisma/scripts/seed-demo.ts"
   },
   "keywords": [],
   "author": "fzs",
