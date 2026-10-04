@@ -1,7 +1,8 @@
-import { Cargo, StatusPagamento, TipoCobranca } from "@prisma/client";
+import { Cargo, Prisma, StatusPagamento, TipoCobranca } from "@prisma/client";
 import { prisma } from "../database/prisma.js";
 import { HttpError } from "../errors/HttpError.js";
 import { DadosPagamentoSandbox, decidirDesfechoSandbox } from "../infra/payment/sandbox.js";
+import { inicioVencidoAte } from "../shared/prazo-pagamento.js";
 
 type Access = { id: string; cargo: Cargo };
 const PENDENTES = [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.PROCESSANDO, StatusPagamento.FALHA];
@@ -12,9 +13,19 @@ const resposta = (c: { id: string; idReserva: string; tipo: TipoCobranca; valor:
   metodoPagamento: c.metodoPagamento, criadoEm: c.criadoEm, atualizadoEm: c.atualizadoEm,
 });
 
+// Task 10 (D10-02): tentativa PROCESSANDO há 15 min ou mais vira FALHA (não
+// quitada), liberando nova tentativa. atualizadoEm marca a entrada em
+// PROCESSANDO: nenhuma outra escrita toca a cobrança enquanto ela processa.
+const expirarProcessando = (where: Prisma.CobrancaReservaWhereInput) =>
+  prisma.cobrancaReserva.updateMany({
+    where: { ...where, tipo: { in: TIPOS }, statusPagamento: StatusPagamento.PROCESSANDO, atualizadoEm: { lte: inicioVencidoAte() } },
+    data: { statusPagamento: StatusPagamento.FALHA },
+  });
+
 export class CobrancaService {
   async listarPendentes(requester: Access) {
     if (requester.cargo !== Cargo.LOCATARIO) throw new HttpError(403, "Acesso negado");
+    await expirarProcessando({ reserva: { idLocatario: requester.id } });
     const itens = await prisma.cobrancaReserva.findMany({
       where: { tipo: { in: TIPOS }, statusPagamento: { in: PENDENTES }, reserva: { idLocatario: requester.id } },
       orderBy: { criadoEm: "desc" },
@@ -24,6 +35,7 @@ export class CobrancaService {
 
   async pagar(id: string, dados: DadosPagamentoSandbox, requester: Access) {
     if (requester.cargo !== Cargo.LOCATARIO) throw new HttpError(403, "Acesso negado");
+    await expirarProcessando({ id, reserva: { idLocatario: requester.id } });
     const cobranca = await prisma.cobrancaReserva.findFirst({ where: { id, tipo: { in: TIPOS }, reserva: { idLocatario: requester.id } } });
     if (!cobranca) throw new HttpError(404, "Cobrança não encontrada");
     if (cobranca.statusPagamento === StatusPagamento.SUCESSO) return { cobranca: resposta(cobranca), idempotente: true };

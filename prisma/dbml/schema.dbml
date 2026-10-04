@@ -194,6 +194,7 @@ Table Reserva {
   codigoGeradoEm DateTime
   codigoUsadoEm DateTime
   devolvidoEm DateTime
+  expiradaEm DateTime
   avaliacao Avaliacao
   condutores CondutorAdicional [not null]
   servicos ReservaServico [not null]

@@ -52,6 +52,7 @@ export class ReservaMapper {
       codigoGeradoEm: reserva.codigoGeradoEm,
       codigoUsadoEm: reserva.codigoUsadoEm,
       devolvidoEm: reserva.devolvidoEm,
+      expiradaEm: reserva.expiradaEm,
       cobrancaAtraso: (reserva.cobrancas ?? [])
         .filter((cobranca) => cobranca.tipo === TipoCobranca.ATRASO_DEVOLUCAO)
         .reduce((total, cobranca) => total + Number(cobranca.valor), 0),

@@ -1,6 +1,7 @@
 import { Prisma, StatusReserva, StatusVeiculo } from "@prisma/client";
 
 import { prisma } from "../../database/prisma.js";
+import { expirarReservasVencidas } from "./expiracao-reserva.js";
 import { ILocadorDashboardRepository } from "../locador-dashboard.repository.js";
 import {
   FaturamentoPorVeiculo,
@@ -64,6 +65,8 @@ export class PrismaLocadorDashboardRepository
       skip: (filtros.page - 1) * filtros.limit,
       take: filtros.limit,
     };
+    // Task 10: contadores não mostram como pendente a reserva já vencida.
+    await expirarReservasVencidas({ veiculo: { idLocador } });
     const grupos = await prisma.reserva.groupBy({
       by: ["status"],
       where,
@@ -188,6 +191,7 @@ export class PrismaLocadorDashboardRepository
   }
 
   async relatorioUtilizacao(idLocador: string): Promise<RelatorioUtilizacao> {
+    await expirarReservasVencidas({ veiculo: { idLocador } });
     const agora = new Date();
     const [totalVeiculos, veiculosAlocados, reservasAtivas, reservas] = await Promise.all([
       prisma.veiculo.count({ where: { idLocador } }),

@@ -362,6 +362,10 @@ export const MENSAGENS: Record<string, Traducao> = {
     es: "El pago ya está en proceso o fue aprobado.",
   },
   "Pagamento já está em processamento.": { en: "Payment is already being processed.", es: "El pago ya está en proceso." },
+  "O prazo de pagamento desta reserva expirou. Faça uma nova reserva.": {
+    en: "The payment deadline for this booking has expired. Please make a new booking.",
+    es: "El plazo de pago de esta reserva venció. Haga una nueva reserva.",
+  },
   "Assinatura do webhook inválida.": { en: "Invalid webhook signature.", es: "Firma del webhook inválida." },
   "Payload de webhook inválido (JSON malformado).": { en: "Invalid webhook payload (malformed JSON).", es: "Payload de webhook inválido (JSON mal formado)." },
   "Payload de webhook inválido.": { en: "Invalid webhook payload.", es: "Payload de webhook inválido." },

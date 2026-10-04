@@ -21,6 +21,7 @@ import {
   UpdateReservaRequest,
 } from "../contracts/reserva.contract.js";
 import { ReservaMapper } from "../mappers/reserva.mapper.js";
+import { expirarReservaNoTx, expirarReservasVencidas, reservaVencidaWhere } from "./expiracao-reserva.js";
 import {
   buildPaginatedResult,
   PaginatedResult,
@@ -63,6 +64,7 @@ const RESERVA_VEICULO_SELECT = {
   codigoGeradoEm: true,
   codigoUsadoEm: true,
   devolvidoEm: true,
+  expiradaEm: true,
   atualizadoEm: true,
   servicos: { include: { servico: true } },
   cobrancas: true,
@@ -79,7 +81,9 @@ export class PrismaReservaRepository implements IReservaRepository {
   // Colisão clássica de intervalos para um veículo: inicio_existente < fim_novo
   // e fim_existente > inicio_novo. Reservas canceladas não bloqueiam. Extraído
   // para que a checagem otimista (hasOverlapForVeiculo) e a recheca sob lock
-  // (create) usem exatamente a mesma regra.
+  // (create) usem exatamente a mesma regra. Task 10: reserva não paga com o
+  // prazo de 15 min vencido também não bloqueia, mesmo antes de ser gravada
+  // como expirada.
   private overlapWhere(
     idVeiculo: string,
     dataHoraInicio: Date,
@@ -90,9 +94,14 @@ export class PrismaReservaRepository implements IReservaRepository {
       idVeiculo,
       ...(excludeReservaId ? { id: { not: excludeReservaId } } : {}),
       status: { not: StatusReserva.CANCELADA },
+      NOT: reservaVencidaWhere(),
       dataHoraInicio: { lt: dataHoraFim },
       dataHoraFim: { gt: dataHoraInicio },
     };
+  }
+
+  expirarReservasVencidas(filtro: Prisma.ReservaWhereInput = {}, agora?: Date): Promise<number> {
+    return expirarReservasVencidas(filtro, agora);
   }
 
   private buildWhere(filters: ReservaFilters): Prisma.ReservaWhereInput {
@@ -113,6 +122,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   async findAll(
     pagination: PaginationParams,
   ): Promise<PaginatedResult<ReservaResponse>> {
+    await expirarReservasVencidas();
     const { skip, take } = toSkipTake(pagination);
     const [data, total] = await prisma.$transaction([
       prisma.reserva.findMany({
@@ -131,6 +141,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   }
 
   async findById(id: string): Promise<ReservaResponse | null> {
+    await expirarReservasVencidas({ id });
     const data = await prisma.reserva.findUnique({
       where: { id },
       include: RESERVA_INCLUDE,
@@ -144,6 +155,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   ): Promise<PaginatedResult<ReservaResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const where = { idLocatario };
+    await expirarReservasVencidas(where);
     const [data, total] = await prisma.$transaction([
       prisma.reserva.findMany({
         where,
@@ -167,6 +179,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   ): Promise<PaginatedResult<ReservaVeiculoResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const where = { idVeiculo };
+    await expirarReservasVencidas(where);
     const [data, total] = await prisma.$transaction([
       prisma.reserva.findMany({
         where,
@@ -190,6 +203,7 @@ export class PrismaReservaRepository implements IReservaRepository {
   ): Promise<PaginatedResult<ReservaResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const where = this.buildWhere(filters);
+    await expirarReservasVencidas(where);
     const [data, total] = await prisma.$transaction([
       prisma.reserva.findMany({
         where,
@@ -418,6 +432,14 @@ export class PrismaReservaRepository implements IReservaRepository {
     try {
       return await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
+      // D10-05: evento que chega depois do prazo (webhook tardio) encontra a
+      // reserva expirada sob o mesmo lock e não a confirma. Quem chamou recebe
+      // a reserva CANCELADA e trata como pagamento de reserva cancelada.
+      if (await expirarReservaNoTx(tx, id, new Date())) {
+        return ReservaMapper.toResponse(
+          await tx.reserva.findUniqueOrThrow({ where: { id }, include: RESERVA_INCLUDE }),
+        );
+      }
       const estadoAtual = await tx.reserva.findUnique({
         where: { id },
         include: RESERVA_INCLUDE,
@@ -444,14 +466,20 @@ export class PrismaReservaRepository implements IReservaRepository {
         if (!existente) throw new HttpError(404, "Reserva não encontrada.");
         throw new HttpError(409, "Reserva cancelada.");
       }
-      await tx.cobrancaReserva.updateMany({
-        where: {
-          idReserva: id,
-          tipo: TipoCobranca.PAGAMENTO_RESERVA,
-          statusPagamento: { not: StatusPagamento.SUCESSO },
-        },
-        data: { statusPagamento, metodoPagamento: metodoPagamento ?? undefined },
+      // O desfecho pertence à tentativa mais recente. Tentativas anteriores
+      // (recusadas/expiradas) mantêm o próprio status: uma aprovação nova não
+      // pode transformar um FALHA antigo em segunda cobrança confirmada.
+      const tentativaAtual = await tx.cobrancaReserva.findFirst({
+        where: { idReserva: id, tipo: TipoCobranca.PAGAMENTO_RESERVA },
+        orderBy: { criadoEm: "desc" },
+        select: { id: true, statusPagamento: true },
       });
+      if (tentativaAtual && tentativaAtual.statusPagamento !== StatusPagamento.SUCESSO) {
+        await tx.cobrancaReserva.update({
+          where: { id: tentativaAtual.id },
+          data: { statusPagamento, metodoPagamento: metodoPagamento ?? undefined },
+        });
+      }
       const reserva = await tx.reserva.findUniqueOrThrow({
         where: { id },
         include: RESERVA_INCLUDE,
@@ -644,10 +672,17 @@ export class PrismaReservaRepository implements IReservaRepository {
           id: idReserva,
           status: { not: StatusReserva.CANCELADA },
           statusPagamento: { in: [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.FALHA] },
+          // D10-02/D10-03: nova tentativa só dentro do prazo da reserva; a
+          // tentativa nunca sobrevive à reserva que ela paga.
+          NOT: reservaVencidaWhere(),
         },
         data: { statusPagamento: StatusPagamento.PROCESSANDO, metodoPagamento },
       });
       if (atualizacao.count !== 1) {
+        const vencida = await tx.reserva.count({ where: { id: idReserva, ...reservaVencidaWhere() } });
+        if (vencida > 0) {
+          throw new HttpError(409, "O prazo de pagamento desta reserva expirou. Faça uma nova reserva.");
+        }
         throw new HttpError(409, "Pagamento já está em processamento ou foi aprovado.");
       }
       await tx.cobrancaReserva.create({

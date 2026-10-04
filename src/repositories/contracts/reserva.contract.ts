@@ -125,6 +125,8 @@ export interface ReservaResponse {
   codigoUsadoEm: Date | null;
   // RN06: instante da devolução real (nulo até devolver).
   devolvidoEm: Date | null;
+  // Task 10: preenchido quando a reserva expirou sem pagamento (15 min).
+  expiradaEm?: Date | null;
   cobrancaAtraso?: number;
   multaCancelamento?: number;
   // Serviços opcionais vinculados a esta reserva.

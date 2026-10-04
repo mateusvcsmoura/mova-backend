@@ -70,6 +70,10 @@ export class PagamentoService {
       throw new HttpError(409, "O pagamento desta reserva já foi aprovado.");
     }
 
+    // findById já expirou a reserva se o prazo de 15 min venceu (D10-03).
+    if (reserva.status === StatusReserva.CANCELADA && reserva.expiradaEm) {
+      throw new HttpError(409, "O prazo de pagamento desta reserva expirou. Faça uma nova reserva.");
+    }
     if (reserva.status === StatusReserva.CANCELADA) {
       throw new HttpError(409, "Reserva cancelada.");
     }

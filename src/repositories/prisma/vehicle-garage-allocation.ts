@@ -1,6 +1,7 @@
-import { Prisma, StatusGaragem, StatusReserva } from "@prisma/client";
+import { Prisma, StatusGaragem, StatusPagamento, StatusReserva } from "@prisma/client";
 
 import { HttpError } from "../../errors/HttpError.js";
+import { prazoPagamentoVencido } from "../../shared/prazo-pagamento.js";
 
 type Transaction = Prisma.TransactionClient;
 
@@ -21,6 +22,8 @@ interface LockedVehicle {
 interface LockedReservation {
   id: string;
   status: StatusReserva;
+  statusPagamento: StatusPagamento;
+  criadaEm: Date;
 }
 
 const RESERVAS_QUE_FIXAM_GARAGEM: StatusReserva[] = [
@@ -86,13 +89,19 @@ async function assertNoReservationThatPinsGarage(
   // O lock de todas as reservas do veículo serializa a decisão com confirmação,
   // desbloqueio e cancelamento, que atualizam a mesma linha de Reserva.
   const reservas = await tx.$queryRaw<LockedReservation[]>(Prisma.sql`
-    SELECT "id", "status"
+    SELECT "id", "status", "statusPagamento", "criadaEm"
     FROM "Reserva"
     WHERE "idVeiculo" = ${veiculoId}::uuid
     FOR UPDATE
   `);
+  // Task 10: reserva não paga com prazo vencido (15 min) já não segura nada.
   const ativa = reservas.find((reserva) =>
-    RESERVAS_QUE_FIXAM_GARAGEM.includes(reserva.status),
+    RESERVAS_QUE_FIXAM_GARAGEM.includes(reserva.status) &&
+    !(
+      reserva.status === StatusReserva.AGUARDANDO_PAGAMENTO &&
+      reserva.statusPagamento !== StatusPagamento.SUCESSO &&
+      prazoPagamentoVencido(reserva.criadaEm)
+    ),
   );
   if (ativa) {
     throw new HttpError(

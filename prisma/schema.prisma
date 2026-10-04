@@ -410,6 +410,11 @@ model Reserva {
   // daí a reserva fica REALIZADA. Se > dataHoraFim, gera multa de atraso.
   devolvidoEm DateTime?
 
+  // Task 10 (D10-03/D10-04): preenchido quando a reserva AGUARDANDO_PAGAMENTO
+  // passa do prazo de pagamento (15 min) sem confirmação e é encerrada como
+  // CANCELADA automaticamente. Distingue a expiração do cancelamento voluntário.
+  expiradaEm DateTime?
+
   avaliacao    Avaliacao?
   // Condutores adicionais autorizados a dirigir nesta reserva (RF12).
   condutores   CondutorAdicional[]
