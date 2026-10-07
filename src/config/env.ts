@@ -32,7 +32,7 @@ const envSchema = z.object({
 
   // Fuso usado para RENDERIZAR data/hora para humanos (e-mails, relatórios).
   // NÃO afeta armazenamento nem comparação: instantes trafegam e são gravados
-  // em UTC. Sem isto, a formatação usaria o fuso do servidor — no Render (UTC)
+  // em UTC. Sem isto, a formatação usaria o fuso do servidor — num host em UTC (ex.: CI)
   // um horário de 10:00 em São Paulo sairia como 13:00 no e-mail.
   TIMEZONE_EXIBICAO: z.string().min(1).default("America/Sao_Paulo"),
 

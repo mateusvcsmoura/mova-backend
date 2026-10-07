@@ -221,12 +221,12 @@ describe("ReservaReportService.buildPayload", () => {
 describe("renderReservaReport (template)", () => {
   // TASK 03: o formatador precisa fixar o fuso de negócio. Sem isso ele usaria
   // o fuso do PROCESSO, e o mesmo instante sairia com horas diferentes em
-  // máquinas diferentes (dev em America/Sao_Paulo vs. Render em UTC).
+  // máquinas diferentes (dev em America/Sao_Paulo vs. CI em UTC).
   // O fixture usa 2026-08-01T10:00:00.000Z, que é 07:00 em São Paulo.
   it("formata data/hora no fuso de negócio, não no fuso do servidor", async () => {
     const payload = await service.buildPayload(makeReserva());
 
-    // Força o processo para UTC: é o cenário do Render. Sem o timeZone fixo no
+    // Força o processo para UTC: é o cenário do CI (GitHub Actions). Sem o timeZone fixo no
     // template, o horário sairia 10:00 (o próprio UTC) em vez de 07:00.
     const tzOriginal = process.env.TZ;
     process.env.TZ = "UTC";

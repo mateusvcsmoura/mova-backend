@@ -246,7 +246,7 @@ export function renderReservaReport(
   });
   // Fuso FIXO de exibição. Sem isto o formatador usaria o fuso do processo, e o
   // mesmo instante sairia com horas diferentes em máquinas diferentes (local
-  // America/Sao_Paulo vs. Render em UTC). Ver auditoria/DATAS-HORARIOS.md.
+  // America/Sao_Paulo vs. CI em UTC). Ver auditoria/DATAS-HORARIOS.md.
   const timeZone = env.TIMEZONE_EXIBICAO;
   const dateTime = new Intl.DateTimeFormat(intlTag, {
     dateStyle: "short",
