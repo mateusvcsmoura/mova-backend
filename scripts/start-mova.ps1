@@ -22,7 +22,7 @@ function Start-Container([string]$nome, [string]$servico, [string[]]$perfil) {
   Push-Location $backendDir
   try {
     docker compose -f docker/docker-compose.yml @perfil up -d $servico
-    if ($LASTEXITCODE -ne 0) { throw "docker compose up $servico falhou (MinIO exige MINIO_ROOT_USER/MINIO_ROOT_PASSWORD na sessão e ..\minio.license)." }
+    if ($LASTEXITCODE -ne 0) { throw "docker compose up $servico falhou (MinIO exige ..\minio.license)." }
   } finally { Pop-Location }
 }
 
