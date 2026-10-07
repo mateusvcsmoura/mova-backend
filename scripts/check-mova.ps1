@@ -1,7 +1,4 @@
-﻿# Verificação rápida do ambiente LOCAL do MOVA (somente leitura).
-#   powershell -ExecutionPolicy Bypass -File scripts\check-mova.ps1
-# Sai com código 1 se algum item falhar.
-$falhas = 0
+﻿$falhas = 0
 function Check([string]$nome, [scriptblock]$teste) {
   try { $ok = & $teste } catch { $ok = $false }
   if ($ok) { Write-Host "OK     $nome" } else { Write-Host "FALHA  $nome"; $script:falhas++ }

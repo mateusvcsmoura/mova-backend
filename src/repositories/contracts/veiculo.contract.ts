@@ -36,8 +36,6 @@ export interface UpdateVeiculoRequest {
   placa?: string;
   status?: StatusVeiculo;
   garagemId?: string | null;
-  // Atualização coordenada do catálogo associada ao veículo. O bloco é
-  // explícito para não confundir campos da instância com os do modelo.
   modelo?: UpdateModeloVeiculoRequest;
 }
 

@@ -3,13 +3,6 @@ import { Request, Response, NextFunction } from "express";
 
 import { logger } from "../shared/logger.js";
 
-// Observabilidade básica de requisições:
-//  - request id: reutiliza o header X-Request-Id recebido (ex.: propagado por
-//    um gateway/proxy) ou gera um UUID; anexa em req.id e devolve no header da
-//    resposta para correlação ponta a ponta.
-//  - tempo de execução: mede a duração da requisição com hrtime (monotônico).
-//  - log estruturado: uma linha JSON por requisição concluída (silenciada em
-//    teste pelo próprio logger).
 export function observability(
   req: Request,
   res: Response,

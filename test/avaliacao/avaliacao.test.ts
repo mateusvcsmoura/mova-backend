@@ -24,8 +24,6 @@ describe("Avaliacao API", () => {
     outroLocatario = await createLocatario();
   });
 
-  // Cada reserva REALIZADA usa um veículo próprio (o período fixo do helper
-  // colidiria se reutilizasse o mesmo veículo).
   async function criarReservaRealizada(): Promise<any> {
     const veiculo = await createVeiculo(locador.token, locador.locadorId);
     return createReserva(locatario.token, veiculo.id, locatario.locatarioId, {

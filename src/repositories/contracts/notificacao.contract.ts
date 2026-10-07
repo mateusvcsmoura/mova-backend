@@ -1,7 +1,5 @@
 import { StatusNotificacao } from "@prisma/client";
 
-// Dados mínimos para registrar uma tentativa de notificação (status inicial
-// PENDENTE). O status final é definido depois via marcarEnviada/marcarFalha.
 export interface RegistrarNotificacaoRequest {
   idReserva: string;
   destinatario: string;

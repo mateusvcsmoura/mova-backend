@@ -1,10 +1,4 @@
-﻿# Backup LOCAL do PostgreSQL do MOVA (RNF10).
-#   powershell -ExecutionPolicy Bypass -File scripts\backup-mova.ps1 [-Banco mova_dev] [-Pasta backups]
-#
-# Gera backups\<banco>_<aaaa-MM-dd_HHmmss>.dump (pg_dump -Fc) a partir do
-# container local mova-postgres. Não usa senha (socket local do container) e
-# nunca sobrescreve um arquivo existente. backups/ e *.dump são ignorados pelo Git.
-param(
+﻿param(
   [string]$Banco = "mova_dev",
   [string]$Pasta = (Join-Path $PSScriptRoot "..\backups"),
   [string]$Container = "mova-postgres"

@@ -10,8 +10,6 @@ import { ReservaMapper } from "../src/repositories/mappers/reserva.mapper";
 
 type Cargo = "LOCADOR" | "LOCATARIO" | "ADMIN";
 
-// Contador global de processo — gera valores únicos entre chamadas.
-// O banco é limpo por arquivo (setup.ts), então não há colisão de constraints.
 let counter = 0;
 const seq = () => ++counter;
 
@@ -22,8 +20,6 @@ export const DEFAULT_SENHA = "StrongPass#123";
 export const uniqueEmail = (prefix = "acc") =>
   `${prefix}.${seq()}.${Math.floor(Math.random() * 1_000_000)}@test.local`;
 
-// Geradores de documentos com dígitos verificadores VÁLIDOS (as validações
-// reais rejeitam checksum inválido). Base sequencial garante unicidade.
 function cpfComDv(base9: string): string {
   const dv = (base: string, pesoInicial: number) => {
     let soma = 0;
@@ -73,8 +69,6 @@ function cnhComDv(base9: string): string {
 
 export const uniqueCnpj = () => cnpjComDv(pad(100000000000 + seq(), 12));
 export const uniqueCpf = () => cpfComDv(pad(100000000 + seq(), 9));
-// Alguns bases produzem DV = 10 (CNH inexistente, 12 dígitos) — pula até obter
-// uma CNH de 11 dígitos que passe na validação real (evita 400 esporádico).
 export const uniqueCnh = () => {
   for (;;) {
     const cnh = cnhComDv(pad(200000000 + seq(), 9));
@@ -93,8 +87,6 @@ export interface Account {
   senha: string;
 }
 
-// Registra uma conta e faz login. Retorna o token de LOGIN, que contém o
-// cargo no payload do JWT (necessário para o authMiddleware aceitar a rota).
 export async function createAccount(
   cargo: Cargo,
   overrides: Record<string, unknown> = {},
@@ -127,8 +119,6 @@ export async function createAccount(
   return { conta, token: login.body.result.token, email, senha: DEFAULT_SENHA };
 }
 
-// Provisionamento de teste: ADMIN nunca passa pela rota pública. O token vem
-// do login real para manter JWT e middleware sob teste.
 export async function createAdminAccount(
   overrides: Record<string, unknown> = {},
 ): Promise<Account> {
@@ -225,14 +215,8 @@ export async function createLocatario(
   };
 }
 
-// Diaria padrao dos veiculos de teste. 125,25/dia x 2 diarias (futurePeriod
-// padrao) = 250,50 — mesmo valor que os testes usavam quando o cliente ainda
-// enviava valorTotal. O backend e a fonte de verdade do preco (TASK 04), entao
-// os testes derivam o esperado daqui em vez de cravar um numero.
 export const VALOR_DIARIA_PADRAO = 125.25;
 
-// Cria um veículo. Exige token LOCADOR (dono) ou ADMIN — a rota de criação
-// agora é protegida e o ownership é validado no service.
 export async function createVeiculo(
   token: string,
   idLocador: string,
@@ -297,8 +281,6 @@ export async function createDeficiencia(
   return res.body.result;
 }
 
-// Cria um serviço opcional no catálogo. Inserido direto via Prisma porque o
-// catálogo é populado por seed (não há endpoint público de criação).
 export async function createServico(
   overrides: Record<string, unknown> = {},
 ) {
@@ -348,12 +330,6 @@ export function futurePeriod(startInDays = 1, durationInDays = 2) {
   };
 }
 
-// A partir do H-04, uma nova reserva exige ponto operacional de retirada.
-// Muitos testes de domínios não relacionados criam apenas o veículo porque,
-// antes dessa regra, a garagem era opcional para o cenário. Provisionamos uma
-// garagem de fixture somente quando o teste não escolheu explicitamente um
-// ponto de retirada; os testes adversariais de veículo sem garagem continuam
-// chamando a API diretamente e, portanto, preservam a cobertura da rejeição.
 async function ensureOperationalGarageForReservation(idVeiculo: string) {
   const veiculo = await prisma.veiculo.findUnique({
     where: { id: idVeiculo },
@@ -387,13 +363,7 @@ export async function createReserva(
   idLocatario: string,
   overrides: Record<string, unknown> = {},
 ) {
-  // status NÃO é mais aceito pela API (é do domínio). Os testes que precisam de
-  // uma reserva em outro estado continuam pedindo via override, mas o valor é
-  // aplicado direto no banco, depois da criação — arranjo de cenário, não um
-  // buraco no contrato.
   const { status, ...resto } = overrides as { status?: StatusReserva };
-  // valorTotal NÃO é mais enviado: o backend calcula a partir da valorDiaria
-  // do modelo do veículo.
   if (!Object.prototype.hasOwnProperty.call(resto, "idGaragemRetirada")) {
     await ensureOperationalGarageForReservation(idVeiculo);
   }
@@ -422,9 +392,6 @@ export async function createReserva(
   return res.body.result;
 }
 
-// Confirma o pagamento de uma reserva via webhook ASSINADO do gateway — o
-// único caminho que altera statusPagamento agora (o cliente não pode mais setar
-// via PUT). Assina o corpo cru com o mesmo HMAC-SHA256 que o gateway valida.
 const WEBHOOK_HEADER: Record<string, string> = {
   mercadopago: "x-mp-signature",
   stripe: "stripe-signature",

@@ -6,8 +6,6 @@ import { authorize } from "../../middlewares/authorization-middleware.js";
 
 const favoritoRouter = Router();
 
-// Favoritos pertencem exclusivamente ao locatário autenticado (req.user.id) —
-// nenhuma rota aceita id de locatário como parâmetro.
 favoritoRouter.get(
   "/",
   authMiddleware,

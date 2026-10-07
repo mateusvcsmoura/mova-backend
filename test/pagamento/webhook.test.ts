@@ -19,9 +19,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Webhook assinado do gateway de pagamento: é o ÚNICO caminho que confirma
-// pagamento. Cobre assinatura válida/ inválida, provider desconhecido e o fato
-// de o cliente não poder mais setar statusPagamento direto.
 describe("Webhook de pagamento (assinado)", () => {
   let locador: LocadorContext;
   let locatario: LocatarioContext;

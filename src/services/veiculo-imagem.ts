@@ -153,17 +153,12 @@ export class VeiculoImagemService {
         where: { id: imagem.id },
         data: { status: StatusVeiculoImagem.READY },
       });
-      // A promoção/revogação ocorre somente depois de READY e sob a mesma
-      // reconciliação protegida usada nas mudanças de visibilidade.
       await this.sincronizarVisibilidadeVeiculo(idVeiculo);
       const estadoAtual = await this.vehicle(idVeiculo);
       return this.map(ready, this.isPubliclyEligible(estadoAtual));
     } catch {
       await Promise.allSettled([
         this.storage.deleteObject({ bucket: env.MEDIA_PRIVATE_BUCKET, key: objectKey }),
-        // A promoção é feita pela sincronização final e pode ter criado o
-        // objeto antes de falhar. A chave é nova e opaca, portanto remover os
-        // dois lados é uma compensação segura e independente de onde falhou.
         this.storage.deleteObject({ bucket: env.MEDIA_PUBLIC_BUCKET, key: objectKey }),
         prisma.veiculoImagem.delete({ where: { id: imagem.id } }),
       ]);
@@ -173,9 +168,6 @@ export class VeiculoImagemService {
 
   async sincronizarVisibilidadeVeiculo(idVeiculo: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      // O cleanup usa a mesma chave. A operação de storage é curta e fica
-      // protegida pelo lock apenas no comando de reconciliação local; assim a
-      // troca de status e a republicação não se atropelam.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idVeiculo}, 0))`;
       const veiculo = await tx.veiculo.findUnique({
         where: { id: idVeiculo },

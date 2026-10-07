@@ -14,10 +14,6 @@ export interface SmtpConfig {
   from?: string;
 }
 
-// Implementação de IMailProvider via SMTP (Nodemailer). Projetada para o Gmail
-// com App Password, mas funciona com qualquer SMTP. Quando a configuração está
-// incompleta, o provedor fica desabilitado (isEnabled = false) e nunca envia —
-// assim dev/testes rodam sem SMTP e sem enviar e-mails reais.
 export class NodemailerMailProvider implements IMailProvider {
   private readonly config: SmtpConfig;
   // Transporter criado sob demanda (lazy) e reutilizado entre envios.
@@ -53,8 +49,6 @@ export class NodemailerMailProvider implements IMailProvider {
 
   async send(input: SendMailInput): Promise<SendMailResult> {
     if (!this.isEnabled()) {
-      // Salvaguarda: quem chama já deve checar isEnabled(), mas garantimos que
-      // um provedor não configurado nunca tente abrir conexão SMTP.
       throw new Error("Provedor de e-mail não configurado (SMTP ausente).");
     }
 

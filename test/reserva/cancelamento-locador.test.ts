@@ -15,10 +15,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 10 — BUG-02 (D10-01): a multa de 20 % da RN04 é só do cancelamento
-// tardio iniciado pelo LOCATÁRIO. Cancelamento operacional (LOCADOR, ou ADMIN
-// em nome da operação) nunca multa o locatário e, se pago, estorna 100 %.
-
 // Início daqui a 90 min: (início - 2h) já passou -> janela tardia.
 function janelaTardia() {
   const inicio = new Date(Date.now() + 90 * 60 * 1000);
@@ -57,8 +53,6 @@ describe("Task 10 — BUG-02: cancelamento pelo locador (RN04, RN09)", () => {
     return createReserva(locatario.token, veiculo.id, locatario.locatarioId, periodo);
   }
 
-  // Pagamento confirmado pelo fluxo oficial (sandbox PIX); o período tardio é
-  // aplicado depois, porque o pagamento não depende do horário de início.
   async function reservaPagaTardia() {
     const reserva = await novaReserva(futurePeriod(3, 1));
     const pago = await pagar(locatario.token, reserva.id);

@@ -16,8 +16,6 @@ export interface DefinirPreferenciaInput {
   habilitado: boolean;
 }
 
-// Consulta usada pelos notificadores para respeitar o opt-out. Interface enxuta
-// para que os notificadores dependam só disto (não do repositório inteiro).
 export interface IPreferenciaChecker {
   // Habilitado por padrão (opt-in): ausência de preferência = true.
   estaHabilitada(

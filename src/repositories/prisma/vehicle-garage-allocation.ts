@@ -37,8 +37,6 @@ async function lockVehicleAllocation(
   tx: Transaction,
   veiculoId: string,
 ): Promise<void> {
-  // Reserva.create usa esta mesma chave. Ela impede que uma reserva obtenha o
-  // snapshot da garagem antes de uma movimentação e seja criada depois dela.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${veiculoId}, 0))`;
 }
 
@@ -87,8 +85,6 @@ async function assertNoReservationThatPinsGarage(
   tx: Transaction,
   veiculoId: string,
 ): Promise<void> {
-  // O lock de todas as reservas do veículo serializa a decisão com confirmação,
-  // desbloqueio e cancelamento, que atualizam a mesma linha de Reserva.
   const reservas = await tx.$queryRaw<LockedReservation[]>(Prisma.sql`
     SELECT "id", "status", "statusPagamento", "criadaEm"
     FROM "Reserva"
@@ -117,9 +113,6 @@ async function assertNoReservationThatPinsGarage(
 // Task 10 (D10-06, B-03/BUG-14): status que impedem cumprir uma reserva.
 const STATUS_QUE_INDISPONIBILIZAM: StatusVeiculo[] = [StatusVeiculo.MANUTENCAO, StatusVeiculo.INATIVO];
 
-// Compromisso válido com o locatário: reserva paga (CONFIRMADA, ou aprovada e
-// ainda gerando o código) que não terminou, ou em andamento. Não cancela nem
-// remaneja nada: recusa a mudança e o locador resolve a reserva antes.
 export async function assertSemCompromissoParaIndisponibilizar(
   tx: Transaction,
   veiculoId: string,
@@ -127,8 +120,6 @@ export async function assertSemCompromissoParaIndisponibilizar(
   novoStatus: StatusVeiculo | undefined,
 ): Promise<void> {
   if (!novoStatus || novoStatus === statusAtual || !STATUS_QUE_INDISPONIBILIZAM.includes(novoStatus)) return;
-  // Mesmo lock da criação de reserva + lock das linhas (padrão da alocação):
-  // serializa com nova reserva e com confirmação de pagamento em curso.
   await lockVehicleAllocation(tx, veiculoId);
   const agora = new Date();
   const reservas = await tx.$queryRaw<Array<{ status: StatusReserva; statusPagamento: StatusPagamento; dataHoraFim: Date }>>(Prisma.sql`
@@ -153,14 +144,6 @@ export async function assertSemCompromissoParaIndisponibilizar(
   }
 }
 
-// Task 10.1 (D10.1-01..06): o pagamento só pode ser aceito/confirmado se o
-// veículo e as garagens da reserva estiverem operacionais. Chamado sob o lock
-// da reserva; ordem de locks do projeto: reserva (advisory) → veículo
-// (advisory, o mesmo da criação de reserva e da troca de status) → garagens
-// (linha, FOR SHARE, por id). Quem indisponibiliza o veículo/garagem espera
-// estes locks e passa a ver a reserva paga como compromisso protegido.
-// Devolve o erro em vez de lançar: no webhook a tentativa é gravada como
-// FALHA na mesma transação antes de o erro subir.
 export async function verificarReservaOperacional(
   tx: Transaction,
   reserva: { idVeiculo: string; idGaragemRetirada: string | null; idGaragemDevolucao: string | null },
@@ -186,16 +169,6 @@ export async function verificarReservaOperacional(
   return null;
 }
 
-// Task 10.1 (D10.1-07/08, Bug B): garagem ainda necessária a uma reserva
-// confirmada não vai para MANUTENCAO/INATIVA. Necessidade FUTURA:
-// - retirada: reserva paga (CONFIRMADA, ou aprovada gerando o código) com fim
-//   futuro — o veículo ainda vai sair dali;
-// - devolução (idGaragemDevolucao, ou a de retirada quando não informada):
-//   a mesma reserva paga futura, ou EM_ANDAMENTO (o veículo ainda vai voltar,
-//   inclusive com atraso).
-// EM_ANDAMENTO não protege a retirada (já aconteceu). REALIZADA, CANCELADA,
-// expirada e não paga não protegem. Locks: linha da garagem (FOR UPDATE) →
-// linhas de reserva (FOR UPDATE, por id), na transação da própria alteração.
 export async function assertGaragemSemCompromissoParaIndisponibilizar(
   tx: Transaction,
   garagemId: string,
@@ -241,8 +214,6 @@ async function lockGarages(
   const uniqueIds = [...new Set(ids.filter((id): id is string => Boolean(id)))].sort();
   const locked = new Map<string, LockedGarage>();
 
-  // Todas as operações que envolvem duas garagens usam a mesma ordem. Isso
-  // evita deadlock quando duas movimentações opostas acontecem simultaneamente.
   for (const id of uniqueIds) {
     locked.set(id, await lockGarage(tx, id));
   }
@@ -277,10 +248,6 @@ function assertCapacity(garagem: LockedGarage, quantidade = 1): void {
   }
 }
 
-/**
- * Reserva vagas para veículos que ainda serão criados na mesma transação.
- * O lock da linha da garagem torna o check de capacidade atômico.
- */
 export async function reserveGarageCapacityForNewVehicles(
   tx: Transaction,
   garagemId: string,
@@ -313,11 +280,6 @@ export async function assertGarageCapacityUpdate(
   }
 }
 
-/**
- * Aloca, move ou desaloca um veículo. A linha do veículo e as linhas das
- * garagens envolvidas ficam bloqueadas na mesma transação; portanto o vínculo
- * e os contadores nunca passam por um estado parcialmente persistido.
- */
 export async function moveVehicleInTransaction(
   tx: Transaction,
   veiculoId: string,
@@ -326,17 +288,10 @@ export async function moveVehicleInTransaction(
   await lockVehicleAllocation(tx, veiculoId);
   const veiculo = await lockVehicle(tx, veiculoId);
 
-  // Repetir a mesma alocação é um no-op idempotente. Isso também permite
-  // manter um veículo histórico numa garagem que foi desativada sem bloquear
-  // uma operação que não muda o estado.
   if (veiculo.garagemId === destinoGaragemId) {
     return;
   }
 
-  // Task 11: ordem global reserva → veículo → garagens (linha) → linhas de
-  // reserva. As garagens vêm ANTES das linhas de reserva; a ordem inversa
-  // formava ciclo com a indisponibilização de garagem (garagem → reservas) e
-  // com a troca de garagem de devolução da reserva.
   const garagens = await lockGarages(tx, [veiculo.garagemId, destinoGaragemId]);
   await assertNoReservationThatPinsGarage(tx, veiculoId);
 

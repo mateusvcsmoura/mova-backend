@@ -17,8 +17,6 @@ export interface CreateCondutorRequest {
   cnh: string;
 }
 
-// Campos lidos da Reserva pela transação que protege RN02. A reserva já está
-// bloqueada por SELECT ... FOR UPDATE quando este valor chega ao service.
 export interface ReservaBloqueadaParaCondutor {
   id: string;
   idLocatario: string;

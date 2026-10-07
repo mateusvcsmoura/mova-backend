@@ -12,9 +12,6 @@ import {
   ResumoGeral,
 } from "../contracts/avaliacao-relatorio.contract.js";
 
-// Mapeia a granularidade da API para o unit textual do date_trunc do Postgres.
-// Passado como parâmetro ($) — date_trunc aceita o unit como texto, então não
-// há interpolação de string na query.
 const UNIT_POR_GRANULARIDADE: Record<Granularidade, string> = {
   dia: "day",
   mes: "month",
@@ -27,8 +24,6 @@ const nullableNumber = (value: Prisma.Decimal | null): number | null =>
 export class PrismaAvaliacaoRelatorioRepository
   implements IAvaliacaoRelatorioRepository
 {
-  // Filtro para as consultas nativas do Prisma (aggregate/groupBy/findMany).
-  // Percorre Avaliacao -> Reserva -> Veiculo para chegar ao locador.
   private buildWhere(
     filters: AvaliacaoRelatorioFilters,
   ): Prisma.AvaliacaoWhereInput {
@@ -64,9 +59,6 @@ export class PrismaAvaliacaoRelatorioRepository
     };
   }
 
-  // Mesmas condições, como fragmento SQL, para as consultas com JOIN manual
-  // (agregação por veículo e evolução temporal). Aliases: a=Avaliacao,
-  // r=Reserva, v=Veiculo.
   private buildSqlWhere(filters: AvaliacaoRelatorioFilters): Prisma.Sql {
     const conds: Prisma.Sql[] = [
       Prisma.sql`v."idLocador" = ${filters.idLocador}::uuid`,
@@ -134,9 +126,6 @@ export class PrismaAvaliacaoRelatorioRepository
   async aggregatePorVeiculo(
     filters: AvaliacaoRelatorioFilters,
   ): Promise<AgregadoVeiculoRow[]> {
-    // COUNT como int e AVG/MIN/MAX como float => o driver devolve number puro,
-    // sem BigInt/Decimal para converter. O JOIN com ModeloVeiculo resolve os
-    // campos de exibição na mesma consulta (evita segunda query / N+1).
     const rows = await prisma.$queryRaw<
       Array<{
         idVeiculo: string;

@@ -9,17 +9,9 @@ import {
   runExclusive,
 } from "../../src/shared/advisory-lock";
 
-// Execução única entre múltiplas instâncias: o advisory lock do PostgreSQL
-// (pg_try_advisory_xact_lock) garante que, quando dois ticks disparam ao mesmo
-// tempo, só um roda o trabalho — o outro pula. Simulamos "duas instâncias" com
-// ticks concorrentes no mesmo processo: cada runExclusive abre uma transação
-// interativa, fixando conexões distintas do pool = sessões distintas.
 describe("Execução única do scheduler (advisory lock)", () => {
   const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  // Aquece o pool: força a criação de conexões concorrentes de antemão. Sem
-  // isso, o primeiro par de transações pode serializar numa única conexão
-  // (setup lazy), liberando o lock entre elas e mascarando a exclusão mútua.
   beforeAll(async () => {
     await Promise.all([
       prisma.$queryRaw`SELECT 1`,
@@ -36,8 +28,6 @@ describe("Execução única do scheduler (advisory lock)", () => {
     const entrou = new Promise<void>((r) => (sinalizarEntrada = r));
 
     const service = {
-      // Ao entrar, sinaliza e segura o lock até liberarmos — garante que o
-      // segundo tick tente o lock com o primeiro ainda dentro.
       executar: async () => {
         execucoes++;
         sinalizarEntrada();

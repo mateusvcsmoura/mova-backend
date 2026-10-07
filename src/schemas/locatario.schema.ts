@@ -26,9 +26,6 @@ function idadeEmAnos(nascimento: Date): number {
   return idade;
 }
 
-// RG: normaliza (remove pontos/traços/espaços, uppercase) e valida o formato
-// geral — 6 a 14 caracteres terminando em dígito ou X (dígito verificador).
-// Não força máscara de UF específica, mas garante um documento plausível.
 const rgSchema = z
   .string()
   .trim()
@@ -38,8 +35,6 @@ const rgSchema = z
     "RG inválido (use apenas números, com dígito verificador opcional X)",
   );
 
-// Data de nascimento: aceita ISO string/Date, exige data no passado e idade
-// entre 18 e 120 anos.
 const dataNascimentoSchema = z.coerce
   .date({ message: "Data de nascimento inválida" })
   .refine((d) => d < new Date(), "Data de nascimento deve estar no passado")

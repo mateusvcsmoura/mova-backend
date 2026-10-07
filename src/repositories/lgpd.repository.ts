@@ -1,7 +1,5 @@
 import { AcaoLgpd, Cargo } from "@prisma/client";
 
-// Snapshot dos dados pessoais de um titular (portabilidade LGPD). Só campos
-// pessoais + registros vinculados; nunca senhaHash.
 export interface DadosPessoaisExport {
   conta: {
     id: string;
@@ -54,8 +52,6 @@ export interface RegistrarAcessoInput {
 export interface ILgpdRepository {
   // Exporta os dados pessoais do titular (null se a conta não existe).
   exportarDadosPessoais(idConta: string): Promise<DadosPessoaisExport | null>;
-  // Anonimiza PII da conta e do perfil (locatário/locador), mantendo as linhas
-  // e o histórico de negócio. Idempotente. Retorna false se a conta não existe.
   anonimizarConta(idConta: string): Promise<boolean>;
   // Auditoria de acesso a dados pessoais.
   registrarAcesso(input: RegistrarAcessoInput): Promise<void>;

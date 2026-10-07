@@ -55,6 +55,7 @@ src/
   shared/              # paginação
   errors/
 test/                  # suites por domínio (Vitest + Supertest)
+docs/codigo/           # notas de implementação por área (antes eram comentários no código)
 ```
 
 ## Domínio (Prisma)

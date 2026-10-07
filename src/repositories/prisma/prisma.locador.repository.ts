@@ -62,8 +62,6 @@ export class PrismaLocadorRepository implements ILocadorRepository {
   async create(data: CreateLocadorRequest): Promise<LocadorResponse> {
     return prisma.locador.create({
       data: {
-        // LocadorService resolve o ID pelo JWT (ou pelo ADMIN) antes de chegar
-        // ao repositório.
         id: data.id!,
         empresa: data.empresa,
         cnpj: data.cnpj,

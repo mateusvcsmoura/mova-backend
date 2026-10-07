@@ -3,12 +3,6 @@ import {
   VeiculoDisponivelPayload,
 } from "../services/contracts/veiculo-disponivel.js";
 
-// Template da notificação de veículo disponível. Função pura: recebe o payload
-// e devolve o conteúdo (assunto + HTML + texto). Mantido fora dos services para
-// que o HTML não seja concatenado dentro da regra de negócio. Novos canais
-// (push/SMS/WhatsApp) consomem o mesmo VeiculoDisponivelPayload em outros
-// módulos — sem tocar no dispatcher.
-
 // Escapa texto para uso seguro dentro do HTML (dados vêm do banco/usuário).
 const escapeHtml = (value: string): string =>
   value

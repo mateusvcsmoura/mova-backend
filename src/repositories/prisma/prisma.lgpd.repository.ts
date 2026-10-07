@@ -63,8 +63,6 @@ export class PrismaLgpdRepository implements ILgpdRepository {
     // Já anonimizada: idempotente, não faz nada.
     if (conta.anonimizadoEm) return true;
 
-    // Token estável e único por conta para satisfazer os @unique (email/cpf/
-    // cnh/cnpj) sem colidir com contas reais.
     const tag = idConta;
     // senhaHash aleatória invalida o login (não corresponde a bcrypt de nada).
     const senhaMorta = crypto.randomBytes(32).toString("hex");
@@ -99,10 +97,6 @@ export class PrismaLgpdRepository implements ILgpdRepository {
           cnpj: `anon-${tag}`,
         },
       }),
-      // Task 11 (RNF05): resíduos de PII fora das tabelas de perfil. Os
-      // snapshots de destinatário das notificações guardavam o e-mail real; os
-      // condutores adicionais são terceiros informados pelo titular (nome, CPF,
-      // CNH) e deixam de ter finalidade quando ele se anonimiza.
       prisma.notificacaoReserva.updateMany({
         where: { reserva: { idLocatario: idConta } },
         data: { destinatario: `anon-${tag}@anonimizado.local` },
@@ -115,8 +109,6 @@ export class PrismaLgpdRepository implements ILgpdRepository {
         where: { idLocador: idConta },
         data: { destinatario: `anon-${tag}@anonimizado.local` },
       }),
-      // Reservas em curso/confirmadas mantem os condutores (quem pode dirigir o
-      // veiculo que esta na rua); as encerradas perdem o PII de terceiros.
       prisma.condutorAdicional.deleteMany({
         where: { reserva: { idLocatario: idConta, status: { in: ["REALIZADA", "CANCELADA"] } } },
       }),

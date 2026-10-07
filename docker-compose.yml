@@ -1,10 +1,3 @@
-# Postgres local para desenvolvimento e testes do MOVA.
-# Ver auditoria/AMBIENTES.md.
-#
-#   npm run db:up      sobe o banco
-#   npm run db:down    derruba (mantendo os dados)
-#
-# Porta 5433 de proposito, para nao colidir com um Postgres ja instalado na 5432.
 services:
   postgres:
     image: postgres:16-alpine

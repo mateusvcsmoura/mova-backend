@@ -20,15 +20,6 @@ import {
   VALOR_DIARIA_PADRAO,
 } from "../helpers";
 
-// TASK 04 — fluxo de pagamento em sandbox.
-//
-// O desenho sob teste: o cliente NUNCA declara o resultado. Ele envia dados de
-// teste; o backend decide o desfecho, registra a cobrança, deixa PROCESSANDO e
-// entrega o evento ao simulador de gateway, que assina um webhook e o devolve
-// pelo mesmo caminho de um gateway real (verificação de assinatura inclusa).
-//
-// Ver auditoria/PAGAMENTO.md.
-
 // Cartões de teste: o sufixo decide o desfecho, como nos sandboxes reais.
 const CARTAO_APROVADO = "4111111111111234";
 const CARTAO_RECUSADO = "4111111111110000";
@@ -50,8 +41,6 @@ describe("Pagamento — sandbox", () => {
     locatario = await createLocatario();
   });
 
-  // Cada reserva usa um veículo próprio para não colidir períodos.
-  // futurePeriod(_, 2) = 2 diárias.
   let deslocamento = 40;
   async function novaReserva(owner = locatario) {
     const veiculo = await createVeiculo(locador.token, locador.locadorId);
@@ -124,8 +113,6 @@ describe("Pagamento — sandbox", () => {
     expect(persistida.status).toBe("AGUARDANDO_PAGAMENTO");
     expect(persistida.codigoDesbloqueio).toBeNull();
 
-    // A pendência é intencional neste cenário; quitá-la evita contaminar as
-    // reservas independentes criadas pelos próximos exemplos.
     expect((await confirmarPagamentoWebhook(reserva.id)).status).toBe(200);
   });
 
@@ -532,8 +519,6 @@ describe("Pagamento — sandbox", () => {
     );
     expect(pagamento.body.result.valorElegivelEstorno).toBe(esperado);
 
-    // A multa já foi retida do valor pago: não pode virar uma segunda cobrança
-    // pendente (que bloquearia o locatário pela RN07).
     const multa = await prisma.cobrancaReserva.findFirstOrThrow({
       where: { idReserva: reserva.id, tipo: "CANCELAMENTO" },
     });

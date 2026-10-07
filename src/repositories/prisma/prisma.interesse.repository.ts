@@ -16,8 +16,6 @@ import {
   toSkipTake,
 } from "../../shared/pagination.js";
 
-// Carrega o veículo com modelo, locador e garagem atual em uma única consulta
-// (evita N+1 ao montar a resposta da listagem).
 const INTERESSE_INCLUDE = {
   veiculo: {
     include: {
@@ -135,8 +133,6 @@ export class PrismaInteresseVeiculoRepository
   async findAtivosByVeiculo(
     idVeiculo: string,
   ): Promise<InteressadoResponse[]> {
-    // Usa o índice composto (idVeiculo, status) e resolve o destinatário
-    // (Locatario -> Conta) no mesmo round-trip — sem N+1 no disparo.
     const interessados = await prisma.interesseVeiculo.findMany({
       where: { idVeiculo, status: StatusInteresse.ATIVO },
       include: {

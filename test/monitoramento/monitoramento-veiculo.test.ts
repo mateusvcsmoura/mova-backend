@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-// O scheduler agora roda o tick sob advisory lock (runExclusive). Aqui, os
-// testes de mecânica do timer usam fake timers e um service fake — o lock real
-// (que fala com o banco) não pode entrar no caminho do timer, então stubamos
-// runExclusive para apenas invocar a função. A execução única sob lock real é
-// coberta em test/concurrency/scheduler-exclusivo.test.ts.
 vi.mock("../../src/shared/advisory-lock", () => ({
   LOCK_MONITORAMENTO: 4101,
   LOCK_LOCALIZACAO_SIMULADOR: 4102,
@@ -27,10 +22,6 @@ import type {
   VeiculoInativoRow,
 } from "../../src/repositories/contracts/monitoramento.contract";
 import type { VeiculoResponse } from "../../src/repositories/contracts/veiculo.contract";
-
-// ---------------------------------------------------------------------------
-// Fakes compartilhados
-// ---------------------------------------------------------------------------
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 const diasAtras = (dias: number) => new Date(Date.now() - dias * UM_DIA_MS);
@@ -77,9 +68,6 @@ function makeBaixaRow(
   };
 }
 
-// Repositório de monitoramento em memória. As consultas de candidatos aplicam
-// os MESMOS critérios das queries reais (data-limite / HAVING), para que os
-// testes exerçam os thresholds passados pelo service.
 function makeMonitoramentoRepo(dados?: {
   inativos?: VeiculoInativoRow[];
   avaliacoes?: VeiculoBaixaAvaliacaoRow[];
@@ -199,10 +187,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-// ---------------------------------------------------------------------------
-// Regra 1 — veículo inativo
-// ---------------------------------------------------------------------------
-
 describe("MonitoramentoVeiculoService — inatividade", () => {
   it("não gera alerta para veículo inativo há menos de 7 dias", async () => {
     const { repo, alertas } = makeMonitoramentoRepo({
@@ -276,10 +260,6 @@ describe("MonitoramentoVeiculoService — inatividade", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Regra 2 — baixa avaliação recorrente
-// ---------------------------------------------------------------------------
-
 describe("MonitoramentoVeiculoService — baixa avaliação", () => {
   it("não gera alerta para veículo com média adequada", async () => {
     const { repo, alertas } = makeMonitoramentoRepo({
@@ -346,10 +326,6 @@ describe("MonitoramentoVeiculoService — baixa avaliação", () => {
     expect(alertas).toHaveLength(1);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Deduplicação, falha de envio e resolução
-// ---------------------------------------------------------------------------
 
 describe("MonitoramentoVeiculoService — dedup, falha e resolução", () => {
   it("não envia e-mail repetido enquanto o alerta continuar ativo", async () => {
@@ -429,8 +405,6 @@ describe("MonitoramentoVeiculoService — dedup, falha e resolução", () => {
     expect(segunda.inatividade.alertasResolvidos).toBe(1);
     expect(alertas[0].resolvidoEm).toBeInstanceOf(Date);
 
-    // Reincidência: volta a ficar inativo -> novo alerta (o anterior está
-    // resolvido, então não bloqueia).
     inativos.push(makeInativoRow());
     const terceira = await service.executar();
     expect(terceira.inatividade.alertasGerados).toBe(1);
@@ -456,10 +430,6 @@ describe("MonitoramentoVeiculoService — dedup, falha e resolução", () => {
     expect(resultado.baixaAvaliacao.candidatos).toBe(0);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Rotina periódica (scheduler)
-// ---------------------------------------------------------------------------
 
 describe("MonitoramentoScheduler", () => {
   it("executa o monitoramento periodicamente e para no stop()", async () => {
@@ -502,10 +472,6 @@ describe("MonitoramentoScheduler", () => {
     scheduler.stop();
   });
 });
-
-// ---------------------------------------------------------------------------
-// Regressão — VeiculoService continua funcionando com/sem recorder
-// ---------------------------------------------------------------------------
 
 describe("VeiculoService — histórico de status (regressão)", () => {
   function makeVeiculo(status: string): VeiculoResponse {

@@ -97,9 +97,6 @@ export class GaragemService {
       return;
     }
 
-    // O locatário precisa consultar garagens para escolher retirada/devolução
-    // na reserva. Só enxerga as ATIVAS, e apenas em leitura — toda escrita
-    // continua restrita ao locador dono (assertLocadorResponsavel).
     if (requester.cargo === Cargo.LOCATARIO) {
       if (garagem.status !== StatusGaragem.ATIVA) {
         throw new HttpError(404, "Garagem não encontrada");
@@ -115,8 +112,6 @@ export class GaragemService {
     }
   }
 
-  // Task 11: escrita (editar/excluir) = dono LOCADOR ou ADMIN. assertGaragemAccess
-  // admite LOCATARIO em garagem ATIVA (leitura) e não serve para escrita.
   private assertPodeGerenciar(
     requester: GaragemAccessContext,
     garagem: GaragemBaseResponse,
@@ -151,9 +146,6 @@ export class GaragemService {
       return this.garagemRepository.findAll(filters ?? {}, pagination);
     }
 
-    // Locatário: catálogo público de garagens, restrito às ATIVAS. O filtro é
-    // forçado aqui (não aceita override pela query) para não vazar garagens
-    // inativas ou em manutenção.
     if (requester.cargo === Cargo.LOCATARIO) {
       return this.garagemRepository.findAll(
         { ...(filters ?? {}), status: StatusGaragem.ATIVA },

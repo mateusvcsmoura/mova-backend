@@ -50,40 +50,28 @@ interface ReservaAccessContext {
   cargo: Cargo;
 }
 
-// RN09 audita as alterações de reserva feitas pelo lado do locador (ou ADMIN);
-// as ações do próprio locatário seguem o fluxo normal sem trilha de locador.
 const atorAuditoria = (requester: ReservaAccessContext) =>
   requester.cargo === Cargo.LOCATARIO ? undefined : { id: requester.id, cargo: requester.cargo };
 
 // Alfabeto sem caracteres ambíguos (sem O, 0, I, 1, L).
 const CODIGO_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODIGO_BLOCO = 4; // XXXX-XXXX
-const CODIGO_MAX_TENTATIVAS = 5; // tentativas para evitar colisão de unique
-// Janela de validade do código a partir da data de início (2 dias).
+const CODIGO_MAX_TENTATIVAS = 5;
 const CODIGO_VALIDADE_MS = 2 * 24 * 60 * 60 * 1000;
 
 // RN05: duração da reserva. Mínimo de 1 hora, máximo de 30 dias consecutivos.
 const DURACAO_MINIMA_MS = 60 * 60 * 1000;
 const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
 
-// RN04: política de cancelamento. Grátis até 2 horas antes da retirada; após
-// esse prazo, multa de 20% sobre o valor da reserva.
 const PRAZO_CANCELAMENTO_MS = 2 * 60 * 60 * 1000;
 const MULTA_CANCELAMENTO_TARDIO = 0.2;
 
 // Dinheiro sempre com 2 casas — evita 0.1 + 0.2 aparecendo na resposta.
 const arredondar2 = (v: number): number => Math.round(v * 100) / 100;
 
-// RN06: atraso na devolução. Cobra a diária PROPORCIONAL ao tempo de atraso
-// (valorDiaria × atraso/24h, contínuo, sem arredondar para diária cheia) mais
-// 10% sobre essa taxa — cobrança final = taxa × 1,10. A base do 10% é a taxa
-// de atraso, não o valorTotal da reserva. valorDiaria é a do modelo do
-// veículo no momento da devolução (ver calcularCobrancaAtraso).
 const MULTA_ATRASO = 0.1;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
-// RN06: valorDiaria Ã— (atraso / 24h) Ã— 1,10. A unidade intermediÃ¡ria Ã©
-// centavo para evitar propagaÃ§Ã£o de ponto flutuante antes do arredondamento.
 const calcularCobrancaAtraso = (valorDiaria: number, atrasoMs: number): number => {
   const diariaCentavos = Math.round(valorDiaria * 100);
   return Math.round((diariaCentavos * atrasoMs * (1 + MULTA_ATRASO)) / UM_DIA_MS) / 100;
@@ -101,8 +89,6 @@ export class ReservaService {
     private readonly condutorRepository: ICondutorRepository,
     // RN03: última localização do veículo, referência do geofence de desbloqueio.
     private readonly localizacaoRepository: ILocalizacaoRepository,
-    // Notificação (relatório por e-mail). Opcional para não acoplar a regra de
-    // negócio ao envio; quando ausente, a reserva funciona normalmente.
     private readonly reservaNotifier?: IReservaNotifier,
     private readonly pagamentoEstornoService?: PagamentoEstornoService,
   ) {}
@@ -124,11 +110,6 @@ export class ReservaService {
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
-  // RN03: exige que o desbloqueio ocorra dentro do raio da última localização
-  // conhecida do veículo. Sem localização de referência, o desbloqueio é
-  // bloqueado: sem uma origem confiável não é possível provar a regra de local.
-  // Com referência, a coordenada do dispositivo é obrigatória. Borda:
-  // distância == raio é válida.
   private async assertLocalDesbloqueio(
     idVeiculo: string,
     coord?: { latitude: number; longitude: number },
@@ -159,10 +140,6 @@ export class ReservaService {
     }
   }
 
-  // Valida os serviços opcionais selecionados contra o catálogo e resolve o
-  // valor de cada um (snapshot). Todos os IDs informados devem existir e estar
-  // ativos; caso contrário a reserva não é criada. Centraliza aqui a regra para
-  // evitar cálculos espalhados pela aplicação.
   private async resolverServicosOpcionais(
     servicosIds?: string[],
   ): Promise<{ servicos: ReservaServicoInput[]; valorServicos: number }> {
@@ -263,8 +240,6 @@ export class ReservaService {
     }
   }
 
-  // Garante que o solicitante pode ver/alterar a reserva:
-  // ADMIN sempre; LOCATARIO se for o dono; LOCADOR se o veículo for dele.
   private async assertReservaAccess(
     requester: ReservaAccessContext,
     reserva: Pick<ReservaResponse, "idLocatario" | "idVeiculo">,
@@ -335,8 +310,6 @@ export class ReservaService {
     }
   }
 
-  // O local de retirada é a garagem onde o veículo está atualmente alocado.
-  // Se o solicitante informar um local de retirada, ele deve coincidir.
   private resolverGaragemRetirada(
     garagemAtualVeiculo: string | null,
     idGaragemRetiradaInformada?: string,
@@ -361,13 +334,6 @@ export class ReservaService {
     return garagemAtualVeiculo;
   }
 
-  // Veículo adaptado (PCD) só pode ser reservado por locatário com deficiência.
-  // Se o locatário ainda não possuir uma, aceita a deficiência informada no
-  // fluxo da reserva, valida-a e a associa ao cadastro.
-  // Valida a elegibilidade PCD e retorna a deficiência a associar ao locatário
-  // (ou undefined quando nada precisa mudar). NÃO grava aqui: a associação é
-  // feita junto da criação da reserva, numa única transação (RN01), para não
-  // deixar o perfil alterado se a criação falhar depois.
   private async resolverDeficienciaParaVeiculoAdaptado(
     locatario: LocatarioResponse,
     deficienciaIdInformada?: string,
@@ -394,12 +360,6 @@ export class ReservaService {
     return deficienciaIdInformada;
   }
 
-  // Garagem inativa/em manutenção não entra em novas reservas (RF19).
-  /**
-   * Base do valor da reserva: diária do modelo × número de diárias.
-   * Fração de dia conta como diária cheia (mesma regra que a tela exibe e que
-   * RN06 usa para atraso). Estático para ser testável sem instanciar o service.
-   */
   static calcularValorBase(
     valorDiaria: number,
     inicio: Date,
@@ -504,8 +464,6 @@ export class ReservaService {
       idLocatario,
       pagination,
     );
-    // Lista vazia é resultado válido, não 404: um locatário recém-cadastrado
-    // deve ver um histórico vazio, não uma tela de erro.
     return reservas;
   };
 
@@ -536,9 +494,6 @@ export class ReservaService {
     return reservas;
   };
 
-  // Precificação autenticada sem persistência. Usa a mesma diária e o mesmo catálogo de serviços
-  // da criação; a criação recalcula novamente para impedir preço obsoleto ou
-  // manipulado entre a visualização e o POST final.
   precificar = async (data: QuoteReservaInput) => {
     const veiculo = await this.veiculoRepository.findById(data.idVeiculo);
     if (!veiculo) throw new HttpError(404, "Veículo não encontrado");
@@ -622,10 +577,6 @@ export class ReservaService {
       );
     }
 
-    // RN01: "veículo PCD" tem dois marcadores redundantes (adaptado e
-    // categoria=PCD). Exigir só um deixava o outro como brecha (um modelo
-    // categoria=PCD, adaptado=false seria reservável por qualquer um). Trata
-    // como adaptado quando QUALQUER marcador indica PCD.
     const exigeDeficiencia =
       veiculo.modeloVeiculo.adaptado ||
       veiculo.modeloVeiculo.categoria === CategoriaVeiculo.PCD;
@@ -644,9 +595,6 @@ export class ReservaService {
       data.servicosIds,
     );
 
-    // VALOR: calculado aqui, nunca recebido do cliente. Base = diária do modelo
-    // × número de diárias (fração conta como diária cheia, igual ao que a tela
-    // exibe), somada aos serviços contratados.
     const valorBase = ReservaService.calcularValorBase(
       veiculo.modeloVeiculo.valorDiaria,
       data.dataHoraInicio,
@@ -654,8 +602,6 @@ export class ReservaService {
     );
     const valorTotal = arredondar2(valorBase + valorServicos);
 
-    // A associação da deficiência ao perfil e a criação da reserva ocorrem na
-    // mesma transação (repo) — se a criação falhar, o perfil não é alterado.
     return this.reservaRepository.create({
       ...data,
       idGaragemRetirada,
@@ -735,9 +681,6 @@ export class ReservaService {
       );
     }
 
-    // statusPagamento não vem mais do cliente (removido do schema): o resultado
-    // do pagamento só muda por confirmarPagamento, acionado pelo webhook
-    // assinado do gateway. O PUT trata apenas datas/status/devolução.
     return this.reservaRepository.update(id, {
       idGaragemDevolucao: data.idGaragemDevolucao,
       dataHoraInicio: data.dataHoraInicio,
@@ -747,9 +690,6 @@ export class ReservaService {
     }, atorAuditoria(requester));
   };
 
-  // RN04: cancelamento como ação de domínio. Grátis até 2h antes da retirada;
-  // após, multa de 20% sobre o valor da reserva, registrada em CobrancaReserva.
-  // Único caminho de cancelamento (PUT /:id não altera mais status).
   cancelarReserva = async (
     id: string,
     requester: ReservaAccessContext,
@@ -764,8 +704,6 @@ export class ReservaService {
     // Máquina de estados: só AGUARDANDO_PAGAMENTO/CONFIRMADA podem ser canceladas.
     if (reserva.status === StatusReserva.CANCELADA) {
       if (reserva.statusPagamento === StatusPagamento.SUCESSO) {
-        // Se o processo caiu entre o commit do cancelamento e o executor do
-        // estorno, repetir a mesma operação é a reconciliação idempotente.
         await this.pagamentoEstornoService?.reconciliarEstornoDeCancelamento(id);
       }
       throw new HttpError(409, "Reserva já cancelada.");
@@ -780,11 +718,6 @@ export class ReservaService {
       );
     }
 
-    // Prazo: cancelar após (dataHoraInicio - 2h) é tardio -> multa de 20%.
-    // Task 10 (D10-01): a multa é só do cancelamento tardio do próprio
-    // LOCATÁRIO. LOCADOR (ou ADMIN, atuando na operação) nunca transfere multa
-    // ao locatário; reserva paga segue para estorno integral abaixo. O autor
-    // vem do JWT (requester), nunca do corpo da requisição.
     const agora = new Date();
     const prazoLimite = new Date(
       reserva.dataHoraInicio.getTime() - PRAZO_CANCELAMENTO_MS,
@@ -802,10 +735,6 @@ export class ReservaService {
     return cancelada;
   };
 
-  // RN06: devolução da reserva. Registra devolvidoEm, transiciona para REALIZADA
-  // e, se houver atraso, cobra diária(s) proporcional(is) + 10% (CobrancaReserva
-  // tipo ATRASO_DEVOLUCAO). Só reservas desbloqueadas (código usado) e ainda não
-  // canceladas/concluídas podem ser devolvidas.
   devolverReserva = async (
     id: string,
     requester: ReservaAccessContext,
@@ -846,10 +775,6 @@ export class ReservaService {
     return this.reservaRepository.devolver(id, devolvidoEm, cobranca, atorAuditoria(requester));
   };
 
-  // Fluxo INTERNO do gateway de pagamento. Só o webhook (após validar a
-  // assinatura) chega aqui — por isso não passa pela autorização de requester:
-  // a confiança vem da assinatura, não de um JWT de usuário. Centraliza a
-  // mudança de status de pagamento e a geração do código de desbloqueio.
   confirmarPagamento = async (
     idReserva: string,
     evento: { status: StatusPagamento; metodo?: MetodoPagamento },
@@ -859,11 +784,6 @@ export class ReservaService {
       throw new HttpError(404, "Reserva não encontrada");
     }
 
-    // Eventos de gateway podem ser reenviados fora de ordem. Aprovação é
-    // terminal e uma reserva cancelada não pode voltar a receber confirmação.
-    // Task 11: aprovação já gravada mas ainda SEM código (falha entre o commit
-    // do pagamento e a geração) não é terminal — o próximo evento SUCESSO
-    // conclui a confirmação em vez de ser engolido.
     const aprovadaSemCodigo =
       reserva.statusPagamento === StatusPagamento.SUCESSO &&
       !reserva.codigoDesbloqueio &&
@@ -875,32 +795,19 @@ export class ReservaService {
       return reserva;
     }
 
-    // Pagamento confirmado agora e ainda sem código -> gera o código de
-    // desbloqueio e envia o relatório por e-mail (best-effort: o notifier nunca
-    // lança). Idempotente: reserva já confirmada mantém o mesmo código.
     if (
       evento.status === StatusPagamento.SUCESSO &&
       !reserva.codigoDesbloqueio &&
       // Autocura: o valor ja foi aceito; RN07 pertence a aceitacao, nao a geracao do codigo.
       !aprovadaSemCodigo
     ) {
-      // RN07: revalida bloqueio financeiro na trilha do pagamento. Locatário
-      // bloqueado após criar a reserva não pode ser confirmado nem receber o
-      // código pelo webhook. Idempotente: reserva que já tem código não entra
-      // aqui (guard acima), então reprocessamento não dispara 403 espúrio.
       try {
         await this.bloqueioService.assertLocatarioLiberado(reserva.idLocatario);
       } catch (error) {
-        // Task 11: a tentativa recusada vira FALHA (mesmo desfecho da recusa
-        // operacional da Task 10.1). Sem isso ela ficava PROCESSANDO e uma nova
-        // tentativa era recusada até a reserva expirar. O erro continua
-        // subindo: o webhook registra o recebimento e estorna no sandbox.
         if (error instanceof HttpError && reserva.statusPagamento !== StatusPagamento.SUCESSO) {
           try {
             await this.reservaRepository.atualizarStatusPagamento(idReserva, StatusPagamento.FALHA, evento.metodo);
           } catch {
-            // Reserva cancelada/expirada entre a leitura e a escrita: o 403 original
-            // prevalece para o webhook registrar o recebimento e estornar.
           }
         }
         throw error;
@@ -913,8 +820,6 @@ export class ReservaService {
       evento.metodo,
     );
 
-    // D10-05: o prazo venceu entre a leitura e o lock; a reserva expirou e o
-    // evento tardio não gera código nem confirmação.
     if (atualizada.status === StatusReserva.CANCELADA) {
       return atualizada;
     }
@@ -928,13 +833,8 @@ export class ReservaService {
         idReserva,
         codigo,
         new Date(),
-        // Pagamento aprovado promove a reserva de AGUARDANDO_PAGAMENTO para
-        // CONFIRMADA. É a única transição automática de status — e acontece
-        // na mesma operação que gera o código, então nunca ficam dessincronizados.
         StatusReserva.CONFIRMADA,
       );
-      // Só a entrega que gravou o código notifica; uma entrega concorrente
-      // que perdeu a corrida devolve o estado vencedor sem repetir o e-mail.
       if (confirmada.codigoDesbloqueio === codigo) {
         await this.reservaNotifier?.notificarReservaConfirmada(confirmada);
       }
@@ -944,8 +844,6 @@ export class ReservaService {
     return atualizada;
   };
 
-  // Usa o código de desbloqueio do veículo dentro da janela permitida.
-  // Ordem de validação (RN03): código -> horário/uso-único -> local (geofence).
   usarCodigoDesbloqueio = async (
     id: string,
     codigo: string,
@@ -974,9 +872,6 @@ export class ReservaService {
     this.assertCodigoUsavel(reserva);
     await this.assertLocalDesbloqueio(reserva.idVeiculo, coord);
 
-    // Desbloqueio efetivado: reserva passa de CONFIRMADA para EM_ANDAMENTO.
-    // É a contraparte da transição do pagamento (AGUARDANDO → CONFIRMADA) e
-    // vale como trava de cancelamento (RN04 recusa cancelar EM_ANDAMENTO).
     return this.reservaRepository.marcarCodigoComoUsado(
       id,
       new Date(),
@@ -984,9 +879,6 @@ export class ReservaService {
     );
   };
 
-  // RN03: gera o token assinado embutido no QR Code de desbloqueio. Carrega
-  // idReserva + código; a assinatura (JWT_SECRET) impede adulteração. O QR é
-  // equivalente ao código textual — não dispensa horário/uso-único/local.
   gerarQrDesbloqueio = async (
     id: string,
     requester: ReservaAccessContext,
@@ -1005,8 +897,6 @@ export class ReservaService {
       );
     }
 
-    // Task 11: o token do QR expira junto com a janela de uso do código (RN03);
-    // antes não tinha validade e continuava verificável para sempre.
     const qr = jwt.sign(
       {
         idReserva: id,
@@ -1018,8 +908,6 @@ export class ReservaService {
     return { qr };
   };
 
-  // RN03: desbloqueio via QR. Verifica a assinatura, confere que o token é desta
-  // reserva e reusa toda a validação do código textual (não duplica regras).
   usarQrDesbloqueio = async (
     id: string,
     qr: string,
@@ -1062,8 +950,6 @@ export class ReservaService {
 
   // ── Condutores adicionais (RF12) ──────────────────────────────────────────
 
-  // Alterações (incluir/remover condutor) só são permitidas antes do início da
-  // reserva e enquanto ela não estiver cancelada.
   private assertReservaAlteravel(
     reserva: Pick<ReservaResponse, "status" | "dataHoraInicio">,
   ): void {
@@ -1111,8 +997,6 @@ export class ReservaService {
   ): Promise<CondutorResponse[]> => {
     await this.getReservaComAcesso(idReserva, requester);
     const condutores = await this.condutorRepository.findByReservaId(idReserva);
-    // Task 11 (RNF05, minimização): o Locador precisa de nome e CNH para a
-    // entrega do veículo; o CPF de terceiros não é necessário a ele.
     if (requester.cargo === Cargo.LOCADOR) {
       return condutores.map((condutor) => ({ ...condutor, cpf: null }));
     }

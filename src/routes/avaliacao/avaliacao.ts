@@ -6,8 +6,6 @@ import { authorize } from "../../middlewares/authorization-middleware.js";
 
 const avaliacaoRouter = Router();
 
-// Dashboard analítico exclusivo do LOCADOR (apenas dos próprios veículos).
-// Declarado antes de "/reserva/:id_reserva" — rota estática, sem conflito.
 avaliacaoRouter.get(
   "/relatorio",
   authMiddleware,

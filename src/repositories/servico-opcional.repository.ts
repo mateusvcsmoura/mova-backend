@@ -15,8 +15,6 @@ export interface IServicoOpcionalRepository {
     pagination: PaginationParams,
   ): Promise<PaginatedResult<ServicoOpcionalResponse>>;
   findById(id: string): Promise<ServicoOpcionalResponse | null>;
-  // Busca serviços por uma lista de IDs. Por padrão, apenas os ativos
-  // (disponíveis para contratação) são retornados.
   findByIds(
     ids: string[],
     apenasAtivos?: boolean,

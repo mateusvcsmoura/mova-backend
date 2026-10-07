@@ -21,9 +21,6 @@ export class ContaService {
     private locatarioRepository: ILocatarioRepository,
   ) {}
 
-  // Gera o token JWT usando o segredo/expiração já validados em config/env.ts.
-  // Payload único (id + cargo) compartilhado por register e login, para que o
-  // authMiddleware — que exige `cargo` — aceite ambos os tokens.
   private gerarToken(payload: { id: string; cargo: string }): string {
     return jwt.sign(payload, env.JWT_SECRET as jwt.Secret, {
       expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
@@ -72,9 +69,6 @@ export class ContaService {
     };
   }
 
-  // Task 10 (M-05): cadastro oficial = Conta + perfil numa operação atômica
-  // (o repositório usa uma única transação). As checagens abaixo só dão
-  // mensagens claras; a garantia de integridade é a transação/constraint.
   async register({ locatario, locador, ...data }: CreateContaRequest & PerfilCadastro) {
     // Defesa em profundidade: o controller já limita o schema público.
     if (data.cargo === Cargo.ADMIN) {
@@ -107,8 +101,6 @@ export class ContaService {
     const { locatario: perfilLocatario, locador: perfilLocador, ...conta } =
       await this.contaRepository.create({ ...data, senha: senhaHash }, { locatario, locador });
 
-    // Mesmo payload do login (id + cargo) para que o authMiddleware aceite o
-    // token emitido no cadastro.
     const token = this.gerarToken({ id: conta.id, cargo: conta.cargo });
 
     return {
@@ -173,8 +165,6 @@ export class ContaService {
       throw new HttpError(404, "Conta não encontrada");
     }
 
-    // Unicidade de e-mail no update: rejeita se o novo e-mail já pertence a
-    // outra conta (o create já valida; aqui fecha a lacuna apontada na auditoria).
     if (data.email && data.email !== existingConta.email) {
       const emailEmUso = await this.contaRepository.findByEmail(data.email);
       if (emailEmUso && emailEmUso.id !== id) {

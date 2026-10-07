@@ -6,8 +6,6 @@ import { describe, it, expect } from "vitest";
 import { app } from "../../src/app";
 import { MENSAGENS } from "../../src/i18n/mensagens";
 
-// Mensagens dinâmicas (template literal com variável) não entram no catálogo
-// por texto exato; seguem em pt. Nova entrada aqui = decisão consciente.
 const DINAMICAS_NAO_TRADUZIDAS = [
   "As seguintes placas já estão cadastradas: ${duplicadas.join(\", \")}",
   "Gateway de pagamento desconhecido: ${provider}",

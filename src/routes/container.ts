@@ -121,9 +121,6 @@ export const deficienciaService = new DeficienciaService(deficienciaRepository);
 export const deficienciaController = new DeficienciaController(deficienciaService);
 
 export const veiculoRepository: IVeiculoRepository = new PrismaVeiculoRepository();
-// veiculoService/veiculoController são criados mais abaixo: dependem do
-// notifier de disponibilidade, que por sua vez depende do mailProvider e dos
-// repositórios de interesse/garagem.
 
 export const veiculoImagemService = new VeiculoImagemService();
 export const garagemRepository: IGaragemRepository = new PrismaGaragemRepository();
@@ -139,16 +136,6 @@ export const servicoOpcionalRepository: IServicoOpcionalRepository = new PrismaS
 export const servicoOpcionalService = new ServicoOpcionalService(servicoOpcionalRepository);
 export const servicoOpcionalController = new ServicoOpcionalController(servicoOpcionalService);
 
-// Camada de infraestrutura de e-mail. Provedor concreto (Nodemailer/SMTP) fica
-// atrás da abstração IMailProvider — trocar por SES/Resend/etc. é só instanciar
-// outra implementação aqui, sem tocar nos services.
-//
-// Em NODE_ENV=test o provedor fica desabilitado (config vazia) mesmo com SMTP
-// no .env: a suíte de integração jamais envia e-mail real — o PUT de reserva
-// travava >5s no handshake SMTP e estourava o timeout do vitest. O envio real
-// é opt-in apenas em test/notificacao/real-email.test.ts, que monta o próprio
-// provedor. SEND_REAL_EMAIL=false desliga o envio também fora de teste (demo
-// local com contas fictícias não deve disparar SMTP real).
 export const mailProvider: IMailProvider = new NodemailerMailProvider(
   env.NODE_ENV === "test" || process.env.SEND_REAL_EMAIL === "false"
     ? {}
@@ -163,21 +150,15 @@ export const mailProvider: IMailProvider = new NodemailerMailProvider(
 
 export const notificacaoRepository: INotificacaoRepository = new PrismaNotificacaoRepository();
 export const reservaReportService = new ReservaReportService(veiculoRepository, contaRepository, locadorRepository, garagemRepository);
-// Preferências de notificação (opt-in/opt-out). O repositório também serve de
-// checker de opt-out para os notificadores.
 export const preferenciaNotificacaoRepository: IPreferenciaNotificacaoRepository = new PrismaPreferenciaNotificacaoRepository();
 export const preferenciaNotificacaoService = new PreferenciaNotificacaoService(preferenciaNotificacaoRepository);
 export const preferenciaNotificacaoController = new PreferenciaNotificacaoController(preferenciaNotificacaoService);
 export const notificacaoReservaService = new NotificacaoReservaService(reservaReportService, mailProvider, notificacaoRepository, preferenciaNotificacaoRepository);
 
-// Watchlist de disponibilidade de veículos: inscrições de interesse + registro
-// dos envios + dispatcher que notifica quando o veículo volta a DISPONIVEL.
 export const interesseRepository: IInteresseVeiculoRepository = new PrismaInteresseVeiculoRepository();
 export const notificacaoInteresseRepository: INotificacaoInteresseRepository = new PrismaNotificacaoInteresseRepository();
 export const notificacaoVeiculoDisponivelService = new NotificacaoVeiculoDisponivelService(interesseRepository, notificacaoInteresseRepository, locadorRepository, garagemRepository, mailProvider, preferenciaNotificacaoRepository);
 
-// Monitoramento da frota: histórico de status + alertas (inatividade e baixa
-// avaliação), com dispatcher de e-mail e rotina periódica opcional no boot.
 export const monitoramentoRepository: IMonitoramentoVeiculoRepository = new PrismaMonitoramentoVeiculoRepository();
 export const notificacaoAlertaVeiculoService = new NotificacaoAlertaVeiculoService(monitoramentoRepository, mailProvider, preferenciaNotificacaoRepository);
 export const monitoramentoVeiculoService = new MonitoramentoVeiculoService(monitoramentoRepository, notificacaoAlertaVeiculoService);
@@ -197,20 +178,14 @@ export const interesseService = new InteresseVeiculoService(interesseRepository,
 export const interesseController = new InteresseController(interesseService);
 
 export const condutorRepository: ICondutorRepository = new PrismaCondutorRepository();
-// Localização (RN03): referência do geofence de desbloqueio; instanciada aqui
-// para ser injetada no ReservaService (o LocalizacaoService a reusa mais abaixo).
 export const localizacaoRepository: ILocalizacaoRepository = new PrismaLocalizacaoRepository();
 export const pagamentoEstornoService = new PagamentoEstornoService();
 export const pagamentoEstornoController = new PagamentoEstornoController(pagamentoEstornoService);
 export const reservaService = new ReservaService(reservaRepository, veiculoRepository, locatarioRepository, garagemRepository, deficienciaRepository, bloqueioService, servicoOpcionalRepository, condutorRepository, localizacaoRepository, notificacaoReservaService, pagamentoEstornoService);
-// Webhook de pagamento: registro de gateways (Mercado Pago/Stripe/Asaas) +
-// service que valida assinatura e delega a confirmação ao domínio.
 export const gatewaysPagamento = construirGatewaysPagamento();
 export const pagamentoWebhookService = new PagamentoWebhookService(gatewaysPagamento, reservaService);
 export const pagamentoWebhookController = new PagamentoWebhookController(pagamentoWebhookService);
 
-// Início do pagamento (sandbox). Entrega o desfecho pelo MESMO webhook service,
-// com assinatura — não existe caminho paralelo para confirmar pagamento.
 export const pagamentoService = new PagamentoService(reservaRepository, pagamentoWebhookService);
 export const reservaController = new ReservaController(reservaService, pagamentoService);
 export const cobrancaService = new CobrancaService();
@@ -248,8 +223,6 @@ export const avaliacaoRelatorioRepository: IAvaliacaoRelatorioRepository = new P
 export const avaliacaoRelatorioService = new AvaliacaoRelatorioService(avaliacaoRelatorioRepository);
 export const avaliacaoRelatorioController = new AvaliacaoRelatorioController(avaliacaoRelatorioService);
 
-// Dashboard do locador (RF17/RF18): relatórios de reservas, financeiro,
-// utilização da frota e visão de status/localização/alertas.
 export const locadorDashboardRepository: ILocadorDashboardRepository = new PrismaLocadorDashboardRepository();
 export const locadorDashboardService = new LocadorDashboardService(locadorDashboardRepository);
 export const locadorDashboardController = new LocadorDashboardController(locadorDashboardService);
@@ -261,8 +234,6 @@ export const favoritoController = new FavoritoController(favoritoService);
 export const localizacaoService = new LocalizacaoService(localizacaoRepository, veiculoRepository, reservaRepository);
 export const localizacaoController = new LocalizacaoController(localizacaoService);
 
-// Simulador de rastreador (não integra GPS real). Iniciado opcionalmente no
-// boot do servidor; ver src/server.ts.
 export const localizacaoSimulador = new LocalizacaoSimulador(
   veiculoRepository,
   localizacaoRepository,

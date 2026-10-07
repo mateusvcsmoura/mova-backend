@@ -3,8 +3,6 @@ import { Cargo, EntidadeAuditada } from "@prisma/client";
 import { prisma } from "../database/prisma.js";
 import { buildPaginatedResult, PaginationParams, toSkipTake } from "../shared/pagination.js";
 
-// RN09 — consulta SOMENTE LEITURA da trilha de auditoria. Não existe caminho de
-// edição/exclusão na aplicação (e o banco recusa UPDATE/DELETE por gatilho).
 export class AuditoriaService {
   listar = async (
     filtros: { entidade?: EntidadeAuditada; idEntidade?: string },

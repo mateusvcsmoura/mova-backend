@@ -10,11 +10,6 @@ import {
   uniqueEmail,
 } from "../helpers";
 
-// Re-review independente dos blockers FINAL-C-01 (registro público cria ADMIN)
-// e FINAL-C-02 (self-update eleva cargo). Nada aqui confia nos relatórios das
-// tasks anteriores: cada ataque é reproduzido pela API real e o efeito é
-// verificado diretamente no banco.
-
 const basePayload = () => ({
   nome: "Attacker Re Review",
   email: uniqueEmail("rr-c01"),

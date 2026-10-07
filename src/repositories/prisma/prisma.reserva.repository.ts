@@ -30,8 +30,6 @@ import {
   toSkipTake,
 } from "../../shared/pagination.js";
 
-// Carrega os serviços contratados junto com o serviço do catálogo, em uma
-// única consulta (evita N+1 ao montar a resposta).
 const RESERVA_INCLUDE = {
   servicos: { include: { servico: true } },
   cobrancas: true,
@@ -41,14 +39,9 @@ const RESERVA_INCLUDE = {
   garagemDevolucao: {
     select: { id: true, nome: true, endereco: true, status: true },
   },
-  // O cliente precisa identificar o veículo da reserva (marca/modelo/placa)
-  // sem uma segunda chamada por item de lista.
   veiculo: { include: { modeloVeiculo: true, garagem: { select: { id: true, nome: true, status: true } }, imagens: { where: { status: "READY" }, orderBy: { ordem: "asc" } } } },
 } satisfies Prisma.ReservaInclude;
 
-// Projeção específica da listagem por veículo. A credencial de desbloqueio
-// não sai da query desse caso de uso; os fluxos do locatário continuam usando
-// RESERVA_INCLUDE para obter o código quando isso é necessário para RF15.
 const RESERVA_VEICULO_SELECT = {
   id: true,
   idVeiculo: true,
@@ -79,12 +72,6 @@ const RESERVA_VEICULO_SELECT = {
 } satisfies Prisma.ReservaSelect;
 
 export class PrismaReservaRepository implements IReservaRepository {
-  // Colisão clássica de intervalos para um veículo: inicio_existente < fim_novo
-  // e fim_existente > inicio_novo. Reservas canceladas não bloqueiam. Extraído
-  // para que a checagem otimista (hasOverlapForVeiculo) e a recheca sob lock
-  // (create) usem exatamente a mesma regra. Task 10: reserva não paga com o
-  // prazo de 15 min vencido também não bloqueia, mesmo antes de ser gravada
-  // como expirada.
   private overlapWhere(
     idVeiculo: string,
     dataHoraInicio: Date,
@@ -233,33 +220,19 @@ export class PrismaReservaRepository implements IReservaRepository {
   }
 
   async create(data: CreateReservaRequest): Promise<ReservaResponse> {
-    // Transação + advisory lock por veículo elimina a race de double-booking:
-    // a checagem otimista no service roda antes das validações, mas duas
-    // requisições concorrentes para o mesmo veículo/período poderiam ambas
-    // passar e inserir. Aqui serializamos por veículo (lock liberado no fim da
-    // transação) e recheсamos o overlap antes do insert — a última palavra.
     return prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${data.idVeiculo}, 0))`;
 
-      // A movimentação de garagem usa a mesma chave de advisory lock. Assim,
-      // o snapshot de retirada não pode ser calculado antes de uma mudança e
-      // gravado depois dela: quem perdeu a corrida revisa a reserva.
       const veiculoAtual = await tx.veiculo.findUnique({
         where: { id: data.idVeiculo },
         select: { garagemId: true, idLocador: true },
       });
       if (!veiculoAtual) throw new HttpError(404, "Veículo não encontrado.");
 
-      // Exclusão e criação disputam as mesmas chaves de conta. A ordem
-      // canônica evita deadlock entre locatário e locador; a releitura cobre
-      // uma exclusão que tenha vencido antes desta transação obter a trava.
       for (const idConta of [...new Set([data.idLocatario, veiculoAtual.idLocador])].sort()) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`conta:${idConta}`}, 0))`;
       }
 
-      // PrismaPg executa uma transação em uma conexão. Consultas paralelas
-      // nela acionam `pg` com uma query ainda em curso e tornam a suíte
-      // intermitente. Preserve a releitura, mas serialize as consultas.
       const locatarioAtual = await tx.locatario.findUnique({
         where: { id: data.idLocatario },
         select: { id: true },
@@ -292,8 +265,6 @@ export class PrismaReservaRepository implements IReservaRepository {
         );
       }
 
-      // RN01: associa a deficiência ao perfil do locatário na MESMA transação.
-      // Se o create abaixo falhar, esta escrita é revertida (sem efeito órfão).
       if (data.deficienciaIdParaAssociar) {
         await tx.locatario.update({
           where: { id: data.idLocatario },
@@ -310,11 +281,7 @@ export class PrismaReservaRepository implements IReservaRepository {
           dataHoraInicio: data.dataHoraInicio,
           dataHoraFim: data.dataHoraFim,
           valorTotal: data.valorTotal,
-          // status e statusPagamento usam sempre o default do schema
-          // (AGUARDANDO_PAGAMENTO): não são entrada do cliente.
           metodoPagamento: data.metodoPagamento ?? undefined,
-          // Cria as associações de serviços opcionais na mesma operação,
-          // gravando o valor contratado como snapshot.
           ...(data.servicos && data.servicos.length > 0
             ? {
                 servicos: {
@@ -397,9 +364,6 @@ export class PrismaReservaRepository implements IReservaRepository {
             );
           }
         }
-      // Task 10.1: a garagem de devolução nova é validada no service fora da
-      // transação; aqui ela é relida sob FOR SHARE (ordem: reserva → veículo →
-      // garagem) para não correr com a indisponibilização dessa garagem.
       if (data.idGaragemDevolucao) {
         const [garagem] = await tx.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "Garagem" WHERE "id" = ${data.idGaragemDevolucao}::uuid FOR SHARE`;
         if (!garagem || garagem.status !== "ATIVA") {
@@ -407,8 +371,6 @@ export class PrismaReservaRepository implements IReservaRepository {
         }
       }
       const atualizacao = await tx.reserva.updateMany({
-        // Campos de domínio ficam fora desta operação pública; apenas uma
-        // reserva não cancelada pode alterar os dados editáveis.
         where: { id, status: { not: StatusReserva.CANCELADA } },
         data: {
           idGaragemDevolucao: data.idGaragemDevolucao ?? undefined,
@@ -446,9 +408,6 @@ export class PrismaReservaRepository implements IReservaRepository {
     try {
       const { reserva, recusa } = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
-      // D10-05: evento que chega depois do prazo (webhook tardio) encontra a
-      // reserva expirada sob o mesmo lock e não a confirma. Quem chamou recebe
-      // a reserva CANCELADA e trata como pagamento de reserva cancelada.
       if (await expirarReservaNoTx(tx, id, new Date())) {
         return {
           reserva: ReservaMapper.toResponse(
@@ -471,10 +430,6 @@ export class PrismaReservaRepository implements IReservaRepository {
       ) {
         return { reserva: ReservaMapper.toResponse(estadoAtual), recusa: null };
       }
-      // Task 10.1 (D10.1-01/06): aprovação só vale com veículo e garagens
-      // operacionais, verificados sob os mesmos locks de quem os altera. Se
-      // não estiverem, a tentativa vira FALHA (nada confirmado) e o erro sobe
-      // depois do commit; o webhook estorna o valor no sandbox.
       let recusa: HttpError | null = null;
       if (statusPagamento === StatusPagamento.SUCESSO && estadoAtual.statusPagamento !== StatusPagamento.SUCESSO) {
         recusa = await verificarReservaOperacional(tx, estadoAtual);
@@ -492,9 +447,6 @@ export class PrismaReservaRepository implements IReservaRepository {
         if (!existente) throw new HttpError(404, "Reserva não encontrada.");
         throw new HttpError(409, "Reserva cancelada.");
       }
-      // O desfecho pertence à tentativa mais recente. Tentativas anteriores
-      // (recusadas/expiradas) mantêm o próprio status: uma aprovação nova não
-      // pode transformar um FALHA antigo em segunda cobrança confirmada.
       const tentativaAtual = await tx.cobrancaReserva.findFirst({
         where: { idReserva: id, tipo: TipoCobranca.PAGAMENTO_RESERVA },
         orderBy: { criadoEm: "desc" },
@@ -521,8 +473,6 @@ export class PrismaReservaRepository implements IReservaRepository {
   }
 
   async cancelar(id: string, multa: number, provider?: string, ator?: AtorAuditoria): Promise<ReservaResponse> {
-    // Cobrança + transição em uma transação: ou registra a multa E cancela, ou
-    // nada. Grava a cobrança mesmo com valor 0 (trilha completa — RN04).
     try {
       const reserva = await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
@@ -547,9 +497,6 @@ export class PrismaReservaRepository implements IReservaRepository {
             idReserva: id,
             tipo: TipoCobranca.CANCELAMENTO,
             valor: multa,
-            // Reserva já paga: a multa é retida do estorno (PagamentoEstornoService),
-            // então nasce quitada — senão seria cobrada duas vezes e ainda
-            // bloquearia o locatário pela RN07.
             statusPagamento: multa > 0 && estadoAtual.statusPagamento !== StatusPagamento.SUCESSO
               ? StatusPagamento.AGUARDANDO_PAGAMENTO
               : StatusPagamento.SUCESSO,
@@ -685,8 +632,6 @@ export class PrismaReservaRepository implements IReservaRepository {
     idReserva: string,
     metodoPagamento: MetodoPagamento,
   ): Promise<ReservaResponse> {
-    // Cobrança + mudança de estado na mesma transação: ou registra e marca
-    // PROCESSANDO, ou não faz nem uma coisa nem outra.
     return prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idReserva}, 0))`;
       const atual = await tx.reserva.findUnique({
@@ -694,11 +639,6 @@ export class PrismaReservaRepository implements IReservaRepository {
         select: { id: true, valorTotal: true, idVeiculo: true, idGaragemRetirada: true, idGaragemDevolucao: true },
       });
       if (!atual) throw new HttpError(404, "Reserva não encontrada.");
-      // Task 10.1 (D10.1-02): veículo/garagens indisponíveis → 409 antes de
-      // existir qualquer cobrança. Fica ANTES de escrever na reserva: a ordem
-      // de locks é reserva (advisory) → veículo → garagens → linhas de reserva;
-      // travar a linha da reserva antes do veículo causaria deadlock com a
-      // troca de status do veículo (que trava veículo → linhas de reserva).
       const recusa = await verificarReservaOperacional(tx, atual);
       if (recusa) throw recusa;
 
@@ -707,8 +647,6 @@ export class PrismaReservaRepository implements IReservaRepository {
           id: idReserva,
           status: { not: StatusReserva.CANCELADA },
           statusPagamento: { in: [StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.FALHA] },
-          // D10-02/D10-03: nova tentativa só dentro do prazo da reserva; a
-          // tentativa nunca sobrevive à reserva que ela paga.
           NOT: reservaVencidaWhere(),
         },
         data: { statusPagamento: StatusPagamento.PROCESSANDO, metodoPagamento },
@@ -762,8 +700,6 @@ export class PrismaReservaRepository implements IReservaRepository {
     try {
       const atualizacao = await prisma.reserva.updateMany({
         where: { id, codigoUsadoEm: null, status: StatusReserva.CONFIRMADA },
-        // codigoUsadoEm e status mudam na MESMA escrita: nunca existe reserva
-        // com código usado que continue CONFIRMADA (nem o inverso).
         data: { codigoUsadoEm: usadoEm, ...(status ? { status } : {}) },
       });
       if (atualizacao.count !== 1) {

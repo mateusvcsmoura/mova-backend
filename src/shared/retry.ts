@@ -10,12 +10,6 @@ export interface RetryOpts {
 const esperar = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * Executa `fn` com retry e backoff exponencial. Reexecuta enquanto `fn` lançar,
- * respeitando o teto de tentativas; entre as tentativas espera baseMs*fator^(n-1).
- * Repassa o último erro se todas falharem. Para I/O idempotente (ex.: envio de
- * e-mail), onde uma falha transitória de rede não deve derrubar a operação.
- */
 export async function retryComBackoff<T>(
   fn: (tentativa: number) => Promise<T>,
   opts: RetryOpts = {},

@@ -17,11 +17,6 @@ import {
 } from "../shared/pagination.js";
 import { InteresseMapper } from "../repositories/mappers/interesse.mapper.js";
 
-// Watchlist de disponibilidade: regra de negócio das inscrições de interesse.
-//
-// Isolamento por usuário: todos os métodos recebem o id do locatário extraído
-// do token (req.user.id) — nunca do body/params. Um locatário só enxerga e
-// modifica as próprias inscrições.
 export class InteresseVeiculoService {
   constructor(
     private readonly interesseRepository: IInteresseVeiculoRepository,
@@ -30,8 +25,6 @@ export class InteresseVeiculoService {
     private readonly notificacaoRepository?: INotificacaoInteresseRepository,
   ) {}
 
-  // Conta LOCATARIO pode existir sem o registro de Locatario (cadastro em duas
-  // etapas) — a inscrição exige o registro por causa da FK.
   private async assertLocatarioExiste(idLocatario: string): Promise<void> {
     const locatario = await this.locatarioRepository.findById(idLocatario);
     if (!locatario) {
@@ -49,9 +42,6 @@ export class InteresseVeiculoService {
     }
   }
 
-  // Registro de interesse (opt-in). O par (locatário, veículo) é único no
-  // banco: se já houve inscrição encerrada (cancelada/notificada), a mesma
-  // linha é reativada com o consentimento renovado.
   registrar = async (
     idLocatario: string,
     idVeiculo: string,

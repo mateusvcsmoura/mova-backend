@@ -240,8 +240,6 @@ describe("Reserva API", () => {
   });
 
   describe("PUT /api/reserva/:id", () => {
-    // RN04: status e valorTotal saíram do schema do PUT. Enviar só esses
-    // campos = nenhum campo válido -> 400.
     it("recusa PUT que só tenta alterar status (campo removido — RN04)", async () => {
       const response = await request(app)
         .put(`/api/reserva/${reservaId}`)
@@ -813,8 +811,6 @@ describe("Reserva — veículos adaptados (PCD)", () => {
     expect(locatario.body.result.deficienciaId).toBe(deficienciaId);
   });
 
-  // RN01: o marcador categoria=PCD também exige deficiência, mesmo com
-  // adaptado=false (fechava a brecha de under-enforcement).
   it("bloqueia veículo categoria=PCD (adaptado=false) para locatário sem deficiência", async () => {
     const pcd = await createVeiculo(locador.token, locador.locadorId, {
       adaptado: false,
@@ -1056,8 +1052,6 @@ describe("Reserva — duração (RN05)", () => {
   const UMA_HORA_MS = 60 * 60 * 1000;
   const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
-  // Período com controle de milissegundos (futurePeriod só dá granularidade de
-  // dias). startInDays evita sobreposição entre os cenários no mesmo veículo.
   const periodo = (startInDays: number, duracaoMs: number) => {
     const inicio = new Date();
     inicio.setDate(inicio.getDate() + startInDays);
@@ -1323,16 +1317,9 @@ describe("Reserva — devolução e atraso (RN06)", () => {
     });
   }
 
-  // Reserva confirmada e desbloqueada (código usado). Janela aberta no desbloqueio;
-  // depois os testes ajustam dataHoraFim/Inicio para simular prazo/atraso.
-  // O valor da reserva e calculado pelo backend (TASK 04): o teste controla a
-  // diaria do veiculo, nao o total. futurePeriod(1, 3) -> 3 diarias.
   const DIARIAS = 3;
 
   async function reservaDevolvivel(valorDiaria = 100, desbloquear = true) {
-    // valorDiaria mora no ModeloVeiculo, que e reaproveitado pelo unique
-    // [idLocador, marca, modelo, ano] sem sobrescrever o preco. Para variar a
-    // diaria e preciso variar o modelo.
     const veiculo = await createVeiculo(locador.token, locador.locadorId, {
       modelo: `Argo-${valorDiaria}`,
       valorDiaria,
@@ -1392,9 +1379,6 @@ describe("Reserva — devolução e atraso (RN06)", () => {
   it("devolução com atraso: cobrança = diária proporcional + 10%, REALIZADA", async () => {
     const id = await reservaDevolvivel(100);
 
-    // fim há 1h (atraso < 1 dia -> 1 diária); duração exata de 1 dia, logo a
-    // diária proporcional = valorTotal (300). 1 diária + 10% = 330. inicio
-    // ancorado em fim p/ evitar drift de ms.
     const fim = new Date(Date.now() - 60 * 60 * 1000);
     const inicio = new Date(fim.getTime() - 24 * 60 * 60 * 1000);
     await prisma.reserva.update({
@@ -1420,8 +1404,6 @@ describe("Reserva — devolução e atraso (RN06)", () => {
   it("borda: minutos após o fim contam como 1 diária de atraso", async () => {
     const id = await reservaDevolvivel(200);
 
-    // fim há 5 min -> ainda 1 diária de atraso; duração 1 dia, logo a diária
-    // proporcional = valorTotal (600). 1 diária + 10% = 660.
     const fim = new Date(Date.now() - 5 * 60 * 1000);
     const inicio = new Date(fim.getTime() - 24 * 60 * 60 * 1000);
     await prisma.reserva.update({
@@ -1513,8 +1495,6 @@ describe("Reserva — devolução e atraso (RN06)", () => {
   });
 });
 
-// TASK 05 — desbloqueio ponta a ponta: transição para EM_ANDAMENTO e os casos
-// de recusa que a tela precisa distinguir. Ver auditoria/DESBLOQUEIO.md.
 describe("Reserva — desbloqueio: efeito e recusas (TASK 05)", () => {
   let locador: LocadorContext;
   let locatario: LocatarioContext;

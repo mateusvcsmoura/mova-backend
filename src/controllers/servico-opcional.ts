@@ -19,8 +19,6 @@ export class ServicoOpcionalController {
 
       const pagination = getPaginationParams(req.query);
 
-      // Esta rota é o catálogo público: parâmetros não podem reexpor itens
-      // inativos ou campos de gestão.
       const filters = { ativo: true };
 
       const servicos = await this.servicoOpcionalService.list(

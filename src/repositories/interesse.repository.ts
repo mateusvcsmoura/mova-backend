@@ -10,9 +10,6 @@ import {
 
 export interface IInteresseVeiculoRepository {
   create(data: CreateInteresseRequest): Promise<InteresseResponse>;
-  // Reativa uma inscrição encerrada (CANCELADO/NOTIFICADO): status volta a
-  // ATIVO e o opt-in é renovado. O par (locatário, veículo) é @@unique — a
-  // reinscrição reutiliza a mesma linha.
   reativar(id: string): Promise<InteresseResponse>;
   // Encerramento pelo locatário (opt-out): status CANCELADO + canceladoEm.
   cancelar(id: string): Promise<void>;
@@ -28,7 +25,5 @@ export interface IInteresseVeiculoRepository {
     idLocatario: string,
     pagination: PaginationParams,
   ): Promise<PaginatedResult<InteresseResponse>>;
-  // Interessados a notificar quando o veículo volta a DISPONIVEL: apenas
-  // inscrições ATIVAS, com o destinatário (nome/e-mail) já resolvido.
   findAtivosByVeiculo(idVeiculo: string): Promise<InteressadoResponse[]>;
 }

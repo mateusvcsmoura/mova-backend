@@ -173,8 +173,6 @@ describe("RN11 — descoberta, interesse e aviso de disponibilidade", () => {
     const afterCycle = await request(app)
       .get("/api/interesse/notificacoes")
       .set("Authorization", `Bearer ${beto.token}`);
-    // A inscrição é consumida após o primeiro aviso; novo ciclo exige novo
-    // opt-in, evitando spam em transições repetidas.
     expect(afterCycle.body.result).toHaveLength(1);
   });
 

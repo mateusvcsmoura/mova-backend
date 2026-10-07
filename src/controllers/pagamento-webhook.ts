@@ -5,8 +5,6 @@ import { PagamentoWebhookService } from "../services/pagamento-webhook.js";
 export class PagamentoWebhookController {
   constructor(private webhookService: PagamentoWebhookService) {}
 
-  // O corpo chega como Buffer (express.raw na rota) para preservar os bytes
-  // exatos usados na verificação da assinatura.
   handle: Handler = async (req, res, next) => {
     try {
       const provider = String(req.params.provider);

@@ -7,8 +7,6 @@ import { HttpError } from "../errors/HttpError.js";
 export class LgpdController {
   constructor(private lgpdService: LgpdService) {}
 
-  // Titular = :id quando informado (rota ADMIN/titular), senão o próprio autor
-  // autenticado (rotas /meus-dados, /anonimizar, /acessos).
   private resolverTitular(req: Parameters<Handler>[0]): string {
     if (req.params.id !== undefined) {
       const parsed = z.string().uuid().safeParse(req.params.id);

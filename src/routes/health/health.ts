@@ -8,8 +8,6 @@ export async function pingDatabase(): Promise<void> {
   await prisma.$queryRaw`SELECT 1`;
 }
 
-// Router de health/readiness. Recebe o ping por injeção para ser testável sem
-// derrubar o banco real (o teste passa um ping que lança).
 export function createHealthRouter(
   ping: () => Promise<void> = pingDatabase,
 ): Router {
@@ -24,9 +22,6 @@ export function createHealthRouter(
     });
   });
 
-  // Readiness: apto a servir tráfego — valida a conexão com o banco.
-  // 200 quando o banco responde; 503 quando indisponível. O detalhe do erro
-  // vai apenas para o log interno (não é exposto ao cliente).
   router.get("/ready", async (req, res) => {
     try {
       await ping();

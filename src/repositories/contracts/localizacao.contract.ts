@@ -1,5 +1,3 @@
-// Registro de um novo ponto de localização de um veículo.
-// dataHora é opcional: quando omitido, o banco usa @default(now()).
 export interface CreateLocalizacaoRequest {
   idVeiculo: string;
   latitude: number;

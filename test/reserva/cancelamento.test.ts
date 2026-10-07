@@ -43,11 +43,6 @@ describe("Reserva — cancelamento (RN04)", () => {
     locatario = await createLocatario();
   });
 
-  // Cada reserva usa um veículo próprio para não colidir períodos.
-  // O valor da reserva e calculado pelo backend (TASK 04) a partir da diaria do
-  // modelo; por isso o teste controla valorDiaria, nao valorTotal. A diaria mora
-  // no ModeloVeiculo, reaproveitado pelo unique [idLocador, marca, modelo, ano],
-  // entao o modelo tambem varia.
   async function novaReserva(
     overrides: Record<string, unknown> = {},
     valorDiaria = 100,

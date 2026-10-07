@@ -257,15 +257,8 @@ describe("Bloqueio de locatário — impacto na reserva", () => {
     );
     expect(response.status).toBe(201);
   });
-
-  // NOTA (RN04): a confirmação via PUT {status:"CONFIRMADA"} foi removida — o
-  // PUT não altera mais status. O bloqueio na confirmação passou a ser coberto
-  // pela trilha do webhook de pagamento (RN07), testado no describe abaixo.
 });
 
-// RN07: o webhook de pagamento é a única trilha que gera o código de
-// desbloqueio no SUCESSO. Bloqueio ativo detectado depois da criação não pode
-// ser contornado por essa trilha.
 describe("Bloqueio de locatário — RN07 no webhook de pagamento", () => {
   let admin: Account;
   let locador: LocadorContext;
@@ -293,8 +286,6 @@ describe("Bloqueio de locatário — RN07 no webhook de pagamento", () => {
     });
 
     const res = await confirmarPagamentoWebhook(reserva.id, { metodo: "PIX" });
-    // Webhook assinado recebe 200 para evitar reentregas; o bloqueio impede
-    // confirmação e é tratado pela trilha idempotente de estorno sandbox.
     expect(res.status).toBe(200);
 
     const persistida = await prisma.reserva.findUnique({

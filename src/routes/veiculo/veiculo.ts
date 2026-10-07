@@ -7,20 +7,13 @@ import { authorize } from "../../middlewares/authorization-middleware.js";
 
 const veiculoRouter = Router();
 
-// Escrita: exige autenticação e cargo LOCADOR/ADMIN. A posse do recurso
-// (locador só mexe nos próprios veículos/modelos) é validada no service.
 const gerencia = [authMiddleware, authorize(Cargo.LOCADOR, Cargo.ADMIN)];
 const autenticacaoOpcional: Handler = (req, res, next) => {
   if (!req.headers.authorization) return next();
   return authMiddleware(req, res, next);
 };
 
-// ── Consulta pública (catálogo) ────────────────────────────────────────────
-// Não expõem veículos INATIVO; listagem por locador retorna só DISPONIVEL
-// (regra aplicada no VeiculoService).
 veiculoRouter.get("/locador/:id_locador", veiculoController.findByLocadorId);
-// Gestão de frota: proprietário é derivado do JWT. Nunca aceitar idLocador
-// arbitrário do cliente neste contexto.
 veiculoRouter.get("/meus", ...gerencia, veiculoController.frota);
 veiculoRouter.get("/:id/imagens", autenticacaoOpcional, veiculoImagemController.listar);
 veiculoRouter.get("/:id", autenticacaoOpcional, veiculoController.findById);

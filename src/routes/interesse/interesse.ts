@@ -6,8 +6,6 @@ import { authorize } from "../../middlewares/authorization-middleware.js";
 
 const interesseRouter = Router();
 
-// Inscrições de interesse pertencem exclusivamente ao locatário autenticado
-// (req.user.id) — nenhuma rota aceita id de locatário como parâmetro.
 interesseRouter.get(
   "/veiculos",
   authMiddleware,

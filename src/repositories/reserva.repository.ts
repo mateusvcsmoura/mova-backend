@@ -14,10 +14,6 @@ import {
 
 export interface IReservaRepository {
   hasCobrancaFinanceiraPendente(idLocatario: string): Promise<boolean>;
-  /**
-   * Registra a cobrança da reserva e marca o pagamento como PROCESSANDO.
-   * O valor vem da própria reserva — nunca do cliente.
-   */
   registrarPagamentoIniciado(
     idReserva: string,
     metodoPagamento: MetodoPagamento,
@@ -55,18 +51,12 @@ export interface IReservaRepository {
     // Status a aplicar junto com o código (pagamento aprovado → CONFIRMADA).
     status?: StatusReserva,
   ): Promise<ReservaResponse>;
-  // Marca o código como usado (desbloqueio efetivado) e aplica o status da
-  // transição (desbloqueio → EM_ANDAMENTO), na mesma escrita.
   marcarCodigoComoUsado(
     id: string,
     usadoEm: Date,
     status?: StatusReserva,
   ): Promise<ReservaResponse>;
-  // RN04: cancela a reserva de forma atômica — registra a cobrança de multa
-  // (valor 0 quando dentro do prazo) e transiciona status para CANCELADA.
   cancelar(id: string, multa: number, provider?: string, ator?: AtorAuditoria): Promise<ReservaResponse>;
-  // RN06: registra a devolução — grava devolvidoEm, transiciona para REALIZADA
-  // e, quando valorCobranca > 0, lança a cobrança de atraso (transacional).
   devolver(
     id: string,
     devolvidoEm: Date,

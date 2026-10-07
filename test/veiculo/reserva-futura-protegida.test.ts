@@ -14,10 +14,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 10 — B-03/BUG-14 (D10-06): veículo com compromisso válido (reserva
-// paga futura ou em andamento) não pode ir para MANUTENCAO/INATIVO. Nada é
-// cancelado nem remanejado: o locador resolve a reserva primeiro.
-
 const CODIGO = "VEICULO_COM_RESERVA_FUTURA_CONFIRMADA";
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const DIA = 24 * 60 * 60 * 1000;

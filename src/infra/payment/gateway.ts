@@ -5,8 +5,6 @@ import { MetodoPagamento, StatusPagamento } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { HttpError } from "../../errors/HttpError.js";
 
-// Evento de pagamento já traduzido para o domínio — o resto da aplicação nunca
-// vê o formato bruto do gateway. É aqui que o "fluxo interno" começa.
 export interface PagamentoEvento {
   idReserva: string;
   providerEventId: string;
@@ -14,19 +12,13 @@ export interface PagamentoEvento {
   metodo?: MetodoPagamento;
 }
 
-// Abstração de gateway de pagamento. Novos provedores (Mercado Pago, Stripe,
-// Asaas, ...) implementam esta interface — o webhook service só depende dela.
 export interface PaymentGateway {
   readonly nome: string;
-  // Valida a assinatura sobre o CORPO CRU (bytes exatos recebidos). Não lança:
-  // retorna false quando inválida ou quando o segredo não está configurado.
   verificarAssinatura(rawBody: Buffer, headers: IncomingHttpHeaders): boolean;
   // Traduz o payload bruto do gateway para o evento de domínio.
   parseEvento(rawBody: Buffer): PagamentoEvento;
 }
 
-// HMAC-SHA256 do corpo cru em hex. Exportado para os testes assinarem payloads
-// com o mesmo esquema que a verificação usa.
 export function assinarPayload(secret: string, rawBody: Buffer): string {
   return crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 }
@@ -51,17 +43,6 @@ const EVENTO_STATUS: Record<string, StatusPagamento> = {
   "pagamento.processando": StatusPagamento.PROCESSANDO,
 };
 
-/**
- * Gateway baseado em HMAC. Provedores reais diferem só no header de assinatura
- * e no segredo — o esquema HMAC-SHA256 sobre o corpo cru é o denominador comum.
- *
- * `não integrar gateway real`: parseEvento espera um payload canônico
- * `{ idReserva, providerEventId, evento, metodo? }`. `providerEventId` é a
- * identidade estável da entrega para idempotência, distinta dos bytes assinados.
- * Para um provedor real, é AQUI que se mapeia
- * o formato específico dele (ex.: Stripe `type`/`data.object`) — o resto da
- * aplicação não muda.
- */
 class PaymentGatewayHmac implements PaymentGateway {
   constructor(
     readonly nome: string,
@@ -106,17 +87,12 @@ class PaymentGatewayHmac implements PaymentGateway {
   }
 }
 
-// Header de assinatura por provedor. Exportado para o simulador de sandbox
-// conseguir montar um webhook assinado usando exatamente o mesmo esquema que a
-// verificacao usa — nada de caminho paralelo.
 export const HEADER_ASSINATURA: Record<string, string> = {
   mercadopago: "x-mp-signature",
   stripe: "stripe-signature",
   asaas: "asaas-signature",
 };
 
-// Registro dos gateways suportados. Header de assinatura segue a convenção de
-// cada provedor; o segredo vem do env (gateway sem segredo rejeita tudo).
 export function construirGatewaysPagamento(): Map<string, PaymentGateway> {
   const gateways: PaymentGateway[] = [
     new PaymentGatewayHmac(

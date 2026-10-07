@@ -11,10 +11,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Semeia uma Reserva REALIZADA + Avaliacao diretamente via Prisma. O módulo de
-// relatório é de leitura e percorre Avaliacao -> Reserva -> Veiculo -> Locador;
-// semear direto dá controle total sobre nota/data/veículo sem esbarrar nas
-// regras de período/overlap da criação de reservas.
 async function seedAvaliacao(
   idVeiculo: string,
   idLocatario: string,
@@ -60,8 +56,6 @@ describe("Relatório de Avaliações (dashboard do locador)", () => {
   // Veículo do locador B (nunca deve aparecer nos relatórios de A).
   let vB1: any;
 
-  // Datas fixas para tornar os buckets de evolução e os filtros de período
-  // determinísticos (meia-noite p/ evitar viés de fuso na borda dos meses).
   const DATA_ABR = new Date("2026-04-10T12:00:00.000Z");
   const DATA_MAI = new Date("2026-05-10T12:00:00.000Z");
   const DATA_JUN = new Date("2026-06-10T12:00:00.000Z");
@@ -104,9 +98,6 @@ describe("Relatório de Avaliações (dashboard do locador)", () => {
       data: DATA_JUN,
       comentario: "Ruim",
     });
-    // Setup pesado (2 registros de locador + locatário + 3 veículos + 4 seeds,
-    // com bcrypt): folga além do hookTimeout padrão (10s) para não flakar em
-    // execução fria/máquina lenta.
   }, 30000);
 
   describe("Resumo geral", () => {

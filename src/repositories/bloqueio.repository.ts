@@ -11,9 +11,6 @@ import {
 export interface IBloqueioRepository {
   create(data: CreateBloqueioRequest): Promise<BloqueioResponse>;
   findById(id: string): Promise<BloqueioResponse | null>;
-  // Primeiro bloqueio impeditivo (ativo) do locatário, ou null. Consulta
-  // otimizada (findFirst) usada na criação/confirmação de reservas — não
-  // carrega o histórico completo.
   findBloqueioAtivo(
     idLocatario: string,
     agora: Date,

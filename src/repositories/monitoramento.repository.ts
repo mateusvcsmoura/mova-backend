@@ -8,8 +8,6 @@ import {
   VeiculoInativoRow,
 } from "./contracts/monitoramento.contract.js";
 
-// Contrato mínimo usado pelo VeiculoService para registrar transições de
-// status sem depender do repositório de monitoramento completo.
 export interface IVeiculoStatusRecorder {
   registrarStatus(idVeiculo: string, status: StatusVeiculo): Promise<void>;
 }
@@ -25,8 +23,6 @@ export interface IMonitoramentoVeiculoRepository extends IVeiculoStatusRecorder 
   registrarAlerta(data: RegistrarAlertaRequest): Promise<AlertaVeiculoResponse>;
   marcarEnviado(id: string, enviadoEm: Date): Promise<AlertaVeiculoResponse>;
   marcarFalha(id: string, mensagemErro: string): Promise<AlertaVeiculoResponse>;
-  // Encerra o alerta (condição deixou de valer) — permite novo alerta em
-  // reincidência futura.
   resolver(id: string, resolvidoEm: Date): Promise<AlertaVeiculoResponse>;
 
   // Alerta ativo (resolvidoEm IS NULL) por veículo/tipo — deduplicação.

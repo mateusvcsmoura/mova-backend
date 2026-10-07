@@ -13,9 +13,6 @@ import {
   futurePeriod,
 } from "../helpers";
 
-// FINAL-H-01 — integridade financeira do período da reserva.
-// Ataques independentes: nenhuma asserção deriva dos relatórios das tasks.
-
 const CARTAO_OK = {
   numero: "4111111111111111",
   nome: "Teste Aprovado",

@@ -14,10 +14,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 10.1 — Bug A (D10.1-01..06): reserva não paga não protege o veículo,
-// mas um veículo (ou garagem) indisponível não pode ter o pagamento
-// confirmado. Invariável: nunca "pago/confirmado" + veículo indisponível.
-
 const CODIGO = "VEICULO_INDISPONIVEL_PARA_CONFIRMAR_RESERVA";
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
@@ -164,8 +160,6 @@ describe("Task 10.1 — Bug A: pagamento com veículo indisponível", () => {
       } else {
         resultados.manutencaoVenceu++;
         expect(manutencao.status).toBe(200);
-        // Manutenção antes do início → 409; entre o início e o webhook →
-        // tentativa não aprovada (o valor do sandbox é estornado).
         expect([409, 202]).toContain(pagamento.status);
         expect(r.codigoDesbloqueio).toBeNull();
         expect(r.status).toBe("AGUARDANDO_PAGAMENTO");

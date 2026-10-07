@@ -33,8 +33,6 @@ import { HttpError } from "./errors/HttpError.js";
 
 const app = express();
 
-// Origens permitidas: da env (CORS_ORIGINS, separadas por vírgula) ou, na
-// ausência, um whitelist de desenvolvimento. NUNCA "*".
 const DEV_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:5173",
@@ -51,23 +49,15 @@ const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     // Sem header Origin (apps móveis, curl, server-to-server): permitido.
     if (!origin) return callback(null, true);
-    // Origem na whitelist: libera; caso contrário, não envia os headers CORS
-    // (o navegador bloqueia). Não lança erro para não virar 500.
     return callback(null, allowedOrigins.includes(origin));
   },
   credentials: true,
 };
 
-// Observabilidade primeiro: garante request id + timing para toda requisição,
-// inclusive as bloqueadas por middlewares seguintes.
 app.use(observability);
 
-// i18n: resolve o idioma (Accept-Language) cedo, para error-handler e demais
-// fluxos disporem de req.locale.
 app.use(localeMiddleware);
 
-// Helmet: headers de segurança. crossOriginResourcePolicy relaxado para
-// "cross-origin" — a API é consumida por clientes de outra origem (mobile/web).
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -75,20 +65,14 @@ app.use(
 );
 app.use(cors(corsOptions));
 
-// Webhooks de pagamento ANTES do express.json: precisam do corpo cru (bytes
-// exatos) para validar a assinatura HMAC. O próprio router aplica express.raw.
 app.use("/api/webhooks", webhookLimiter, webhookRouter);
 
 app.use(express.json({ limit: env.BODY_LIMIT }));
 
-// Health/readiness antes do apiMetadata: respostas enxutas (status/uptime/...)
-// sem o envelope de metadados, no formato esperado por orquestradores.
 app.use("/api/", healthRouter);
 
 app.use(apiMetadata("v1.0.0"));
 
-// Rate limiting das rotas de escrita (POST/PUT/PATCH/DELETE). Autenticação tem
-// limitador próprio, mais estrito, aplicado na rota de conta.
 app.use(writeMethodsLimiter);
 
 app.use("/api/basic", basicRouter);

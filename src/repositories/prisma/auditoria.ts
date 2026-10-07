@@ -1,13 +1,5 @@
 import { AcaoAuditoria, Cargo, EntidadeAuditada, Prisma } from "@prisma/client";
 
-// RN09 — trilha de auditoria de negócio (não é log técnico).
-//
-// O ator vem SEMPRE do usuário autenticado (req.user → requester), nunca do
-// body. O registro é gravado com o mesmo `tx` da alteração: ou os dois são
-// persistidos, ou nenhum. Snapshots guardam só campos operacionais (status,
-// garagem, placa, atributos do modelo, período/valores da reserva) e, deles,
-// apenas o que mudou — nada de PII, senha, token ou dados de cartão.
-
 export interface AtorAuditoria {
   id: string;
   cargo: Cargo;

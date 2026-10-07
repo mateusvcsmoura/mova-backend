@@ -30,11 +30,6 @@ export class PrismaMonitoramentoVeiculoRepository
   }
 
   async findVeiculosInativosDesde(limite: Date): Promise<VeiculoInativoRow[]> {
-    // A última transição de status de um veículo indica desde quando ele está
-    // no status atual. LEFT JOIN LATERAL pega apenas essa linha (usa o índice
-    // (idVeiculo, criadoEm)); COALESCE cai para a criação do veículo quando
-    // ainda não há histórico. Modelo, locador e conta (destinatário do e-mail)
-    // são resolvidos na mesma consulta — sem N+1.
     return prisma.$queryRaw<VeiculoInativoRow[]>(Prisma.sql`
       SELECT v."id"                                AS "idVeiculo",
              v."idLocador"                         AS "idLocador",
@@ -65,10 +60,6 @@ export class PrismaMonitoramentoVeiculoRepository
   async findVeiculosComBaixaAvaliacao(
     criterio: CriterioBaixaAvaliacao,
   ): Promise<VeiculoBaixaAvaliacaoRow[]> {
-    // Agregação inteira no banco (COUNT/AVG/FILTER + HAVING): nenhuma
-    // avaliação é carregada em memória. COUNT::int e AVG::float fazem o driver
-    // devolver number puro (sem BigInt/Decimal) — mesmo padrão do relatório de
-    // avaliações.
     return prisma.$queryRaw<VeiculoBaixaAvaliacaoRow[]>(Prisma.sql`
       SELECT r."idVeiculo"          AS "idVeiculo",
              v."idLocador"          AS "idLocador",

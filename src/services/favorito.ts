@@ -14,9 +14,6 @@ export interface VerificarFavoritoResponse {
   favorito: FavoritoResponse | null;
 }
 
-// Isolamento por usuário: todos os métodos recebem o id do locatário extraído
-// do token (req.user.id) — nunca do body/params. Um locatário só enxerga e
-// modifica os próprios favoritos.
 export class FavoritoService {
   constructor(
     private readonly favoritoRepository: IFavoritoRepository,
@@ -24,8 +21,6 @@ export class FavoritoService {
     private readonly locatarioRepository: ILocatarioRepository,
   ) {}
 
-  // Conta LOCATARIO pode existir sem o registro de Locatario (cadastro em duas
-  // etapas) — o favorito exige o registro por causa da FK.
   private async assertLocatarioExiste(idLocatario: string): Promise<void> {
     const locatario = await this.locatarioRepository.findById(idLocatario);
     if (!locatario) {
@@ -33,9 +28,6 @@ export class FavoritoService {
     }
   }
 
-  // Task 11: mesmo critério do catálogo público (DISPONIVEL em garagem ATIVA).
-  // Favoritar um veículo fora do catálogo devolvia placa, status e dados do
-  // locador de um veículo que o público não deveria enxergar.
   private async assertVeiculoExiste(idVeiculo: string): Promise<void> {
     const veiculo = await this.veiculoRepository.findById(idVeiculo);
     if (

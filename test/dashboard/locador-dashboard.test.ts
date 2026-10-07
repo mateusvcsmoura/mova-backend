@@ -13,8 +13,6 @@ import {
 
 const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
 
-// Seed direto de reserva (bypassa regras de negócio de criação — foco é o
-// relatório). Duração de 24h por padrão.
 async function seedReserva(
   idVeiculo: string,
   idLocatario: string,

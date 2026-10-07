@@ -8,8 +8,6 @@ import {
   uniqueEmail,
 } from "../helpers";
 
-// O token emitido no cadastro deve ter o MESMO payload do login (id + cargo),
-// para que o authMiddleware — que exige cargo — o aceite.
 describe("Token do register", () => {
   async function registrar(cargo: string) {
     return request(app)

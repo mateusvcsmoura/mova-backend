@@ -61,9 +61,6 @@ export class AvaliacaoRelatorioService {
     };
   }
 
-  // Gera o dashboard completo do locador autenticado. O idLocador vem sempre do
-  // token (parâmetro), nunca do cliente — isolamento garantido em todas as
-  // consultas. Sem avaliações, retorna zeros/listas vazias (não é erro).
   gerarDashboard = async (
     idLocador: string,
     options: DashboardOptions,
@@ -86,8 +83,6 @@ export class AvaliacaoRelatorioService {
       notaMax: options.notaMax,
     };
 
-    // Consultas independentes rodam em paralelo (mesma pool). Cada uma agrega no
-    // banco; nenhuma carrega o conjunto bruto de avaliações em memória.
     const [resumo, distribuicao, agregadoVeiculo, evolucao, comentariosRecentes] =
       await Promise.all([
         this.relatorioRepository.resumoGeral(filters),

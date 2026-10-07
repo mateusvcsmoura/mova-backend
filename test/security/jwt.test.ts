@@ -6,8 +6,6 @@ import { app } from "../../src/app";
 import { env } from "../../src/config/env";
 import { createAccount } from "../helpers";
 
-// Garante que o authMiddleware verifica o token contra env.JWT_SECRET (segredo
-// validado no boot) — e não contra um process.env não validado.
 describe("Autenticação JWT", () => {
   it("aceita token assinado com env.JWT_SECRET (id + cargo)", async () => {
     const { conta } = await createAccount("LOCATARIO");

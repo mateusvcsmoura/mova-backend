@@ -2,17 +2,6 @@ import { MetodoPagamento, StatusPagamento } from "@prisma/client";
 
 import { HttpError } from "../../errors/HttpError.js";
 
-/**
- * Sandbox de pagamento.
- *
- * Nenhum dinheiro é movimentado. O desfecho é decidido pelo BACKEND a partir
- * dos dados de teste enviados — como fazem os sandboxes reais (Stripe, Mercado
- * Pago), em que números de cartão específicos forçam aprovação ou recusa.
- *
- * Isso é deliberado: o cliente informa os dados, nunca o resultado. Não existe
- * nenhum campo em que o frontend diga "aprovado".
- */
-
 /** Sufixos de cartão que forçam um desfecho, no estilo dos sandboxes reais. */
 export const CARTAO_SANDBOX = {
   /** Termina em 0000 → recusado pelo emissor. */
@@ -42,17 +31,6 @@ export function exigeCartao(metodo: MetodoPagamento): boolean {
   return METODOS_COM_CARTAO.includes(metodo);
 }
 
-/**
- * Decide o desfecho do pagamento de teste.
- *
- * - Cartão terminado em 0000 → FALHA
- * - Cartão terminado em 0001 → PROCESSANDO (fica pendente, sem confirmar)
- * - Qualquer outro cartão     → SUCESSO
- * - PIX / carteira digital    → SUCESSO (caminho feliz do sandbox)
- *
- * Lança 400 quando o método exige cartão e ele não veio — validação de forma,
- * não de resultado.
- */
 export function decidirDesfechoSandbox(
   dados: DadosPagamentoSandbox,
 ): StatusPagamento {

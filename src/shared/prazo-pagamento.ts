@@ -1,9 +1,3 @@
-// Task 10 (D10-02/D10-03): prazo ÚNICO de pagamento. Uma reserva
-// AGUARDANDO_PAGAMENTO retém o veículo, e uma tentativa PROCESSANDO vale, por
-// no máximo 15 minutos. É uma regra de negócio, não configuração de ambiente.
-//
-// Instantes absolutos (Date/epoch), sem fuso: o TTL não depende de
-// America/Sao_Paulo. `agora` é injetável para os testes não esperarem 15 min.
 export const PRAZO_PAGAMENTO_MINUTOS = 15;
 export const PRAZO_PAGAMENTO_MS = PRAZO_PAGAMENTO_MINUTOS * 60 * 1000;
 

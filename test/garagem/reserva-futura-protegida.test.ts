@@ -15,10 +15,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 10.1 — Bug B (D10.1-07/08): garagem ainda necessária a uma reserva
-// confirmada (retirada ainda não feita, ou devolução ainda pendente) não vai
-// para MANUTENCAO/INATIVA. Nada é cancelado nem remanejado.
-
 const CODIGO = "GARAGEM_COM_RESERVA_FUTURA_CONFIRMADA";
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const DIA = 24 * 60 * 60 * 1000;

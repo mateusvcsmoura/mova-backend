@@ -28,10 +28,6 @@ class SandboxRefundGatewayDeterministico implements SandboxRefundGateway {
   }
 }
 
-/**
- * Auditoria append-only do sandbox. O estorno é apenas uma simulação de fluxo:
- * nenhuma chamada de transferência, credencial financeira ou saldo é usada.
- */
 export class SandboxPaymentAudit {
   constructor(
     private readonly refundGateway: SandboxRefundGateway = new SandboxRefundGatewayDeterministico(),
@@ -61,9 +57,6 @@ export class SandboxPaymentAudit {
     const providerNormalizado = provider.toLowerCase();
     const identidade = `cancelamento:${idReserva}`;
     await prisma.$transaction(async (tx) => {
-      // O gateway aqui é o simulador determinístico do sandbox, sem chamada
-      // externa. Manter o lock até a conclusão evita duas entregas paralelas
-      // executarem a mesma chave idempotente.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${identidade}, 0))`;
       const concluido = await tx.eventoFinanceiroSandbox.findUnique({
         where: { chaveIdempotencia: `${identidade}:refund-completed` },
@@ -103,9 +96,6 @@ export class SandboxPaymentAudit {
       where: { id: idReserva },
       select: { statusPagamento: true },
     });
-    // Recebimento normal já confirmado não deve virar estorno só porque o
-    // mesmo webhook foi reenviado. Pagamento bloqueado/cancelado ainda não é
-    // SUCESSO e precisa continuar na reconciliação sandbox.
     return reserva?.statusPagamento !== "SUCESSO";
   }
 
@@ -123,8 +113,6 @@ export class SandboxPaymentAudit {
     providerEventId: string,
   ): Promise<void> {
     const providerNormalizado = provider.toLowerCase();
-    // A identidade vem do provedor (não dos bytes): reserializações assinadas
-    // do mesmo evento continuam sendo a mesma entrega lógica.
     const identidade = `${providerNormalizado}:${providerEventId}`;
     const chaveEstorno = `${identidade}:refund`;
 

@@ -1,8 +1,5 @@
 import { StatusReserva } from "@prisma/client";
 
-// DTOs do dashboard do locador (RF17/RF18). Todos os dados são escopados aos
-// veículos do locador autenticado (idLocador vem do token).
-
 // ── Relatório de reservas (RF17) ────────────────────────────────────────────
 export interface RelatorioReservaItem {
   id: string;
@@ -62,8 +59,6 @@ export interface FaturamentoPorPeriodo {
 }
 
 export interface RelatorioFinanceiro {
-  // Considera pagamentos confirmados de reservas não canceladas; cobranças
-  // avulsas não são somadas novamente para evitar double count.
   faturamentoBruto: number;
   porPeriodo: FaturamentoPorPeriodo[];
   porVeiculo: FaturamentoPorVeiculo[];

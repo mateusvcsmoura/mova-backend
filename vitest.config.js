@@ -16,11 +16,7 @@ export default defineConfig({
     exclude: ["dist/**", "node_modules", ".worktrees/**"],
     fileParallelism: false,
     maxWorkers: 1,
-    // Worker forks encerram inesperadamente no Windows após testes de
-    // concorrência PostgreSQL; threads preserva execução serial estável.
     pool: "threads",
-    // 30s (era 20s): há cenários de concorrência contra o Postgres local que
-    // ultrapassam 20s em Windows. Não muda regra de negócio.
     testTimeout: 30_000,
     coverage: {
       provider: "v8",

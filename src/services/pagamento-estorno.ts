@@ -49,8 +49,6 @@ export class PagamentoEstornoService {
     idReserva: string,
     requester: PagamentoRequester,
   ): Promise<PagamentoReservaResponse> {
-    // Task 11: mesma expiração preguiçosa das demais leituras (D10-03), para
-    // não mostrar "aguardando pagamento" numa reserva já vencida.
     await expirarReservasVencidas({ id: idReserva });
     const reserva = await prisma.reserva.findUnique({
       where: { id: idReserva },

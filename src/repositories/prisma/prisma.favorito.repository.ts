@@ -14,8 +14,6 @@ import {
   toSkipTake,
 } from "../../shared/pagination.js";
 
-// Carrega o veículo com modelo, locador e garagem atual em uma única consulta
-// (evita N+1 ao montar a resposta da listagem).
 const FAVORITO_INCLUDE = {
   veiculo: {
     include: {
@@ -74,8 +72,6 @@ export class PrismaFavoritoRepository implements IFavoritoRepository {
     pagination: PaginationParams,
   ): Promise<PaginatedResult<FavoritoResponse>> {
     const { skip, take } = toSkipTake(pagination);
-    // RN08: veículo soft-deleted (INATIVO) sai da lista de favoritos — a linha
-    // de favorito é preservada, mas não expõe um veículo removido do catálogo.
     const where: Prisma.FavoritoWhereInput = {
       idLocatario,
       veiculo: { status: { not: StatusVeiculo.INATIVO } },

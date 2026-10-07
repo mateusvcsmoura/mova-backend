@@ -18,10 +18,6 @@ async function alocarVeiculo(token: string, garagemId: string, veiculoId: string
     .set("Authorization", `Bearer ${token}`);
 }
 
-// TASK 02 — garagens reais na jornada de reserva.
-// Cobre o que o frontend precisa para escolher retirada/devolução:
-// listagem filtrada pelo locador dono do veículo e as pré-condições de criação.
-// Ver auditoria/GARAGENS.md.
 describe("Garagens na jornada de reserva", () => {
   let locador: LocadorContext;
   let outroLocador: LocadorContext;

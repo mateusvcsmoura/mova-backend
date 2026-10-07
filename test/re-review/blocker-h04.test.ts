@@ -12,9 +12,6 @@ import {
   uniquePlaca,
 } from "../helpers";
 
-// FINAL-H-04 — cadeia garagem → veículo → catálogo → reserva.
-// Todos os ataques passam pela API real; o estado é conferido no banco.
-
 const garagemDb = (id: string) =>
   prisma.garagem.findUniqueOrThrow({
     where: { id },

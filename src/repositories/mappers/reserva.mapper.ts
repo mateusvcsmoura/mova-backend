@@ -14,8 +14,6 @@ import {
 } from "../contracts/reserva.contract.js";
 import { VeiculoMapper } from "./veiculo.mapper.js";
 
-// Reserva carregada com a junção de serviços (servicos -> servico do catálogo)
-// e com o veículo + modelo, conforme RESERVA_INCLUDE.
 export type ReservaComServicos = Reserva & {
   servicos?: (ReservaServico & { servico: ServicoOpcional })[];
   cobrancas?: CobrancaReserva[];
@@ -85,9 +83,6 @@ export class ReservaMapper {
     return this.toResponseSemCodigo(reserva);
   }
 
-  // Projeção para respostas HTTP de gestão do locador. O objeto já foi
-  // carregado por outro caso de uso, mas o contrato de saída continua sem a
-  // credencial de desbloqueio.
   static toLocadorResponse(
     reserva: ReservaResponse,
   ): ReservaVeiculoResponse {

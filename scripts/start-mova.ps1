@@ -1,12 +1,4 @@
-﻿# Sobe o ambiente LOCAL de demonstração do MOVA (TCC):
-#   PostgreSQL (Docker) -> MinIO AIStor (Docker) -> backend (mova_dev) -> frontend (Vite)
-#
-#   powershell -ExecutionPolicy Bypass -File scripts\start-mova.ps1 [-ComSimulador] [-SemFrontend]
-#
-# O que este script NÃO faz: não recria containers, não remove volumes, não
-# reseta o banco e não roda seed. Dados de demonstração: npm run db:seed:demo -- --confirmar
-# Backend e frontend abrem em janelas próprias, com os logs visíveis.
-param(
+﻿param(
   [switch]$ComSimulador,   # liga o GPS simulado (o veículo "anda"; o geofence do desbloqueio deixa de ser previsível)
   [switch]$SemFrontend,
   [string]$FrontendDir = (Join-Path $PSScriptRoot "..\..\mova-frontend")
@@ -64,8 +56,6 @@ if (-not $env:MEDIA_S3_ACCESS_KEY_ID) { Write-Warning "Credenciais do MinIO não
 $env:NODE_ENV = "development"
 $env:SEND_REAL_EMAIL = "false"
 $env:LOCALIZACAO_SIMULADOR = if ($ComSimulador) { "true" } else { "false" }
-# Demo alterna várias contas na mesma máquina: o limite de login (10 por 15 min
-# por IP) travaria a apresentação. O rate limit continua ativo, só mais folgado.
 if (-not $env:RATE_LIMIT_AUTH_MAX) { $env:RATE_LIMIT_AUTH_MAX = "200" }
 
 $porta = 3000

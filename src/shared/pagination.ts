@@ -4,8 +4,6 @@ export const DEFAULT_PAGE = 1;
 export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 100;
 
-// Valida/coage os parâmetros page e limit vindos da query string.
-// Campos extras (filtros) são ignorados, então pode ser aplicado direto em req.query.
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(DEFAULT_PAGE),
   limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
@@ -59,8 +57,6 @@ export function buildPaginatedResult<T>(
   };
 }
 
-// Extrai apenas os metadados (sem os dados) — usado na resposta do controller:
-// res.json({ result: data, pagination: meta }).
 export function toPaginationMeta(result: {
   total: number;
   page: number;

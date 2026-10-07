@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { MetodoPagamento } from "@prisma/client";
 
-// Dados de teste do cartão. Nada aqui é persistido: servem apenas para o
-// sandbox decidir o desfecho (ver src/infra/payment/sandbox.ts).
 const cartaoSandboxSchema = z.object({
   numero: z
     .string()
@@ -17,12 +15,6 @@ const cartaoSandboxSchema = z.object({
   cvv: z.string().trim().regex(/^\d{3,4}$/, "CVV inválido"),
 });
 
-/**
- * Corpo de POST /api/reserva/:id/pagamento.
- *
- * Note o que NÃO existe aqui: nenhum campo de status, nenhum de valor. O
- * desfecho é decidido pelo backend e o valor vem da reserva.
- */
 export const iniciarPagamentoSchema = z.object({
   metodoPagamento: z.nativeEnum(MetodoPagamento),
   cartao: cartaoSandboxSchema.optional(),

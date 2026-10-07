@@ -20,9 +20,6 @@ app.listen(PORT, () => {
     localizacaoSimulador.start();
   }
 
-  // Monitoramento da frota (alertas de inatividade/baixa avaliação): opt-in
-  // via env, nunca em ambiente de teste. Intervalo configurável por
-  // MONITORAMENTO_INTERVALO_MS (padrão 1h).
   if (
     process.env.MONITORAMENTO_VEICULOS === "true" &&
     process.env.NODE_ENV !== "test"

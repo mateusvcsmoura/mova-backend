@@ -1,8 +1,4 @@
-﻿# Prova de recuperação SEM tocar em mova_dev (RNF10):
-# backup de mova_dev -> restore em banco temporário mova_restore_<carimbo> ->
-# compara contagens de linhas e migrations -> remove o banco temporário.
-#   powershell -ExecutionPolicy Bypass -File scripts\verify-backup-mova.ps1
-param([string]$Container = "mova-postgres")
+﻿param([string]$Container = "mova-postgres")
 $ErrorActionPreference = "Stop"
 
 $arquivo = & (Join-Path $PSScriptRoot "backup-mova.ps1") -Banco mova_dev -Container $Container | Select-Object -Last 1

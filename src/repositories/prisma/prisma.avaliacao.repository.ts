@@ -20,8 +20,6 @@ export class PrismaAvaliacaoRepository implements IAvaliacaoRepository {
       });
       return AvaliacaoMapper.toResponse(avaliacao);
     } catch (error) {
-      // A regra de service cobre a repetição normal. A constraint única também
-      // protege duas requisições simultâneas para a mesma reserva.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new HttpError(409, "Esta reserva já possui uma avaliação.");
       }

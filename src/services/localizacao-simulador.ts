@@ -35,18 +35,6 @@ const CONFIG_PADRAO: LocalizacaoSimuladorConfig = {
 const clamp = (valor: number, min: number, max: number) =>
   Math.min(Math.max(valor, min), max);
 
-/**
- * Simulador de rastreador GPS.
- *
- * NÃO integra hardware nem libs externas: a cada `intervaloMs` gera uma nova
- * posição (com pequeno drift sobre a última conhecida) para cada veículo ativo
- * e persiste via `LocalizacaoService.registrar`, reutilizando toda a validação
- * e o histórico já existentes.
- *
- * Roda inteiramente no servidor (sem HTTP/auth): é código confiável, então não
- * passa pela camada de autenticação — o endpoint HTTP continua disponível para
- * dispositivos reais no futuro.
- */
 export class LocalizacaoSimulador {
   private readonly config: LocalizacaoSimuladorConfig;
   private timer: NodeJS.Timeout | null = null;
@@ -76,12 +64,6 @@ export class LocalizacaoSimulador {
     };
   }
 
-  /**
-   * Executa uma rodada de atualização. Público para ser testável sem timer.
-   * Retorna quantos veículos foram atualizados.
-   */
-  // Percorre todas as páginas para obter a frota completa: o repositório agora é
-  // paginado, mas o simulador precisa avaliar todos os veículos a cada tick.
   private async listarTodosVeiculos(): Promise<VeiculoResponse[]> {
     const limit = 100;
     const todos: VeiculoResponse[] = [];
@@ -98,9 +80,6 @@ export class LocalizacaoSimulador {
     return todos;
   }
 
-  // Sob advisory lock: com múltiplas instâncias, só uma roda o tick por vez —
-  // as demais pulam (evita posições duplicadas). Retorna quantos veículos foram
-  // atualizados, ou 0 se o tick foi pulado por outra instância estar rodando.
   async tick(): Promise<number> {
     let atualizados = 0;
     await runExclusive(LOCK_LOCALIZACAO_SIMULADOR, async () => {

@@ -17,10 +17,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 11 (T11-P2-001/002): uma tentativa de pagamento recusada pelo webhook
-// (RN07 ou veículo/garagem indisponível) não pode tornar a reserva impagável.
-// A nova tentativa, dentro do prazo e com a causa resolvida, precisa confirmar.
-
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const SANDBOX_PROVIDER = process.env.PAGAMENTO_SANDBOX_PROVIDER ?? "mercadopago";
 

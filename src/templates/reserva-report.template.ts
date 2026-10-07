@@ -7,19 +7,6 @@ import {
 import { Locale, LOCALE_PADRAO } from "../i18n/index.js";
 import { env } from "../config/env.js";
 
-// Template do relatório de reserva. Função pura: recebe o payload + idioma e
-// devolve o conteúdo (assunto + HTML + texto). Mantido fora dos services para
-// que o HTML não seja concatenado dentro da regra de negócio. Para adicionar
-// PDF no futuro, basta um novo módulo que consuma o mesmo payload.
-//
-// i18n: só o texto voltado ao usuário é traduzido (pt/en/es). Os DADOS (marca,
-// status, nomes, categoria) não são traduzidos — regra de negócio permanece.
-//
-// HTML de e-mail: layout 100% baseado em tabelas + CSS inline, largura fixa de
-// 600px, sem flexbox/grid/JS/webfonts/CDN. Assim renderiza de forma consistente
-// em Gmail (web/mobile), Outlook (Word engine) e Apple Mail; quando um cliente
-// ignora uma propriedade CSS, o conteúdo continua legível na ordem natural.
-
 interface Strings {
   subject: (id: string) => string;
   headerSubtitulo: string;
@@ -189,8 +176,6 @@ const LOCALE_INTL: Record<Locale, string> = {
   es: "es-ES",
 };
 
-// Rótulos de exibição de DADOS (não traduzidos — regra de negócio). Mapa único
-// por enum; a UI ao redor é que muda de idioma.
 const CATEGORIA_LABEL: Record<CategoriaVeiculo, string> = {
   ECONOMICO: "Econômico",
   ESPACOSO: "Espaçoso",
@@ -217,8 +202,6 @@ const escapeHtml = (value: string): string =>
 // Id curto para o assunto/título (primeiro bloco do UUID).
 const shortId = (id: string): string => id.split("-")[0].toUpperCase();
 
-// Paleta (mobilidade/tecnologia): fundo neutro, container branco, azul primário
-// e verde de sucesso. Cores em hex para máxima compatibilidade.
 const C = {
   bg: "#eef1f6",
   card: "#ffffff",
@@ -244,9 +227,6 @@ export function renderReservaReport(
     style: "currency",
     currency: "BRL",
   });
-  // Fuso FIXO de exibição. Sem isto o formatador usaria o fuso do processo, e o
-  // mesmo instante sairia com horas diferentes em máquinas diferentes (local
-  // America/Sao_Paulo vs. CI em UTC). Ver auditoria/DATAS-HORARIOS.md.
   const timeZone = env.TIMEZONE_EXIBICAO;
   const dateTime = new Intl.DateTimeFormat(intlTag, {
     dateStyle: "short",
@@ -266,8 +246,6 @@ export function renderReservaReport(
   });
   const formatMoney = (v: number) => money.format(v);
   const formatDate = (d: Date) => dateTime.format(d);
-  // "01 AGO 2026" — via formatToParts para evitar separadores de locale
-  // (pt-BR insere "de": "01 de ago. de 2026"). Junta dia/mês/ano manualmente.
   const formatDia = (d: Date) => {
     const parts = dayFmt.formatToParts(d);
     const get = (type: string) =>
@@ -377,8 +355,6 @@ export function renderReservaReport(
     </table>
   </td></tr>`;
 
-  // Retirada/devolução (garagem + endereço). Colunas empilham no mobile porque
-  // são <td> em uma tabela de 600px — em telas estreitas o cliente reflui.
   const local = (rotulo: string, cor: string, garagem: string | null, endereco: string | null) => `
     <td width="50%" valign="top" style="padding:0 8px;">
       <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${cor};padding-bottom:6px;">${escapeHtml(

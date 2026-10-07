@@ -38,12 +38,6 @@ export class ReservaController {
       : reserva;
   }
 
-  /**
-   * POST /api/reserva/:id/pagamento — inicia o pagamento.
-   *
-   * Não confirma nada: registra a cobrança, deixa PROCESSANDO e entrega o
-   * desfecho ao simulador de gateway, que devolve um webhook ASSINADO.
-   */
   iniciarPagamento: Handler = async (req, res, next) => {
     try {
       if (!req.user) throw new HttpError(401, "Não autenticado");

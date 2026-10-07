@@ -1,7 +1,3 @@
-// Validadores de documentos brasileiros (dígitos verificadores reais).
-// Usados nas validações Zod para rejeitar números com formato válido mas
-// checksum inválido (ex.: CPF "11111111111" ou sequência arbitrária).
-
 function apenasDigitos(v: string): string {
   return v.replace(/\D/g, "");
 }

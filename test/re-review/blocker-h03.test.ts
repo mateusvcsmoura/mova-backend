@@ -12,10 +12,6 @@ import {
   uniquePlaca,
 } from "../helpers";
 
-// FINAL-H-03 — contrato de edição Veiculo x ModeloVeiculo. O contrato é
-// derivado do código atual (updateVeiculoSchema: placa/status/garagemId no
-// nível raiz + bloco aninhado `modelo`), não copiado do relatório da Task 04.
-
 async function estadoVeiculo(id: string) {
   const v = await prisma.veiculo.findUniqueOrThrow({
     where: { id },

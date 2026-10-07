@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-// Catálogo é populado via seed; estes schemas validam entradas administrativas
-// e mantêm o padrão por-entidade do projeto.
 export const createServicoOpcionalSchema = z.object({
   nome: z.string().min(2).max(255),
   descricao: z.string().min(2).max(255),

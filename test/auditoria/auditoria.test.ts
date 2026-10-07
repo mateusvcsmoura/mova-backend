@@ -15,8 +15,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// RN09 — trilha de auditoria persistente das alterações de Locadores em
-// veículos e reservas.
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const registros = (idEntidade: string) =>
   prisma.registroAuditoria.findMany({ where: { idEntidade }, orderBy: { criadoEm: "asc" } });

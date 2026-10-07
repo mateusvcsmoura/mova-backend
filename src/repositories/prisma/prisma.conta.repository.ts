@@ -86,9 +86,6 @@ export class PrismaContaRepository implements IContaRepository {
     });
   }
 
-  // Task 10 (M-05): Conta e perfil numa única transação. Se o perfil falhar
-  // (CPF/CNH/CNPJ duplicado, FK de deficiência, qualquer erro), a Conta é
-  // desfeita junto: não existe Conta órfã nem perfil sem Conta.
   async create(data: CreateContaRequest, perfil: PerfilCadastro = {}): Promise<ContaResponse & PerfilCriado> {
     try {
       return await prisma.$transaction(async (tx) => {
@@ -192,8 +189,6 @@ export class PrismaContaRepository implements IContaRepository {
   async deleteIfWithoutReservationHistory(
     id: string,
   ): Promise<"DELETED" | "HAS_HISTORY" | "NOT_FOUND"> {
-    // A criação de reserva obtém esta mesma trava para locatário e locador.
-    // Entre checar o histórico e apagar a conta não cabe uma nova reserva.
     return prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`conta:${id}`}, 0))`;
 

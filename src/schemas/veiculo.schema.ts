@@ -24,8 +24,6 @@ export const createVeiculoSchema = z.object({
 
   status: z.nativeEnum(StatusVeiculo).default(StatusVeiculo.DISPONIVEL),
 
-  // Veículos em preparação podem ficar sem garagem, mas uma garagem
-  // informada precisa passar pela regra de ownership/capacidade do domínio.
   garagemId: z.string().uuid().nullable().optional(),
 
   eletrico: z.boolean(),
@@ -41,9 +39,6 @@ export const updateVeiculoSchema = z
     placa: createVeiculoSchema.shape.placa.optional(),
     status: z.nativeEnum(StatusVeiculo).optional(),
     garagemId: z.string().uuid().nullable().optional(),
-    // Os dados do catálogo são aninhados para deixar explícita a fronteira
-    // entre a instância física e o ModeloVeiculo. Campos como `marca` no
-    // nível raiz devem ser rejeitados, nunca descartados silenciosamente.
     modelo: z
       .object({
         marca: z.string().min(2).max(255).optional(),

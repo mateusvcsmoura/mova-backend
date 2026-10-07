@@ -1,7 +1,3 @@
-// Payload da notificação de veículo disponível. Estrutura intermediária,
-// independente do canal de saída (e-mail hoje; push/SMS/WhatsApp no futuro) e
-// das entidades do Prisma. O dispatcher monta este payload; os templates de
-// cada canal apenas o consomem.
 export interface VeiculoDisponivelPayload {
   veiculo: {
     marca: string;

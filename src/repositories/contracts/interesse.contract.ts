@@ -22,8 +22,6 @@ export interface InteresseGaragemResponse {
   status: StatusGaragem;
 }
 
-// Veículo como retornado na listagem de interesses: mesmo shape das demais
-// listagens (VeiculoResponse, com modeloVeiculo) + locador e garagem atual.
 export interface InteresseVeiculoDetalheResponse extends VeiculoResponse {
   locador: InteresseLocadorResponse;
   garagem: InteresseGaragemResponse | null;
@@ -43,8 +41,6 @@ export interface InteresseResponse {
   atualizadoEm: Date;
 }
 
-// Shape público mínimo para descoberta de veículos que podem voltar a ficar
-// disponíveis. Não expõe placa, idLocador ou outros dados administrativos.
 export interface InteresseVeiculoDescobertaResponse {
   id: string;
   status: StatusVeiculo;
@@ -67,8 +63,6 @@ export interface InteresseVeiculoDescobertaResponse {
   } | null;
 }
 
-// Inscrição ativa + destinatário resolvido em uma única consulta (JOIN com
-// Locatario -> Conta), usada pelo disparo automático. Evita N+1 ao notificar.
 export interface InteressadoResponse {
   id: string;
   idLocatario: string;

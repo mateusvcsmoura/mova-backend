@@ -18,9 +18,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 10 — M-05 (D10-07/D10-08): Conta + perfil nascem numa única transação.
-// Qualquer falha desfaz tudo: nenhuma Conta órfã, nenhum perfil sem Conta.
-
 const registrar = (body: Record<string, unknown>) =>
   request(app).post("/api/conta/auth/register").send(body);
 

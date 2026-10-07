@@ -1,11 +1,3 @@
-// Logger estruturado mínimo (sem dependências externas). Emite uma linha JSON
-// por evento — formato amigável para coletores de log (Datadog, Loki, CloudWatch).
-// O projeto não possuía logger; este centraliza a saída em vez de console.* solto.
-//
-// Silenciado em NODE_ENV=test para não poluir a saída da suíte (a suíte roda
-// centenas de requisições). A instrumentação — request id, tempo, status —
-// continua ativa; apenas a escrita no console é suprimida nos testes.
-
 type LogLevel = "info" | "warn" | "error";
 
 export type LogMeta = Record<string, unknown>;

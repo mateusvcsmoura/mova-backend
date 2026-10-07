@@ -8,8 +8,6 @@ enum Cargo {
   ADMIN = "ADMIN",
 }
 
-// Política de senha robusta: mín. 8 caracteres com minúscula, maiúscula,
-// número e caractere especial.
 export const senhaForteSchema = z
   .string()
   .min(8, "Senha deve ter no mínimo 8 caracteres")
@@ -56,8 +54,6 @@ export const registerContaSchema = z.object({
   cargo: z.enum([Cargo.LOCATARIO, Cargo.LOCADOR], {
     message: "Cargo deve ser LOCATARIO ou LOCADOR",
   }),
-  // Task 10 (M-05): cadastro oficial em UMA operação. O perfil é opcional só
-  // por compatibilidade com o fluxo legado em duas chamadas (testes/admin).
   locatario: createLocatarioSchema.omit({ id: true }).optional(),
   locador: createLocadorSchema.omit({ id: true }).optional(),
 }).superRefine((data, ctx) => {
@@ -113,8 +109,6 @@ export const updateContaSchema = z
     "Envie pelo menos um campo para atualização",
   );
 
-// Contrato exclusivo do titular: rejeita inclusive campos administrativos,
-// em vez de descartá-los silenciosamente.
 export const updateOwnContaSchema = z
   .object({
     nome: z.string().min(3).max(255).optional(),

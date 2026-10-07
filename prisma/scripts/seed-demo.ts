@@ -1,14 +1,3 @@
-// Dados FICTÍCIOS de demonstração do TCC para o banco mova_dev.
-//
-//   npm run db:seed:demo -- --confirmar
-//
-// DESTRUTIVO: apaga todas as tabelas de mova_dev (exceto _prisma_migrations)
-// antes de popular. Por isso só roda com --confirmar, NODE_ENV=development e
-// conexão efetiva em mova_dev. Nenhum outro script o chama.
-//
-// Imagens: usa o serviço real de mídia (MinIO local). Sem credenciais em
-// MEDIA_S3_ACCESS_KEY_ID/SECRET, tenta lê-las do container MinIO local; se não
-// conseguir, segue sem imagens (o catálogo mostra o fallback "sem foto").
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
 import { randomInt } from "node:crypto";
@@ -226,9 +215,6 @@ const spin = await veiculo({ idLocador: locador.id, marca: "Chevrolet", modelo: 
 await veiculo({ idLocador: locador.id, marca: "Fiat", modelo: "Mobi", ano: 2021, cambio: "Manual", capacidade: 4, categoria: CategoriaVeiculo.ECONOMICO, valorDiaria: 99.9, placa: "MOV7G89", garagemId: null, status: StatusVeiculo.INATIVO, statusHaDias: 10 });
 const corolla = await veiculo({ idLocador: parceiro.id, marca: "Toyota", modelo: "Corolla", ano: 2022, cambio: "Automático", capacidade: 5, categoria: CategoriaVeiculo.EXECUTIVO, valorDiaria: 229.9, placa: "PAR1H90", garagemId: gParceira.id });
 
-// Última posição conhecida (GPS simulado) perto de cada garagem. Com o simulador
-// desligado (padrão do start-mova.ps1) a posição fica fixa e o geofence do
-// desbloqueio (RN03, raio de 100 m) é reproduzível na demonstração.
 const POSICAO_CENTRO = { latitude: -25.4296, longitude: -49.2713 };
 const POSICAO_BATEL = { latitude: -25.4417, longitude: -49.2889 };
 const posicoes = [

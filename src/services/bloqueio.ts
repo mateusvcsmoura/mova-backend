@@ -13,8 +13,6 @@ import {
   PaginationParams,
 } from "../shared/pagination.js";
 
-// Mensagens de negócio por motivo. Centralizadas para manter o erro consistente
-// e permitir novos motivos sem espalhar strings pelo código.
 const MENSAGEM_POR_MOTIVO: Record<MotivoBloqueio, string> = {
   INADIMPLENCIA:
     "Existem pendências financeiras impeditivas. Regularize sua situação para realizar novas reservas.",
@@ -36,9 +34,6 @@ export class BloqueioService {
     private readonly reservaRepository: IReservaRepository,
   ) {}
 
-  // Regra central reutilizada na criação/confirmação de reservas. Lança 403
-  // quando há um bloqueio impeditivo, com a mensagem correspondente ao motivo.
-  // Consulta única e otimizada (findFirst), sem carregar o histórico.
   assertLocatarioLiberado = async (idLocatario: string): Promise<void> => {
     if (await this.reservaRepository.hasCobrancaFinanceiraPendente(idLocatario)) {
       throw new HttpError(403, MENSAGEM_POR_MOTIVO.INADIMPLENCIA);

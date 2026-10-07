@@ -22,8 +22,6 @@ export interface FavoritoGaragemResponse {
   status: StatusGaragem;
 }
 
-// Veículo como retornado na listagem de favoritos: mesmo shape das demais
-// listagens (VeiculoResponse, com modeloVeiculo) + locador e garagem atual.
 export interface FavoritoVeiculoResponse extends VeiculoResponse {
   locador: FavoritoLocadorResponse;
   garagem: FavoritoGaragemResponse | null;

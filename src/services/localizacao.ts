@@ -35,8 +35,6 @@ export class LocalizacaoService {
     }
   }
 
-  // Carrega o veículo (404 se não existir) para consultas que precisam do
-  // idLocador na verificação de acesso.
   private async getVeiculoOrThrow(idVeiculo: string): Promise<VeiculoResponse> {
     const veiculo = await this.veiculoRepository.findById(idVeiculo);
     if (!veiculo) {
@@ -45,10 +43,6 @@ export class LocalizacaoService {
     return veiculo;
   }
 
-  // Autoriza a consulta de localização:
-  //   ADMIN     -> qualquer veículo;
-  //   LOCADOR   -> apenas os próprios veículos;
-  //   LOCATARIO -> apenas veículos de reservas às quais pertence.
   private async assertPodeConsultar(
     veiculo: VeiculoResponse,
     requester: LocalizacaoRequester,
@@ -63,8 +57,6 @@ export class LocalizacaoService {
     throw new HttpError(403, "Acesso negado");
   }
 
-  // Valida o intervalo das coordenadas (defesa em profundidade — o schema Zod
-  // já valida na borda, mas a regra de negócio também é garantida aqui).
   private assertCoordenadasValidas(latitude: number, longitude: number): void {
     if (latitude < -90 || latitude > 90) {
       throw new HttpError(400, "Latitude deve estar entre -90 e 90");
@@ -116,8 +108,6 @@ export class LocalizacaoService {
     return ultima;
   };
 
-  // RF14: o Locatário nunca consulta um veículo diretamente. A reserva do
-  // próprio token define veículo, estado e janela temporal permitidos.
   findUltimaDaReserva = async (
     idReserva: string,
     requester: LocalizacaoRequester,

@@ -1,10 +1,3 @@
-// RNF03 — benchmark local reproduzível das operações principais (HTTP real,
-// loopback, API em mova_dev com o seed de demonstração). Não grava dados:
-// só leituras e a cotação de reserva.
-//
-//   node scripts/bench-mova.mjs [amostras=50] [saida.json]
-//
-// MOVA_API (padrão http://localhost:3000/api), MOVA_DEMO_PASSWORD.
 import { cpus, totalmem, platform, release } from "node:os";
 import { writeFileSync } from "node:fs";
 
@@ -12,8 +5,6 @@ const API = process.env.MOVA_API ?? "http://localhost:3000/api";
 const SENHA = process.env.MOVA_DEMO_PASSWORD ?? "Mova@123";
 const N = Number(process.argv[2] ?? 50);
 const SAIDA = process.argv[3];
-// Login usa bcrypt e tem rate limit (10/15 min por IP no .env padrão): poucas amostras.
-// 2 logins de preparo + 1 de aquecimento + 6 amostras = 9 por execução.
 const N_LOGIN = Math.min(N, 6);
 
 async function chamar(metodo, caminho, { token, corpo } = {}) {

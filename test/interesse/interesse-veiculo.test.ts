@@ -32,10 +32,6 @@ import type {
 import type { NotificacaoInteresseResponse } from "../../src/repositories/contracts/notificacao-interesse.contract";
 import type { VeiculoResponse } from "../../src/repositories/contracts/veiculo.contract";
 
-// ---------------------------------------------------------------------------
-// Fakes compartilhados
-// ---------------------------------------------------------------------------
-
 const LOCATARIO_A = "aaaaaaaa-1111-1111-1111-111111111111";
 const LOCATARIO_B = "bbbbbbbb-2222-2222-2222-222222222222";
 const VEICULO_1 = "cccccccc-3333-3333-3333-333333333333";
@@ -209,8 +205,6 @@ const garagemRepo = {
   }),
 } as any;
 
-// Checker de preferência: qualquer idConta em `desabilitados` está opt-out
-// (retorna false); os demais habilitados (opt-in padrão).
 function makePrefChecker(desabilitados: string[] = []) {
   const set = new Set(desabilitados);
   return {
@@ -238,10 +232,6 @@ beforeEach(() => {
   sendMailMock.mockReset();
   createTransportMock.mockClear();
 });
-
-// ---------------------------------------------------------------------------
-// InteresseVeiculoService — registro, duplicidade, cancelamento, isolamento
-// ---------------------------------------------------------------------------
 
 describe("InteresseVeiculoService", () => {
   function buildService(veiculo: VeiculoResponse | null = makeVeiculo()) {
@@ -349,10 +339,6 @@ describe("InteresseVeiculoService", () => {
     expect(listaB.data).toHaveLength(0);
   });
 });
-
-// ---------------------------------------------------------------------------
-// NotificacaoVeiculoDisponivelService — disparo, persistência, falhas
-// ---------------------------------------------------------------------------
 
 describe("NotificacaoVeiculoDisponivelService", () => {
   it("envia e-mail para os interessados e registra sucesso (PENDENTE -> ENVIADA)", async () => {
@@ -555,10 +541,6 @@ describe("NotificacaoVeiculoDisponivelService", () => {
     expect(records[0].status).toBe("NOTIFICADO");
   });
 });
-
-// ---------------------------------------------------------------------------
-// VeiculoService — disparo automático na transição de status
-// ---------------------------------------------------------------------------
 
 describe("VeiculoService — disparo automático ao voltar a DISPONIVEL", () => {
   function makeVeiculoRepo(antes: VeiculoResponse) {

@@ -1,9 +1,3 @@
-// Catálogo de mensagens de negócio (HttpError sem code) por texto pt-BR exato.
-// Usado pelo error-handler só quando locale !== "pt"; em pt a mensagem original
-// sai intacta. Mensagem ausente aqui cai no texto original (fallback seguro).
-// test/i18n/mensagens-catalogo.test.ts varre src/ e falha se um literal novo de
-// `new HttpError(` não tiver entrada.
-
 import type { Locale } from "./index.js";
 
 type Traducao = { en: string; es: string };

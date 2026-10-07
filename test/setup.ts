@@ -2,11 +2,6 @@ import { beforeAll } from "vitest";
 import { prisma } from "../src/database/prisma";
 import { assertSafeTestEnvironment, TEST_DATABASE_NAME } from "../src/config/test-environment";
 
-// Trava de segurança: a suíte TRUNCA todas as tabelas. Só pode rodar quando o
-// processo está explicitamente em modo de teste, porque é NODE_ENV=test que faz
-// src/database/prisma.ts escolher DATABASE_URL_TEST. Sem esta checagem, rodar o
-// arquivo por outro caminho (script, tsx, dev server) apagaria o banco de
-// desenvolvimento/produção silenciosamente.
 async function assertAmbienteDeTeste() {
   assertSafeTestEnvironment();
   const [conexao] = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`;
@@ -15,8 +10,6 @@ async function assertAmbienteDeTeste() {
   }
 }
 
-// Limpa todas as tabelas respeitando as foreign keys do schema.prisma.
-// Roda uma vez antes de cada arquivo de teste, garantindo isolamento.
 async function resetDatabase() {
   // Favorito não é limpo explicitamente: cascade de Veiculo/Locatario cobre.
   await prisma.avaliacao.deleteMany();

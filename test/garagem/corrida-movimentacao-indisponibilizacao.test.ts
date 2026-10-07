@@ -14,12 +14,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 11 (T11-P2-003): movimentação de veículo × indisponibilização da garagem
-// de origem. Ordem global de locks: reserva → veículo → garagens (linha) →
-// linhas de reserva. A movimentação travava as linhas de reserva ANTES das
-// garagens, em ciclo com a alteração de garagem (garagem → reservas): o
-// PostgreSQL abortava uma das transações (40P01) e a API respondia 404/500.
-
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 describe("Task 11 — corrida: mover veículo × colocar garagem em manutenção", () => {
@@ -37,8 +31,6 @@ describe("Task 11 — corrida: mover veículo × colocar garagem em manutenção
       const origem = await createGaragem(locador.token, locador.locadorId);
       const destino = await createGaragem(locador.token, locador.locadorId);
       const veiculo = await createVeiculo(locador.token, locador.locadorId, { garagemId: origem.id });
-      // Reserva não paga, dentro do prazo: fixa a garagem (B9) mas não impede a
-      // manutenção da garagem (só reserva paga protege — Task 10.1).
       const reserva = await createReserva(locatario.token, veiculo.id, locatario.locatarioId, futurePeriod(3 + rodada, 1));
       expect(reserva?.id).toBeTruthy();
 
@@ -48,8 +40,6 @@ describe("Task 11 — corrida: mover veículo × colocar garagem em manutenção
       ]);
       resultados.push([mover.status, manutencao.status]);
 
-      // A reserva pendente fixa a garagem de retirada: mover é sempre recusado
-      // pela regra de negócio, nunca por falha técnica.
       expect(mover.status).toBe(409);
       expect(mover.body.code).toBe("VEHICLE_HAS_ACTIVE_RESERVATION");
       expect(manutencao.status).toBe(200);

@@ -1,14 +1,7 @@
-// Internacionalização (i18n). Idiomas suportados e catálogo de mensagens de
-// erro por CÓDIGO estável. Regras de negócio NÃO são traduzidas — só o texto
-// voltado ao usuário. Compatibilidade: o padrão é "pt" e, em "pt", o
-// error-handler mantém a mensagem original do erro (não consulta o catálogo).
-
 export const LOCALES = ["pt", "en", "es"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const LOCALE_PADRAO: Locale = "pt";
 
-// Resolve o idioma a partir do header Accept-Language (ex.: "en-US,en;q=0.9").
-// Cai no padrão quando ausente/desconhecido. Ignora q-values (basta o 1º match).
 export function resolveLocale(acceptLanguage?: string): Locale {
   if (!acceptLanguage) return LOCALE_PADRAO;
   for (const parte of acceptLanguage.split(",")) {
@@ -39,8 +32,6 @@ export const ErrorCode = {
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
-// Catálogo por idioma. Só precisa conter os códigos efetivamente emitidos; o
-// que faltar cai na mensagem original do erro (fallback no error-handler).
 const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
   pt: {
     VALIDATION_ERROR: "Dados inválidos.",
@@ -81,8 +72,6 @@ const CATALOGO: Record<Locale, Partial<Record<string, string>>> = {
   },
 };
 
-// Traduz um código de erro para o idioma. Retorna undefined quando não há
-// entrada — o chamador então usa a mensagem original (compatibilidade).
 export function traduzirErro(
   code: string | undefined,
   locale: Locale,

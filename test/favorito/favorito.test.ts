@@ -138,8 +138,6 @@ describe("Favorito API", () => {
       const veiculo = await createVeiculo(locador.token, locador.locadorId);
       await createFavorito(locatario.token, veiculo.id);
 
-      // outroLocatario não favoritou este veículo — 404, e o favorito
-      // do dono permanece intacto.
       const response = await request(app)
         .delete(`/api/favorito/veiculo/${veiculo.id}`)
         .set("Authorization", `Bearer ${outroLocatario.token}`);
@@ -322,9 +320,6 @@ describe("Favorito API", () => {
   });
 
   describe("Consistência na exclusão do veículo", () => {
-    // RN08: a exclusão de veículo virou soft delete (INATIVO). A linha de
-    // favorito é preservada (sem cascade destrutivo), mas o veículo removido
-    // do catálogo não aparece mais na lista de favoritos do locatário.
     it("veículo soft-deleted sai da lista de favoritos, mas a linha é preservada", async () => {
       const veiculo = await createVeiculo(locador.token, locador.locadorId);
       const favorito = await createFavorito(locatario.token, veiculo.id);

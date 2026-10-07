@@ -11,10 +11,6 @@ import {
   LocatarioContext,
 } from "../helpers";
 
-// TASK 03 — representação de data/hora ponta a ponta.
-// As regras RN05 permanecem intactas; aqui se verifica que o INSTANTE é o mesmo
-// em todo o caminho e que as bordas respondem como documentado.
-// Ver auditoria/DATAS-HORARIOS.md.
 describe("Datas e horários da reserva", () => {
   let locador: LocadorContext;
   let locatario: LocatarioContext;
@@ -110,8 +106,6 @@ describe("Datas e horários da reserva", () => {
     });
 
     it("atravessa a virada do dia (23:30 → 00:30) → 201", async () => {
-      // 1 hora exata cruzando a meia-noite. Se em algum ponto houvesse
-      // truncamento por "dia" em vez de instante, este caso quebraria.
       const base = new Date(Date.now() + 10 * DIA);
       base.setUTCHours(23, 30, 0, 0);
       const fim = new Date(base.getTime() + HORA);
@@ -124,8 +118,6 @@ describe("Datas e horários da reserva", () => {
 
   describe("Representação do instante", () => {
     it("offset explícito e UTC representam o mesmo instante", async () => {
-      // O mesmo momento escrito de duas formas: z.coerce.date() precisa tratar
-      // as duas como idênticas, e a API responde sempre normalizada em UTC.
       const comOffset = "2027-06-10T10:00:00-03:00";
       const emUtc = "2027-06-10T13:00:00.000Z";
       expect(new Date(comOffset).getTime()).toBe(new Date(emUtc).getTime());

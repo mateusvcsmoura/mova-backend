@@ -22,10 +22,6 @@ import type { INotificacaoRepository } from "../../src/repositories/notificacao.
 import type { NotificacaoResponse } from "../../src/repositories/contracts/notificacao.contract";
 import type { ReservaResponse } from "../../src/repositories/contracts/reserva.contract";
 
-// ---------------------------------------------------------------------------
-// Fakes compartilhados
-// ---------------------------------------------------------------------------
-
 function makeReserva(overrides: Partial<ReservaResponse> = {}): ReservaResponse {
   return {
     id: "11111111-2222-3333-4444-555555555555",
@@ -147,10 +143,6 @@ beforeEach(() => {
   createTransportMock.mockClear();
 });
 
-// ---------------------------------------------------------------------------
-// NodemailerMailProvider (mock do nodemailer)
-// ---------------------------------------------------------------------------
-
 describe("NodemailerMailProvider", () => {
   const fullConfig = {
     host: "smtp.gmail.com",
@@ -208,10 +200,6 @@ describe("NodemailerMailProvider", () => {
     expect(sendMailMock).not.toHaveBeenCalled();
   });
 });
-
-// ---------------------------------------------------------------------------
-// NotificacaoReservaService (orquestração + tratamento de erro)
-// ---------------------------------------------------------------------------
 
 describe("NotificacaoReservaService", () => {
   it("envia e registra sucesso (PENDENTE -> ENVIADA)", async () => {
@@ -296,10 +284,6 @@ describe("NotificacaoReservaService", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Regressão: a reserva continua funcionando quando o e-mail falha
-// ---------------------------------------------------------------------------
-
 describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
   function buildReservaService(notifier: NotificacaoReservaService) {
     const base = makeReserva({
@@ -313,8 +297,6 @@ describe("ReservaService.confirmarPagamento — regressão de e-mail", () => {
       findById: vi.fn(async () => base),
       update: vi.fn(async () => ({ ...base, statusPagamento: "SUCESSO" })),
       atualizarStatusPagamento: vi.fn(async () => ({ ...base, statusPagamento: "SUCESSO" })),
-      // Fake fiel ao repositório: devolve a reserva com o código gravado pela
-      // própria chamada (o service só notifica a entrega que gravou o código).
       gerarCodigoDesbloqueio: vi.fn(async (_id: string, codigo: string) => ({ ...confirmada, codigoDesbloqueio: codigo })),
       findByCodigoDesbloqueio: vi.fn(async () => null),
     } as any;

@@ -25,8 +25,6 @@ export class PrismaRecuperacaoSenhaRepository
     agora: Date,
   ): Promise<RecuperacaoSenhaPersistida> {
     return prisma.$transaction(async (tx) => {
-      // Serializa solicitações simultâneas para a mesma conta: o último token
-      // criado é o único que permanece ativo.
       await tx.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtextextended(${idConta}, 0))
       `;
@@ -60,8 +58,6 @@ export class PrismaRecuperacaoSenhaRepository
 
       if (!encontrado) return false;
 
-      // A condição repetida no update torna o claim atômico: em uma corrida,
-      // exatamente uma transação consegue marcar usadoEm.
       const consumido = await tx.recuperacaoSenha.updateMany({
         where: {
           id: encontrado.id,

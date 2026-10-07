@@ -19,10 +19,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Task 10 — BUG-05 (D10-03/D10-04), BUG-03/M-02 (D10-02) e D10-05.
-// O tempo é controlado pela data de criação gravada no banco (fixture), não
-// por espera real: nenhum teste aguarda 15 minutos.
-
 const MIN = 60 * 1000;
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const CARTAO_PENDENTE = { numero: "4111111111110001", nome: "Teste", validade: "12/30", cvv: "123" };

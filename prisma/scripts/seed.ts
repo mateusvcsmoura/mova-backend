@@ -88,8 +88,6 @@ const disabilityDescriptions = [
   "Necessidade de controle manual",
 ];
 
-// Catálogo inicial de serviços opcionais. Novos serviços (cadeirinha, motorista
-// adicional, etc.) entram aqui como novos registros, sem alterar a Reserva.
 const servicosOpcionais = [
   {
     nome: "Seguro adicional",
@@ -189,8 +187,6 @@ async function main() {
       await tx.avaliacao.deleteMany();
       await tx.localizacao.deleteMany();
       await tx.reservaServico.deleteMany();
-      // Mesma ordem de test/setup.ts: cobranças e eventos financeiros da
-      // sandbox (Task 7) e tabelas filhas de Reserva/Conta vêm antes.
       await tx.cobrancaReserva.deleteMany();
       await tx.eventoFinanceiroSandbox.deleteMany();
       await tx.recuperacaoSenha.deleteMany();
@@ -334,8 +330,6 @@ async function main() {
           garagensDoLocador.push(garagem);
         }
 
-        // 3 modelos deste locador — ano distinto garante a unicidade
-        // [idLocador, marca, modelo, ano] mesmo com marca/modelo repetidos
         const modelosDoLocador = [] as typeof modelos;
         for (let m = 0; m < MODELOS_POR_LOCADOR; m++) {
           const seq = locadorIndex * MODELOS_POR_LOCADOR + m;

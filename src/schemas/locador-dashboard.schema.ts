@@ -2,8 +2,6 @@ import { StatusReserva } from "@prisma/client";
 import { z } from "zod";
 import { paginationQuerySchema } from "../shared/pagination.js";
 
-// Filtros reais do relatório de reservas. Campos desconhecidos (inclusive
-// idLocador) são descartados: ownership vem sempre do JWT.
 export const relatorioReservasQuerySchema = paginationQuerySchema
   .extend({
     idVeiculo: z.string().uuid().optional(),

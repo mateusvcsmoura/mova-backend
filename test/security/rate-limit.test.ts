@@ -4,9 +4,6 @@ import { describe, it, expect } from "vitest";
 
 import { createRateLimiter } from "../../src/middlewares/rate-limit";
 
-// O rate limiter é desativado no ambiente de teste (skipInTest) para não
-// estrangular a suíte. Aqui construímos um limitador com skipInTest = false
-// e limite baixo, montado num app descartável, para exercitar o retorno 429.
 describe("Rate limiting", () => {
   function makeApp(limit: number) {
     const app = express();

@@ -13,8 +13,6 @@ import {
   LocatarioContext,
 } from "../helpers";
 
-// Contrato frontend <-> backend (TASK 01).
-// Ver auditoria/CONTRATO-FRONTEND-BACKEND.md.
 describe("Contrato da API", () => {
   let locador: LocadorContext;
   let locatario: LocatarioContext;

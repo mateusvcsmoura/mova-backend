@@ -44,8 +44,6 @@ reservaRouter.post(
   authorize(Cargo.LOCATARIO, Cargo.ADMIN),
   reservaController.create,
 );
-// Pagamento (sandbox). Só o dono da reserva inicia; a confirmação vem do
-// webhook assinado, nunca daqui.
 reservaRouter.post(
   "/:id/pagamento",
   authMiddleware,
@@ -70,8 +68,6 @@ reservaRouter.delete(
   authorize(Cargo.LOCATARIO),
   compartilhamentoReservaController.revogar,
 );
-// QR Code de desbloqueio (RN03): GET obtém o token assinado; POST desbloqueia
-// resolvendo o QR para o mesmo código textual.
 reservaRouter.get(
   "/:id/desbloqueio/qr",
   authMiddleware,

@@ -1,7 +1,3 @@
-// Payloads dos alertas de monitoramento. Estruturas intermediárias,
-// independentes do canal de saída e das entidades do Prisma: o serviço de
-// monitoramento as monta; os templates de cada canal apenas as consomem.
-
 export interface AlertaVeiculoInfo {
   marca: string;
   modelo: string;

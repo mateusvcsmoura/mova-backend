@@ -1,7 +1,5 @@
 import { StatusNotificacao, TipoAlertaVeiculo } from "@prisma/client";
 
-// Linha retornada pela consulta de veículos inativos: veículo + modelo +
-// locador (com a conta p/ destino do e-mail) resolvidos em uma única query.
 export interface VeiculoInativoRow {
   idVeiculo: string;
   idLocador: string;
@@ -9,8 +7,6 @@ export interface VeiculoInativoRow {
   marca: string;
   modelo: string;
   ano: number;
-  // Desde quando o veículo está INATIVO (última transição de status; fallback
-  // para a criação do veículo quando não há histórico).
   inativoDesde: Date;
   locadorNome: string;
   locadorEmail: string;
@@ -33,11 +29,6 @@ export interface VeiculoBaixaAvaliacaoRow {
   locadorEmpresa: string;
 }
 
-// Critério da regra de baixa avaliação. Um veículo é candidato quando, dentro
-// da janela (desde):
-//   (quantidade >= minAvaliacoes E media < mediaMinima)  OU
-//   (quantidadeNotasBaixas >= minNotasBaixas)
-// minAvaliacoes evita alertas baseados em uma única avaliação isolada.
 export interface CriterioBaixaAvaliacao {
   desde: Date;
   mediaMinima: number;

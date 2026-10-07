@@ -12,13 +12,6 @@ interface Autor {
   cargo: Cargo;
 }
 
-/**
- * Direitos LGPD do titular: portabilidade (exportação), anonimização (direito
- * ao esquecimento) e transparência (trilha de auditoria de acesso).
- *
- * Não remove funcionalidades: a anonimização preserva as linhas e o histórico
- * de negócio, apagando apenas o PII.
- */
 export class LgpdService {
   constructor(private readonly lgpdRepository: ILgpdRepository) {}
 

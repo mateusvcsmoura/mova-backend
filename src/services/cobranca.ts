@@ -13,9 +13,6 @@ const resposta = (c: { id: string; idReserva: string; tipo: TipoCobranca; valor:
   metodoPagamento: c.metodoPagamento, criadoEm: c.criadoEm, atualizadoEm: c.atualizadoEm,
 });
 
-// Task 10 (D10-02): tentativa PROCESSANDO há 15 min ou mais vira FALHA (não
-// quitada), liberando nova tentativa. atualizadoEm marca a entrada em
-// PROCESSANDO: nenhuma outra escrita toca a cobrança enquanto ela processa.
 const expirarProcessando = (where: Prisma.CobrancaReservaWhereInput) =>
   prisma.cobrancaReserva.updateMany({
     where: { ...where, tipo: { in: TIPOS }, statusPagamento: StatusPagamento.PROCESSANDO, atualizadoEm: { lte: inicioVencidoAte() } },

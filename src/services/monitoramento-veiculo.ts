@@ -15,9 +15,6 @@ import { IAlertaVeiculoDispatcher } from "./notificacao-alerta-veiculo.js";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
-// Teto de tentativas de envio de um alerta. Ao atingir, a rotina para de
-// reenviar (dead-letter) — evita marteladas em SMTP indisponível.
-// ponytail: fixo; virar config se o cenário exigir backoff/reset.
 const MAX_TENTATIVAS_ALERTA = 5;
 
 export interface MonitoramentoVeiculoConfig {
@@ -26,8 +23,6 @@ export interface MonitoramentoVeiculoConfig {
   // Regra 2: janela recente considerada (dias) e critérios de recorrência.
   janelaAvaliacaoDias: number;
   mediaMinima: number;
-  // Mínimo de avaliações na janela para a regra de média (evita alerta por
-  // uma única avaliação isolada).
   minAvaliacoes: number;
   notaBaixa: number;
   minNotasBaixas: number;
@@ -42,8 +37,6 @@ const CONFIG_PADRAO: MonitoramentoVeiculoConfig = {
   minNotasBaixas: 3,
 };
 
-// Resultado de uma regra em uma execução — retornado pelo endpoint manual e
-// logado pela rotina periódica.
 export interface ResultadoRegra {
   candidatos: number;
   alertasGerados: number;
@@ -60,9 +53,6 @@ export interface ResultadoMonitoramento {
   baixaAvaliacao: ResultadoRegra;
 }
 
-// Candidato normalizado: qualquer regra produz esta estrutura, e o
-// processamento (dedup -> registro -> envio -> resolução) é único. Novas
-// regras = um método que gera candidatos + um TipoAlertaVeiculo novo.
 interface CandidatoAlerta {
   idVeiculo: string;
   idLocador: string;
@@ -81,9 +71,6 @@ const resultadoVazio = (): ResultadoRegra => ({
   alertasResolvidos: 0,
 });
 
-// Serviço de monitoramento da frota: aplica as regras, gera/deduplica os
-// alertas e delega o envio ao dispatcher. NUNCA lança — é executado por rotina
-// periódica e a falha de uma regra não pode derrubar a outra nem o scheduler.
 export class MonitoramentoVeiculoService {
   private readonly config: MonitoramentoVeiculoConfig;
 
@@ -116,10 +103,6 @@ export class MonitoramentoVeiculoService {
 
     return { executadoEm: agora, inatividade, baixaAvaliacao };
   };
-
-  // ------------------------------------------------------------------
-  // Regras (cada uma apenas produz candidatos normalizados)
-  // ------------------------------------------------------------------
 
   private async candidatosInatividade(agora: Date): Promise<CandidatoAlerta[]> {
     const limite = new Date(
@@ -191,10 +174,6 @@ export class MonitoramentoVeiculoService {
     };
   }
 
-  // ------------------------------------------------------------------
-  // Processamento comum: dedup -> registro -> envio -> resolução
-  // ------------------------------------------------------------------
-
   private async executarRegra(
     tipo: TipoAlertaVeiculo,
     buscarCandidatos: () => Promise<CandidatoAlerta[]>,
@@ -210,9 +189,6 @@ export class MonitoramentoVeiculoService {
         await this.processarCandidato(tipo, candidato, resultado);
       }
 
-      // Resolução automática: alertas ativos cujo veículo não é mais candidato
-      // tiveram a condição sanada — encerra para permitir novo alerta em caso
-      // de reincidência.
       const candidatoIds = new Set(candidatos.map((c) => c.idVeiculo));
       const ativos =
         await this.monitoramentoRepository.findAtivosByTipo(tipo);
@@ -242,15 +218,11 @@ export class MonitoramentoVeiculoService {
         tipo,
       );
 
-      // Deduplicação: alerta ativo já notificado com sucesso — o locador não
-      // recebe e-mail repetido enquanto a condição persistir.
       if (ativo && ativo.status === StatusNotificacao.ENVIADA) {
         resultado.ignoradosDuplicados++;
         return;
       }
 
-      // Dead-letter: alerta que já falhou o número máximo de vezes não é
-      // reprocessado (evita retry infinito contra um provedor indisponível).
       if (
         ativo &&
         ativo.status === StatusNotificacao.FALHA &&

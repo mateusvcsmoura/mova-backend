@@ -108,8 +108,6 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     const where = this.buildWhere(filters);
     const { skip, take } = toSkipTake(pagination);
 
-    // comVagasDisponiveis compara duas colunas (veiculosAlocados < capacidade),
-    // o que o Prisma não expressa no `where`; nesse caso filtra/pagina em memória.
     if (filters.comVagasDisponiveis) {
       const garagems = await prisma.garagem.findMany({
         where,
@@ -227,9 +225,6 @@ export class PrismaGaragemRepository implements IGaragemRepository {
 
     try {
       const garagem = await prisma.$transaction(async (tx) => {
-        // Toda edição serializa com alocações/movimentações na mesma linha da
-        // garagem. Assim uma troca para MANUTENCAO/INATIVA não corre em
-        // paralelo com uma alocação que ainda enxerga o status anterior.
         await assertGarageCapacityUpdate(tx, id, data.capacidade);
         await assertGaragemSemCompromissoParaIndisponibilizar(tx, id, data.status ?? undefined);
 
@@ -252,9 +247,6 @@ export class PrismaGaragemRepository implements IGaragemRepository {
     }
   }
 
-  // Soft delete (RF19): desativa a garagem em vez de removê-la, preservando o
-  // histórico (veículos alocados, reservas passadas). Garagem INATIVA não
-  // aparece para novas reservas (regra no ReservaService).
   async delete(id: string): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {

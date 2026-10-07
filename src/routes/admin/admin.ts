@@ -45,8 +45,6 @@ adminRouter.post(
   bloqueioController.revogar,
 );
 
-// MONITORAMENTO DA FROTA (somente ADMIN) — acionamento manual da rotina que
-// normalmente roda via scheduler no boot.
 adminRouter.post(
   "/monitoramento/executar",
   authMiddleware,

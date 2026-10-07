@@ -13,11 +13,6 @@ import { Locale, LOCALE_PADRAO } from "../i18n/index.js";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
-// Monta o payload do relatório a partir de uma reserva, resolvendo as entidades
-// relacionadas (veículo, locador, locatário, garagens) e calculando os valores
-// derivados. Não envia nada — apenas produz o payload e o conteúdo renderizado.
-// Assim o cálculo do relatório fica testável isoladamente e independente do
-// canal de envio.
 export class ReservaReportService {
   constructor(
     private readonly veiculoRepository: IVeiculoRepository,
@@ -109,8 +104,6 @@ export class ReservaReportService {
     };
   }
 
-  // Monta o payload e já devolve o conteúdo pronto (assunto/HTML/texto) no
-  // idioma pedido (padrão pt). O idioma afeta só o texto ao usuário, não os dados.
   async buildReport(
     reserva: ReservaResponse,
     locale: Locale = LOCALE_PADRAO,

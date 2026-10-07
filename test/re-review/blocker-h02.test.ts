@@ -16,9 +16,6 @@ import {
   futurePeriod,
 } from "../helpers";
 
-// FINAL-H-02 — IDOR em GET /api/reserva/veiculo/:id_veiculo e exposição do
-// codigoDesbloqueio em respostas de gestão. Fixtures montados aqui, do zero.
-
 let locadorA: LocadorContext;
 let locadorB: LocadorContext;
 let locatario: LocatarioContext;
@@ -49,8 +46,6 @@ beforeAll(async () => {
     futurePeriod(10, 2),
   );
 
-  // Pagamento aprovado gera o código de desbloqueio REAL no banco: sem isso a
-  // verificação de exposição seria um falso negativo.
   for (const reserva of [reservaA, reservaB]) {
     await request(app)
       .post(`/api/reserva/${reserva.id}/pagamento`)

@@ -17,13 +17,6 @@ import {
   LocatarioContext,
 } from "../helpers";
 
-// TASK 04 — jornada completa, na ordem em que o usuário a percorre:
-// login -> veículo -> garagem -> data/hora -> reserva -> pagamento sandbox ->
-// webhook assinado -> reserva confirmada + código de desbloqueio.
-//
-// Cada passo usa a API real; nada é escrito direto no banco para "ajudar" o
-// fluxo. Ver auditoria/PAGAMENTO.md.
-
 const VALOR_DIARIA = 180.5;
 const DIARIAS = 3;
 
@@ -123,8 +116,6 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
       .set("Authorization", `Bearer ${locatario.token}`);
     expect(condutores.body.result).toHaveLength(1);
 
-    // 8. Pagamento em sandbox — só o método e os dados de teste. O desfecho é
-    // do backend; o webhook assinado do gateway simulado é quem confirma.
     const pagamento = await request(app)
       .post(`/api/reserva/${reservaId}/pagamento`)
       .set("Authorization", `Bearer ${locatario.token}`)
@@ -159,9 +150,6 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
     });
     expect(Number(cobranca.valor)).toBe(VALOR_DIARIA * DIARIAS + servico.valor);
 
-    // 9. Desbloqueio (TASK 05). O cliente recupera o código pela própria API —
-    // nada de estado local — e só então desbloqueia. Antes disso, a janela de
-    // uso é aberta (arranjo de cenário: a retirada seria daqui a alguns dias).
     const codigo: string = consulta.body.result.codigoDesbloqueio;
 
     await prisma.reserva.update({
@@ -181,8 +169,6 @@ describe("E2E — jornada da reserva até o pagamento confirmado", () => {
     expect(desbloqueio.body.result.codigoUsadoEm).not.toBeNull();
     expect(desbloqueio.body.result.status).toBe("EM_ANDAMENTO");
 
-    // 10. Uso único: repetir o mesmo código não reabre o veículo, e a consulta
-    // seguinte (fonte de verdade da tela) segue EM_ANDAMENTO.
     const repetido = await request(app)
       .post(`/api/reserva/${reservaId}/desbloqueio`)
       .set("Authorization", `Bearer ${locatario.token}`)

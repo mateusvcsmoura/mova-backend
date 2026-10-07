@@ -5,10 +5,6 @@ import {
   AlertaVeiculoInfo,
 } from "../services/contracts/alerta-veiculo.js";
 
-// Templates dos alertas de monitoramento da frota. Funções puras: recebem o
-// payload e devolvem o conteúdo (assunto + HTML + texto). Mantidos fora dos
-// services para que o HTML não seja concatenado dentro da regra de negócio.
-
 // Escapa texto para uso seguro dentro do HTML (dados vêm do banco/usuário).
 const escapeHtml = (value: string): string =>
   value

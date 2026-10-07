@@ -25,8 +25,6 @@ interface MediaVisibilitySynchronizer {
 }
 
 export class VeiculoService {
-  // Notifier e recorder são opcionais para não obrigar todos os pontos de
-  // construção (testes, scripts) a fornecê-los; em produção o container injeta.
   constructor(
     private veiculoRepository: IVeiculoRepository,
     private readonly disponibilidadeNotifier?: IVeiculoDisponivelNotifier,
@@ -34,10 +32,6 @@ export class VeiculoService {
     private readonly mediaVisibility?: MediaVisibilitySynchronizer,
   ) {}
 
-  // Registra a transição de status no histórico (base da regra de inatividade
-  // do monitoramento). Nunca lança: o histórico é auxiliar e a sua falha
-  // (ex.: migration ainda não aplicada) não pode afetar a atualização do
-  // veículo, já persistida.
   private async registrarTransicaoStatus(
     idVeiculo: string,
     status: StatusVeiculo,
@@ -53,9 +47,6 @@ export class VeiculoService {
     }
   }
 
-  // ── Ownership ───────────────────────────────────────────────────────────
-  // ADMIN tem acesso global. LOCADOR só age sobre recursos cujo idLocador
-  // coincide com o seu próprio id. Qualquer outro cargo é negado.
   private assertPodeGerenciar(
     requester: VeiculoRequester,
     idLocadorDoRecurso: string,
@@ -98,8 +89,6 @@ export class VeiculoService {
     }
   };
 
-  /** Gestão privada da frota. LOCADOR vê apenas seus veículos em qualquer
-   * status; ADMIN mantém acesso global administrativo. */
   listFrota = async (
     requester: VeiculoRequester,
     pagination: PaginationParams,
@@ -113,10 +102,6 @@ export class VeiculoService {
     return this.veiculoRepository.findByLocadorId(requester.id, pagination);
   };
 
-  // Consulta pública da frota de um locador (catálogo). Usa search(), que
-  // filtra status = DISPONIVEL — não expõe INATIVO/RESERVADO/MANUTENCAO ao
-  // público. A listagem completa (todos os status) é feita pelo locador dono
-  // via GET /api/veiculo autenticado (list()).
   findByLocadorId = async (idLocador: string, pagination: PaginationParams) => {
     const veiculos = await this.veiculoRepository.search(
       { idLocador },
@@ -128,8 +113,6 @@ export class VeiculoService {
     return veiculos;
   };
 
-  // Detalhe público. Veículo INATIVO (desativado) é tratado como inexistente
-  // para o público — não deve aparecer no catálogo.
   findById = async (id: string, requester?: VeiculoRequester) => {
     const veiculo = await this.veiculoRepository.findById(id);
     if (!veiculo || veiculo.status === StatusVeiculo.INATIVO) {
@@ -241,9 +224,6 @@ export class VeiculoService {
       await this.mediaVisibility?.sincronizarVisibilidadeVeiculo(atualizado.id);
     }
 
-    // Disparo automático da watchlist: apenas na TRANSIÇÃO para DISPONIVEL
-    // (não em updates que já estavam DISPONIVEL). O notifier nunca lança —
-    // falha de envio não afeta a atualização do veículo, já persistida.
     if (
       this.disponibilidadeNotifier &&
       veiculo.status !== StatusVeiculo.DISPONIVEL &&
@@ -296,8 +276,6 @@ export class VeiculoService {
     if (!veiculo) {
       throw new HttpError(404, "Veículo não encontrado");
     }
-    // O locador só gerencia os próprios veículos e não pode reapontar o
-    // veículo para um modelo de outro locador.
     this.assertPodeGerenciar(requester, veiculo.idLocador);
     this.assertPodeGerenciar(requester, data.idLocador);
     if (data.idLocador !== veiculo.idLocador) {

@@ -26,8 +26,6 @@ describe("Cobranças financeiras — H-04", () => {
   });
 
   afterEach(async () => {
-    // Cada caso cria cobranças próprias; quitá-las ao final evita que RN07
-    // contamine o próximo caso sem resetar o banco inteiro no meio do arquivo.
     await prisma.cobrancaReserva.updateMany({
       where: { statusPagamento: { in: ["AGUARDANDO_PAGAMENTO", "PROCESSANDO", "FALHA"] } },
       data: { statusPagamento: "SUCESSO" },
@@ -166,8 +164,6 @@ describe("Cobranças financeiras — H-04", () => {
   });
 
   it("mantém bloqueio com qualquer pendência e libera somente após quitar todas", async () => {
-    // Cria as duas reservas antes das cobranças: depois da primeira pendência
-    // RN07 já impede a criação de nova reserva para o mesmo locatário.
     const reserva1 = await reservaBase();
     const reserva2 = await reservaBase();
     const primeira = await cobrancaDaReserva(reserva1.id);

@@ -26,8 +26,6 @@ import {
   reserveGarageCapacityForNewVehicles,
 } from "./vehicle-garage-allocation.js";
 
-// A listagem do catálogo precisa identificar a garagem efetiva do veículo.
-// Selecionar esses campos na mesma query evita GET /garagem/:id por card.
 const withModelo = {
   modeloVeiculo: true,
   garagem: { select: { id: true, nome: true, status: true } },
@@ -35,9 +33,6 @@ const withModelo = {
 } as const;
 
 export class PrismaVeiculoRepository implements IVeiculoRepository {
-  // ── Upsert interno do modelo ──────────────────────────────────────────────
-  // Busca o modelo pelo unique [idLocador, marca, modelo, ano].
-  // Se não existir, cria. Se existir, retorna o existente sem alterar.
   private async upsertModelo(
     db: PrismaClient | Prisma.TransactionClient,
     data: ModeloVeiculoData,
@@ -155,9 +150,6 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
       idLocador: filters.idLocador,
       garagemId: filters.garagemId,
       status: "DISPONIVEL",
-      // Catálogo reservável: só há oferta quando existe um ponto operacional
-      // real e a garagem está ATIVA. Veículo em preparação sem garagem fica
-      // visível apenas na frota privada do locador.
       garagem: { status: StatusGaragem.ATIVA },
       modeloVeiculo: {
         // Busca textual do catálogo: trecho, sem diferenciar maiúsculas.
@@ -203,8 +195,6 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   ): Promise<PaginatedResult<VeiculoResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const where: Prisma.VeiculoWhereInput = {
-      // RESERVADO e MANUTENCAO são indisponíveis agora, mas podem voltar a
-      // DISPONIVEL. INATIVO é desativação administrativa e não entra aqui.
       status: { in: [StatusVeiculo.RESERVADO, StatusVeiculo.MANUTENCAO] },
     };
     const [data, total] = await prisma.$transaction([
@@ -327,9 +317,6 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           include: { modeloVeiculo: true },
         });
         if (!atual) return null;
-        // Task 11: a movimentacao trava garagens -> linhas de reserva; a checagem de
-        // compromisso trava linhas de reserva. Mover ANTES mantem a ordem global
-        // (veiculo -> garagens -> reservas) tambem no PUT que muda status + garagem.
         if (data.garagemId !== undefined) {
           await moveVehicleInTransaction(tx, id, data.garagemId);
         }
@@ -354,9 +341,6 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
               data.modelo.valorDiaria ?? Number(modeloAtual.valorDiaria),
           };
 
-          // A identidade do catálogo é única por locador. Se ela mudou,
-          // associa o veículo ao modelo correspondente; se não mudou, o
-          // update explícito mantém a semântica de modelo compartilhado.
           const atualizado = await tx.modeloVeiculo.upsert({
             where: {
               idLocador_marca_modelo_ano: {
@@ -422,14 +406,9 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   }
 
   async delete(id: string, ator?: AtorAuditoria): Promise<void> {
-    // RN08: soft delete — marca INATIVO (espelha garagem). Preserva histórico
-    // (evita cascade destrutivo) e tira o veículo de buscas (filtro DISPONIVEL)
-    // e de novas reservas (create rejeita status != DISPONIVEL).
     try {
       await prisma.$transaction(async (tx) => {
         const atual = await tx.veiculo.findUniqueOrThrow({ where: { id } });
-        // Task 11: exclusão lógica repetida é no-op — não grava um segundo
-        // registro EXCLUSAO na auditoria (RN09 registra só o que mudou).
         if (atual.status === StatusVeiculo.INATIVO) return;
         await assertSemCompromissoParaIndisponibilizar(tx, id, atual.status, StatusVeiculo.INATIVO);
         await tx.veiculo.update({
@@ -469,8 +448,6 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
           adaptado: data.adaptado ?? undefined,
           valorDiaria: data.valorDiaria ?? undefined,
           categoria: data.categoria !== undefined ? data.categoria : undefined,
-          // marca, modelo, ano intencionalmente fora — mudar isso
-          // quebraria o @@unique e a identidade do modelo
         },
       });
         for (const veiculo of afetados) {

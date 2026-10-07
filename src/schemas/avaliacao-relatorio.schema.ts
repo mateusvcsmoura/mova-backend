@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-// Query params do dashboard de avaliações (GET /api/avaliacao/relatorio).
-// Todos os filtros são opcionais; sem filtros, considera toda a base do
-// locador. granularidade e limiteComentarios têm default.
 export const avaliacaoRelatorioQuerySchema = z
   .object({
     dataInicio: z.coerce.date().optional(),

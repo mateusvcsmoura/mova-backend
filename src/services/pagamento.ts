@@ -27,17 +27,6 @@ export interface IniciarPagamentoResultado {
   provider: string;
 }
 
-/**
- * Início do pagamento de uma reserva.
- *
- * Desenho: este service NÃO confirma pagamento. Ele registra a cobrança, deixa
- * a reserva em PROCESSANDO e entrega o desfecho ao SIMULADOR DE GATEWAY, que
- * assina um webhook e o devolve pelo mesmo caminho de um gateway real
- * (PagamentoWebhookService → verificação de assinatura → ReservaService).
- *
- * Ou seja: a única porta que muda statusPagamento continua sendo o webhook
- * assinado. Não existe atalho, nem em sandbox.
- */
 export class PagamentoService {
   constructor(
     private readonly reservaRepository: IReservaRepository,
@@ -79,12 +68,8 @@ export class PagamentoService {
       throw new HttpError(409, "Reserva cancelada.");
     }
 
-    // Decide o desfecho ANTES de tocar no estado: erro de forma (cartão
-    // ausente/inválido) não deve deixar a reserva em PROCESSANDO.
     const desfecho = decidirDesfechoSandbox(dados);
 
-    // Registra a cobrança e coloca a reserva em PROCESSANDO. O valor vem da
-    // reserva (calculado na criação), nunca do cliente.
     const emProcessamento =
       await this.reservaRepository.registrarPagamentoIniciado(
         idReserva,
@@ -94,8 +79,6 @@ export class PagamentoService {
 
     const provider = env.PAGAMENTO_SANDBOX_PROVIDER;
 
-    // PROCESSANDO fica pendente: nenhum webhook é disparado. É o cenário de
-    // análise antifraude — o pagamento só resolve quando o gateway decidir.
     if (desfecho === StatusPagamento.PROCESSANDO) {
       return { reserva: emProcessamento, valorCobrado, provider };
     }
@@ -114,8 +97,6 @@ export class PagamentoService {
       };
     }
 
-    // Com atraso: o cliente recebe PROCESSANDO e faz polling, como num gateway
-    // real. Falha na entrega não derruba a requisição do usuário.
     const timer = setTimeout(() => {
       void entregar().catch((erro) => {
         console.error("[pagamento-sandbox] falha ao entregar webhook:", erro);
@@ -126,11 +107,6 @@ export class PagamentoService {
     return { reserva: emProcessamento, valorCobrado, provider };
   };
 
-  /**
-   * O simulador de gateway. Assina o payload canônico com o MESMO segredo e o
-   * MESMO esquema HMAC que a verificação usa, e entrega pelo webhook service —
-   * passando inclusive pela checagem de assinatura.
-   */
   private entregarWebhookAssinado = async (
     idReserva: string,
     status: StatusPagamento,
@@ -145,10 +121,6 @@ export class PagamentoService {
       );
     }
 
-    // Task 11: cada tentativa é um evento próprio do "gateway" (como nos
-    // sandboxes reais). Uma identidade fixa por reserva+status fazia a trilha
-    // de estorno tratar a nova tentativa como replay do evento já recusado,
-    // e a reserva ficava impagável até expirar.
     const corpo = montarEventoWebhook(
       idReserva,
       status,

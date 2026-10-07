@@ -1,14 +1,4 @@
-﻿# Restore LOCAL do PostgreSQL do MOVA (RNF10). DESTRUTIVO para o banco alvo.
-#   powershell -ExecutionPolicy Bypass -File scripts\restore-mova.ps1 -Arquivo backups\mova_dev_....dump [-Banco mova_dev]
-#
-# Segurança:
-# - só restaura no container local mova-postgres (nunca em URL/banco remoto);
-# - bancos permitidos: mova_dev (padrão) ou bancos temporários mova_restore_*;
-#   mova_test é sempre recusado (os testes o recriam);
-# - pede que o nome do banco seja digitado para confirmar (ou -Confirmar <nome>
-#   para uso não interativo, que precisa repetir exatamente o nome do banco);
-# - bancos mova_restore_* inexistentes são criados.
-param(
+﻿param(
   [Parameter(Mandatory = $true)][string]$Arquivo,
   [string]$Banco = "mova_dev",
   [string]$Confirmar = "",

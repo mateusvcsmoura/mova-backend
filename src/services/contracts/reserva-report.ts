@@ -5,9 +5,6 @@ import {
   StatusReserva,
 } from "@prisma/client";
 
-// Payload do relatório de reserva. É a estrutura intermediária, independente do
-// formato de saída (HTML/texto/futuro PDF) e das entidades do Prisma. O builder
-// monta este payload; os templates apenas o consomem.
 export interface ReservaReportPayload {
   reserva: {
     id: string;

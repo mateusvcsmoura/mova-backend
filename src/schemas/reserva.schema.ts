@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { MetodoPagamento, StatusPagamento, StatusReserva } from "@prisma/client";
 
-// RN05: duração da reserva. Mínimo 1 hora, máximo 30 dias (bordas inclusivas).
-// Espelha a checagem-fonte em ReservaService.assertPeriodoValido.
 const DURACAO_MINIMA_MS = 60 * 60 * 1000;
 const DURACAO_MAXIMA_MS = 30 * 24 * 60 * 60 * 1000;
 const dentroDaDuracaoPermitida = (inicio: Date, fim: Date): boolean => {
@@ -20,26 +18,15 @@ export const createReservaSchema = z
     // Deficiência informada no fluxo da reserva (veículos adaptados).
     deficienciaId: z.string().uuid().optional(),
 
-    // Local de retirada (garagem atual do veículo) e local de devolução
-    // (garagem do mesmo locador dono do veículo).
     idGaragemRetirada: z.string().uuid().optional(),
     idGaragemDevolucao: z.string().uuid().optional(),
 
     dataHoraInicio: z.coerce.date(),
     dataHoraFim: z.coerce.date(),
 
-    // valorTotal NÃO é aceito do cliente. O backend calcula a partir da
-    // valorDiaria do ModeloVeiculo × diárias + serviços opcionais.
-
     // Serviços opcionais selecionados (nenhum, um ou vários). Lista de UUIDs.
     servicosIds: z.array(z.string().uuid()).optional(),
 
-    // status e statusPagamento NÃO são aceitos do cliente. Toda reserva nasce
-    // AGUARDANDO_PAGAMENTO (default do banco); o status só avança por ações de
-    // domínio (/cancelar, /devolucao) e o statusPagamento só pelo webhook
-    // assinado do gateway (POST /api/webhooks/pagamento/*).
-    // metodoPagamento é uma escolha do cliente (meio pretendido), não o
-    // resultado, então permanece aceito.
     metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => data.dataHoraFim > data.dataHoraInicio, {
@@ -75,10 +62,6 @@ export const updateReservaSchema = z
     idGaragemDevolucao: z.string().uuid().optional(),
     dataHoraInicio: z.coerce.date().optional(),
     dataHoraFim: z.coerce.date().optional(),
-    // RN04: status e valorTotal NÃO são mais aceitos via PUT. Mutação livre de
-    // status/valor era vulnerabilidade transversal (cancelar de graça, reescrever
-    // preço). Cancelamento agora é ação de domínio: POST /:id/cancelar.
-    // statusPagamento continua fora do cliente (só muda via webhook do gateway).
     metodoPagamento: z.nativeEnum(MetodoPagamento).optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
@@ -115,8 +98,6 @@ export const reservaIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
-// Coordenada do dispositivo no momento do desbloqueio (RN03 — geofence).
-// Latitude/longitude são opcionais, mas ou ambas ou nenhuma.
 const coordenadaFields = {
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
@@ -145,8 +126,6 @@ export const desbloquearReservaSchema = z
     path: ["longitude"],
   });
 
-// Body do desbloqueio via QR Code (POST /api/reserva/:id/desbloqueio/qr).
-// O QR carrega um token assinado que resolve para o mesmo código textual.
 export const desbloquearQrSchema = z
   .object({
     qr: z.string().min(1),

@@ -12,10 +12,6 @@ import {
   type LocatarioContext,
 } from "../helpers";
 
-// Race de double-booking: duas requisições concorrentes reservando o MESMO
-// veículo no MESMO período. A checagem otimista de overlap passa nas duas antes
-// de qualquer insert; sem o advisory lock por veículo na transação de create,
-// ambas gravariam. Com o lock, exatamente uma vence (201) e a outra recebe 409.
 describe("Reserva concorrente (race de double-booking)", () => {
   let locador: LocadorContext;
   let locatario: LocatarioContext;
