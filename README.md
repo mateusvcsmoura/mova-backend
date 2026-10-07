@@ -55,6 +55,7 @@ src/
   shared/              # paginação
   errors/
 test/                  # suites por domínio (Vitest + Supertest)
+docker/                # docker-compose.yml (Postgres + MinIO) e init do Postgres
 docs/codigo/           # notas de implementação por área (antes eram comentários no código)
 ```
 
@@ -133,6 +134,7 @@ npm start
 - `npm run dev` — API em watch mode (tsx)
 - `npm run build` / `npm start` — compila e sobe a versão de `dist/`
 - `npm test` / `npm run test:watch` — Vitest
+- `npm run db:up` / `npm run db:down` — sobe/derruba o Postgres local (`docker/docker-compose.yml`)
 - `npm run db:seed` / `npm run db:reset` — seed/reset do banco
 - `npm run db:migrate:test` — `migrate deploy` no banco de teste (`DATABASE_URL_TEST`)
 

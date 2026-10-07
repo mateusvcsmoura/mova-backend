@@ -18,3 +18,4 @@ allure-results/
 .worktrees/
 .superpowers/
 backups/
+.vscode/

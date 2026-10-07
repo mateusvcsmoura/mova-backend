@@ -21,7 +21,7 @@ function Start-Container([string]$nome, [string]$servico, [string[]]$perfil) {
   Write-Host "Container $nome não existe; criando pelo docker compose..."
   Push-Location $backendDir
   try {
-    docker compose @perfil up -d $servico
+    docker compose -f docker/docker-compose.yml @perfil up -d $servico
     if ($LASTEXITCODE -ne 0) { throw "docker compose up $servico falhou (MinIO exige MINIO_ROOT_USER/MINIO_ROOT_PASSWORD na sessão e ..\minio.license)." }
   } finally { Pop-Location }
 }

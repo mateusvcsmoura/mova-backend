@@ -85,7 +85,7 @@ leitura gerada nos DTOs. Em local, o backend roda no host e usa localhost.
 O console administrativo local é http://127.0.0.1:9001; não é usado pelo
 backend.
 
-## `docker-compose.yml`
+## `docker/docker-compose.yml`
 
 **`services:`**
 
