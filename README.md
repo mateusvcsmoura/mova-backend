@@ -61,7 +61,9 @@ src/
 prisma/
   schema.prisma        # modelos, enums, índices e constraints
   migrations/          # SQL versionado
-  scripts/             # seed, seed-demo, reset, media-init, media-cleanup
+  scripts/             # seed, seed-demo, seed-demo-frota, reset, media-init, media-cleanup
+  assets/veiculos/     # fotos da frota de demonstração (autor e licença em CREDITOS.md)
+  dbml/                # schema.dbml (gerado pelo prisma generate) e modelo-tcc.dbml (diagrama ER do TCC)
 docker/
   docker-compose.yml   # PostgreSQL e MinIO (perfil "media")
   postgres-init/       # cria o banco mova_test na primeira inicialização
@@ -143,6 +145,7 @@ npm run db:up                  # PostgreSQL em localhost:5433 (mova_dev e mova_t
 npm run db:migrate:deploy      # aplica as migrations no mova_dev
 npm run db:migrate:test        # aplica as migrations no mova_test
 npm run db:seed:demo           # opcional: dados de demonstração
+npm run db:seed:demo:frota     # opcional: só acrescenta a frota extra e as fotos (não apaga dados)
 npm run dev                    # API em http://localhost:3000/api
 ```
 
@@ -158,6 +161,7 @@ No Windows, `scripts/start-mova.ps1` sobe tudo em ordem (PostgreSQL → MinIO �
 - `npm run db:up` / `npm run db:down`: sobe/derruba o PostgreSQL local
 - `npm run db:migrate:deploy` / `npm run db:migrate:test`: migrations no banco de desenvolvimento / de teste
 - `npm run db:seed`, `npm run db:seed:demo`, `npm run db:reset`: seed básico, seed de demonstração (com imagens no MinIO) e reset
+- `npm run db:seed:demo:frota`: acrescenta a um `mova_dev` já populado a frota extra de demonstração e as fotos que faltam, sem apagar nada (idempotente)
 - `npm run media:init` / `npm run media:cleanup`: buckets do MinIO / limpeza de órfãos
 - `scripts/backup-mova.ps1`, `restore-mova.ps1`, `verify-backup-mova.ps1`: backup local do PostgreSQL
 - `node scripts/bench-mova.mjs`: benchmark local das operações principais

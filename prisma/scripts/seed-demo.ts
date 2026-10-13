@@ -1,9 +1,10 @@
 import "dotenv/config";
-import { execFileSync } from "node:child_process";
 import { randomInt } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { FOTOS_DIR, FOTOS_POR_PLACA, GARAGENS_EXTRA, VEICULOS_EXTRA, mimeDaFoto } from "./demo-frota.js";
+import { carregarCredenciaisMinio } from "./minio-credenciais.js";
 
 const DEMO_DATABASE = "mova_dev";
 const MINIO_CONTAINER = process.env.MOVA_MINIO_CONTAINER || "mova-backend-minio-1";
@@ -22,29 +23,7 @@ if (process.env.NODE_ENV !== "development") {
 // Nenhum e-mail real durante o seed (o monitoramento de alertas roda no final).
 process.env.SEND_REAL_EMAIL = "false";
 
-function carregarCredenciaisMinio(): void {
-  if (process.env.MEDIA_S3_ACCESS_KEY_ID && process.env.MEDIA_S3_SECRET_ACCESS_KEY) return;
-  try {
-    const out = execFileSync(
-      "docker",
-      ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", MINIO_CONTAINER],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    );
-    const vars = Object.fromEntries(
-      out.split(/\r?\n/).filter(Boolean).map((linha) => {
-        const i = linha.indexOf("=");
-        return [linha.slice(0, i), linha.slice(i + 1)];
-      }),
-    );
-    if (vars.MINIO_ROOT_USER && vars.MINIO_ROOT_PASSWORD) {
-      process.env.MEDIA_S3_ACCESS_KEY_ID = vars.MINIO_ROOT_USER;
-      process.env.MEDIA_S3_SECRET_ACCESS_KEY = vars.MINIO_ROOT_PASSWORD;
-    }
-  } catch {
-    // Sem Docker/MinIO: imagens são puladas abaixo.
-  }
-}
-carregarCredenciaisMinio();
+carregarCredenciaisMinio(MINIO_CONTAINER);
 
 // Imports dinâmicos: env e Prisma precisam ver as variáveis ajustadas acima.
 const bcrypt = (await import("bcrypt")).default;
@@ -177,7 +156,7 @@ type VeiculoDemo = {
   status?: (typeof StatusVeiculo)[keyof typeof StatusVeiculo];
   // Última transição de status, em dias atrás (alimenta o alerta de inatividade RN10).
   statusHaDias?: number;
-  imagem?: { arquivo: string; alt: string };
+  imagem?: { arquivo: string; alt: string; dir?: string };
 };
 
 async function veiculo(v: VeiculoDemo) {
@@ -210,10 +189,22 @@ const onix = await veiculo({ idLocador: locador.id, marca: "Chevrolet", modelo: 
 const argo = await veiculo({ idLocador: locador.id, marca: "Fiat", modelo: "Argo", ano: 2022, cambio: "Manual", capacidade: 5, categoria: CategoriaVeiculo.ECONOMICO, valorDiaria: 119.9, placa: "MOV2B34", garagemId: gAgua.id, imagem: { arquivo: "fiat-argo-drive.png", alt: "Fiat Argo, vista lateral" } });
 const hb20 = await veiculo({ idLocador: locador.id, marca: "Hyundai", modelo: "HB20 Plus Adaptado", ano: 2024, cambio: "Automático", capacidade: 5, adaptado: true, categoria: CategoriaVeiculo.PCD, valorDiaria: 139.9, placa: "MOV3C45", garagemId: gCentro.id, imagem: { arquivo: "hiunday-hb20-plus.png", alt: "Hyundai HB20 adaptado para PCD, vista lateral" } });
 const civic = await veiculo({ idLocador: locador.id, marca: "Honda", modelo: "Civic", ano: 2023, cambio: "Automático", capacidade: 5, categoria: CategoriaVeiculo.EXECUTIVO, valorDiaria: 249.9, placa: "MOV4D56", garagemId: gBatel.id, imagem: { arquivo: "honda-civic-confort.png", alt: "Honda Civic, vista lateral" } });
-const dolphin = await veiculo({ idLocador: locador.id, marca: "BYD", modelo: "Dolphin", ano: 2024, cambio: "Automático", capacidade: 5, eletrico: true, categoria: CategoriaVeiculo.ECONOMICO, valorDiaria: 199.9, placa: "MOV5E67", garagemId: gBatel.id });
-const spin = await veiculo({ idLocador: locador.id, marca: "Chevrolet", modelo: "Spin", ano: 2023, cambio: "Automático", capacidade: 7, categoria: CategoriaVeiculo.ESPACOSO, valorDiaria: 179.9, placa: "MOV6F78", garagemId: gCentro.id, status: StatusVeiculo.MANUTENCAO, statusHaDias: 2 });
-await veiculo({ idLocador: locador.id, marca: "Fiat", modelo: "Mobi", ano: 2021, cambio: "Manual", capacidade: 4, categoria: CategoriaVeiculo.ECONOMICO, valorDiaria: 99.9, placa: "MOV7G89", garagemId: null, status: StatusVeiculo.INATIVO, statusHaDias: 10 });
-const corolla = await veiculo({ idLocador: parceiro.id, marca: "Toyota", modelo: "Corolla", ano: 2022, cambio: "Automático", capacidade: 5, categoria: CategoriaVeiculo.EXECUTIVO, valorDiaria: 229.9, placa: "PAR1H90", garagemId: gParceira.id });
+const dolphin = await veiculo({ idLocador: locador.id, marca: "BYD", modelo: "Dolphin", ano: 2024, cambio: "Automático", capacidade: 5, eletrico: true, categoria: CategoriaVeiculo.ECONOMICO, valorDiaria: 199.9, placa: "MOV5E67", garagemId: gBatel.id, imagem: { ...FOTOS_POR_PLACA.MOV5E67, dir: FOTOS_DIR } });
+const spin = await veiculo({ idLocador: locador.id, marca: "Chevrolet", modelo: "Spin", ano: 2023, cambio: "Automático", capacidade: 7, categoria: CategoriaVeiculo.ESPACOSO, valorDiaria: 179.9, placa: "MOV6F78", garagemId: gCentro.id, status: StatusVeiculo.MANUTENCAO, statusHaDias: 2, imagem: { ...FOTOS_POR_PLACA.MOV6F78, dir: FOTOS_DIR } });
+const mobi = await veiculo({ idLocador: locador.id, marca: "Fiat", modelo: "Mobi", ano: 2021, cambio: "Manual", capacidade: 4, categoria: CategoriaVeiculo.ECONOMICO, valorDiaria: 99.9, placa: "MOV7G89", garagemId: null, status: StatusVeiculo.INATIVO, statusHaDias: 10, imagem: { ...FOTOS_POR_PLACA.MOV7G89, dir: FOTOS_DIR } });
+const corolla = await veiculo({ idLocador: parceiro.id, marca: "Toyota", modelo: "Corolla", ano: 2022, cambio: "Automático", capacidade: 5, categoria: CategoriaVeiculo.EXECUTIVO, valorDiaria: 229.9, placa: "PAR1H90", garagemId: gParceira.id, imagem: { ...FOTOS_POR_PLACA.PAR1H90, dir: FOTOS_DIR } });
+
+// Frota extra (demo-frota.ts): opções suficientes em cada filtro do catálogo, todas com foto.
+const donos = { locador: locador.id, parceiro: parceiro.id };
+const garagensPorNome = new Map([gCentro, gBatel, gAgua, gParceira].map((g) => [g.nome, g.id]));
+for (const g of GARAGENS_EXTRA) {
+  garagensPorNome.set(g.nome, (await garagem(donos[g.dono], g.nome, g.endereco, g.capacidade, g.acessibilidade)).id);
+}
+const extras = [];
+for (const v of VEICULOS_EXTRA) {
+  const { dono, garagem: nomeGaragem, foto, categoria, ...dados } = v;
+  extras.push(await veiculo({ ...dados, idLocador: donos[dono], categoria: CategoriaVeiculo[categoria], garagemId: garagensPorNome.get(nomeGaragem)!, imagem: { ...foto, dir: FOTOS_DIR } }));
+}
 
 const POSICAO_CENTRO = { latitude: -25.4296, longitude: -49.2713 };
 const POSICAO_BATEL = { latitude: -25.4417, longitude: -49.2889 };
@@ -315,13 +306,13 @@ if (!temMidia) {
   console.warn("Aviso: credenciais do MinIO indisponíveis — veículos ficam sem imagem.");
 } else {
   const service = new VeiculoImagemService(storage);
-  for (const v of [onix, argo, hb20, civic]) {
-    const caminho = resolve(assetsDir, v.imagem!.arquivo);
+  for (const v of [onix, argo, hb20, civic, dolphin, spin, mobi, corolla, ...extras]) {
+    const caminho = resolve(v.imagem!.dir ?? assetsDir, v.imagem!.arquivo);
     if (!existsSync(caminho)) {
       console.warn(`Aviso: ${caminho} não encontrado — imagem pulada.`);
       continue;
     }
-    await service.criar(v.id, readFileSync(caminho), "image/png", v.imagem!.alt, { id: locador.id, cargo: Cargo.LOCADOR });
+    await service.criar(v.id, readFileSync(caminho), mimeDaFoto(v.imagem!.arquivo), v.imagem!.alt, { id: v.idLocador, cargo: Cargo.LOCADOR });
     imagensEnviadas.push(v.placa);
   }
 }

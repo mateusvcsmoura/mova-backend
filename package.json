@@ -21,7 +21,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "media:init": "tsx prisma/scripts/media-init.ts",
     "media:cleanup": "tsx prisma/scripts/media-cleanup.ts",
-    "db:seed:demo": "tsx prisma/scripts/seed-demo.ts"
+    "db:seed:demo": "tsx prisma/scripts/seed-demo.ts",
+    "db:seed:demo:frota": "tsx prisma/scripts/seed-demo-frota.ts"
   },
   "keywords": [],
   "author": "fzs",
