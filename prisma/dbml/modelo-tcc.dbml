@@ -1,0 +1,206 @@
+// Diagrama ER do TCC: as 10 entidades centrais, com tipos do PostgreSQL. Mantido à mão (layout em
+// modelo-tcc.dbml.layout.json). O schema.dbml ao lado é gerado pelo prisma generate e sobrescrito a cada build.
+
+Table Conta {
+  id uuid
+  nome text
+  email text
+  telefone text
+  senhaHash text
+  criadaEm timestamp(3)
+  cargo text
+  cep text
+  endereco text
+  anonimizadoEm timestamp(3)
+  atualizadoEm timestamp(3)
+}
+
+Table Locatario {
+  id uuid
+  cpf text
+  cnh text
+  rg text
+  dataNascimento date
+  deficienciaId uuid
+  atualizadoEm timestamp(3)
+}
+
+Table Locador {
+  id uuid
+  empresa text
+  cnpj text
+  atualizadoEm timestamp(3)
+}
+
+Table Deficiencia {
+  id uuid
+  descricao text
+  atualizadoEm timestamp(3)
+}
+
+Table ModeloVeiculo {
+  id uuid
+  idLocador uuid
+  marca text
+  modelo text
+  ano integer
+  cambio text
+  capacidade integer
+  eletrico boolean
+  adaptado boolean
+  categoria text
+  valorDiaria decimal(10,2)
+  criadoEm timestamp(3)
+  atualizadoEm timestamp(3)
+
+}
+
+Table Veiculo {
+  id uuid
+  idLocador uuid
+  idModeloVeiculo uuid
+  garagemId uuid
+  placa text
+  status text
+  criadoEm timestamp(3)
+  atualizadoEm timestamp(3)
+}
+
+Table Garagem {
+  id uuid
+  idLocador uuid
+  nome text
+  endereco text
+  capacidade integer
+  veiculosAlocados integer
+  acessibilidade boolean
+  status text
+  criadaEm timestamp(3)
+  atualizadoEm timestamp(3)
+}
+
+Table Reserva {
+  id uuid
+  idVeiculo uuid
+  idLocatario uuid
+  idGaragemRetirada uuid
+  idGaragemDevolucao uuid
+  dataHoraInicio timestamp(3)
+  dataHoraFim timestamp(3)
+  criadaEm timestamp(3)
+  valorTotal decimal(10,2)
+  status text
+  statusPagamento text
+  metodoPagamento text
+  codigoDesbloqueio text
+  codigoGeradoEm timestamp(3)
+  codigoUsadoEm timestamp(3)
+  devolvidoEm timestamp(3)
+  expiradaEm timestamp(3)
+  atualizadoEm timestamp(3)
+}
+
+Table ServicoOpcional {
+  id uuid
+  nome text
+  descricao text
+  detalhesCobertura text
+  valor decimal(10,2)
+  ativo boolean
+  criadoEm timestamp(3)
+  atualizadoEm timestamp(3)
+
+}
+
+Table Avaliacao {
+  id uuid
+  idReserva uuid
+  comentario text
+  data timestamp(3)
+  nota decimal(2,1)
+  atualizadoEm timestamp(3)
+}
+
+Enum Cargo {
+  LOCATARIO
+  LOCADOR
+  ADMIN
+}
+Enum StatusVeiculo {
+  DISPONIVEL
+  RESERVADO
+  MANUTENCAO
+  INATIVO
+}
+Enum CategoriaVeiculo {
+  ECONOMICO
+  ESPACOSO
+  EXECUTIVO
+  PCD
+}
+Enum StatusReserva {
+  AGUARDANDO_PAGAMENTO
+  CONFIRMADA
+  EM_ANDAMENTO
+  REALIZADA
+  CANCELADA
+}
+Enum StatusPagamento {
+  AGUARDANDO_PAGAMENTO
+  PROCESSANDO
+  SUCESSO
+  FALHA
+}
+Enum MetodoPagamento {
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  PIX
+  CARTEIRA_DIGITAL
+}
+Enum StatusGaragem {
+  ATIVA
+  INATIVA
+  MANUTENCAO
+}
+Ref ref_001 {
+  Locatario.id > Conta.id
+}
+Ref ref_002 {
+  Locatario.deficienciaId > Deficiencia.id
+}
+Ref ref_003 {
+  Locador.id > Conta.id
+}
+Ref ref_004 {
+  ModeloVeiculo.idLocador > Locador.id
+}
+Ref ref_005 {
+  Veiculo.idLocador > Locador.id
+}
+Ref ref_006 {
+  Veiculo.idModeloVeiculo > ModeloVeiculo.id
+}
+Ref ref_007 {
+  Veiculo.garagemId > Garagem.id
+}
+Ref ref_008 {
+  Garagem.idLocador > Locador.id
+}
+Ref ref_009 {
+  Reserva.idVeiculo > Veiculo.id
+}
+Ref ref_010 {
+  Reserva.idLocatario > Locatario.id
+}
+Ref ref_011 {
+  Reserva.idGaragemRetirada > Garagem.id
+}
+Ref ref_012 {
+  Reserva.idGaragemDevolucao > Garagem.id
+}
+Ref ref_013 {
+  Avaliacao.idReserva > Reserva.id
+}
+
+
+
