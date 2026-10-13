@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { organizarSuites } from "./test/allure-suites";
 
 const useAllure = process.env.MOVA_VITEST_ALLURE === "1";
 
@@ -11,7 +12,7 @@ export default defineConfig({
       "./test/setup.ts",
     ],
     reporters: useAllure
-      ? ["default", "junit", ["allure-vitest/reporter", { resultsDir: "allure-results" }]]
+      ? ["default", "junit", ["allure-vitest/reporter", { resultsDir: "allure-results", listeners: [{ beforeTestResultWrite: organizarSuites }] }]]
       : ["default", "junit"],
     exclude: ["dist/**", "node_modules", ".worktrees/**"],
     fileParallelism: false,

@@ -178,7 +178,7 @@ NODE_ENV=test SEND_REAL_EMAIL=false npx vitest run --dir test
 - `test/veiculo/veiculo-imagem-minio.test.ts` precisa do MinIO e de `MEDIA_S3_ACCESS_KEY_ID`/`MEDIA_S3_SECRET_ACCESS_KEY`.
 - Nunca rode duas suítes ao mesmo tempo: elas compartilham o `mova_test`.
 
-O CI (`.github/workflows/tests.yml`) roda a suíte com PostgreSQL e MinIO como serviços e publica o relatório Allure no GitHub Pages.
+O CI (`.github/workflows/tests.yml`) roda a suíte com PostgreSQL e MinIO como serviços e publica o relatório Allure no GitHub Pages. Na aba Suites, os testes aparecem agrupados por ator, entidade ou segmento; o grupo de cada arquivo fica em `test/allure-suites.ts` (um teste falha se um arquivo novo ficar sem grupo).
 
 ## Licença
 
