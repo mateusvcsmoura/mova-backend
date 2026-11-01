@@ -75,6 +75,26 @@ describe("Histórico de reservas do locatário", () => {
     expect(segundaPagina.body.result).toHaveLength(2);
     expect(new Set([...primeiraPagina.body.result, ...segundaPagina.body.result].map((r: any) => r.status))).toEqual(new Set(status));
 
+    const ativas = await request(app)
+      .get("/api/reserva?status=CONFIRMADA,EM_ANDAMENTO&page=1&limit=10")
+      .set("Authorization", `Bearer ${outroLocatario.token}`);
+    expect(ativas.status).toBe(200);
+    expect(ativas.body.result).toEqual([]);
+
+    const ativasDoLocatario = await request(app)
+      .get("/api/reserva?status=CONFIRMADA,EM_ANDAMENTO&page=1&limit=10")
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(ativasDoLocatario.status).toBe(200);
+    expect(ativasDoLocatario.body.pagination.total).toBe(2);
+    expect(new Set(ativasDoLocatario.body.result.map((r: any) => r.status))).toEqual(
+      new Set([StatusReserva.CONFIRMADA, StatusReserva.EM_ANDAMENTO]),
+    );
+
+    const statusInvalido = await request(app)
+      .get("/api/reserva?status=CONFIRMADA,INEXISTENTE")
+      .set("Authorization", `Bearer ${locatario.token}`);
+    expect(statusInvalido.status).toBe(400);
+
     const detalhe = await request(app)
       .get(`/api/reserva/${reservas[0].id}`)
       .set("Authorization", `Bearer ${locatario.token}`);

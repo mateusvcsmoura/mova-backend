@@ -60,7 +60,7 @@ export interface ReservaFilters {
   idVeiculo?: string;
   idLocatario?: string;
   idLocador?: string; // filtra pelas reservas dos veículos de um locador
-  status?: StatusReserva;
+  status?: StatusReserva[];
   statusPagamento?: StatusPagamento;
 }
 

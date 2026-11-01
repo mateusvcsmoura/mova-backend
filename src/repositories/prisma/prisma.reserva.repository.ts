@@ -96,7 +96,7 @@ export class PrismaReservaRepository implements IReservaRepository {
     return {
       ...(filters.idVeiculo ? { idVeiculo: filters.idVeiculo } : {}),
       ...(filters.idLocatario ? { idLocatario: filters.idLocatario } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.status?.length ? { status: { in: filters.status } } : {}),
       ...(filters.statusPagamento
         ? { statusPagamento: filters.statusPagamento }
         : {}),
@@ -191,7 +191,8 @@ export class PrismaReservaRepository implements IReservaRepository {
   ): Promise<PaginatedResult<ReservaResponse>> {
     const { skip, take } = toSkipTake(pagination);
     const where = this.buildWhere(filters);
-    await expirarReservasVencidas(where);
+    // Expira sem o filtro de status: senão ?status=CANCELADA nunca veria as vencidas.
+    await expirarReservasVencidas({ ...where, status: undefined });
     const [data, total] = await prisma.$transaction([
       prisma.reserva.findMany({
         where,

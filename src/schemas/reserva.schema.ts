@@ -89,7 +89,12 @@ export const updateReservaSchema = z
 export const reservaQuerySchema = z.object({
   idVeiculo: z.string().uuid().optional(),
   idLocatario: z.string().uuid().optional(),
-  status: z.nativeEnum(StatusReserva).optional(),
+  // Aceita um ou mais status separados por vírgula: ?status=CONFIRMADA,EM_ANDAMENTO
+  status: z
+    .string()
+    .transform((valor) => valor.split(","))
+    .pipe(z.array(z.nativeEnum(StatusReserva)).min(1))
+    .optional(),
   statusPagamento: z.nativeEnum(StatusPagamento).optional(),
 });
 
