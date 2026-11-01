@@ -1,7 +1,7 @@
 // Frota extra de demonstração: fotos para os veículos do seed que não tinham imagem e veículos novos para que
 // cada filtro do catálogo (Econômico, Espaçoso, Executivo, PCD, Elétrico) mostre de 4 a 7 opções.
 // Usado por seed-demo.ts (reset completo) e seed-demo-frota.ts (acréscimo sem apagar dados).
-// Fotos: Wikimedia Commons, licenças livres — autor e licença em prisma/assets/veiculos/CREDITOS.md.
+// Fotos: Wikimedia Commons, licenças livres — autor e licença na seção "Créditos das fotos de demonstração" do README.md.
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
